@@ -6,6 +6,16 @@ Automatically Edits Videos and Uploads to Tiktok with 1 line of code.
 > pip install -r requirements.txt
 
 
+#### Notes
+
+Please use chromedriver.exe as its source code has been edited to avoid bot detection on tiktok website.
+
+Do not spam upload videos as tiktok will most likely ban you after this or during the act.
+
+I am not responsible/ liable for any damages or problems you face using this tool, use at own risk. 
+
+
+
 ### Basic Usage Example
 
 > if __name__ == "__main__":
