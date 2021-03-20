@@ -26,7 +26,7 @@ class Upload:
         self.userPreference = user
 
 
-    def uploadVideo(self, video_dir, videoText, startTime=0, endTime=0, private=True):
+    def uploadVideo(self, video_dir, videoText, startTime=0, endTime=0, private=True, test=True):
         video_dir = self.downloadIfYoutubeURL(video_dir)
         self.userRequest["dir"] = os.path.join(video_dir)
         self.checkFileExtensionValid()
@@ -51,7 +51,8 @@ class Upload:
             self.bot.execute_script(
             'document.getElementsByClassName("radio-group")[0].children[0].click()')  # public video selection
         utils.randomTimeQuery()
-        # self.bot.execute_script('document.getElementsByClassName("btn-post")[0].click()')  # upload button
+        if not test:
+            self.bot.execute_script('document.getElementsByClassName("btn-post")[0].click()')  # upload button
         input("Exit")
 
 

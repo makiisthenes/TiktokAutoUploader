@@ -8,7 +8,7 @@ class Main:
         self.user = User(video_save_dir)
         self.upload = Upload(self.user)
 
-    def uploadVideo(self, file_dir="test1.mp4", video_overlay="", startTime=0, endTime=0, private=True):
+    def uploadVideo(self, file_dir="test1.mp4", video_overlay="", startTime=0, endTime=0, private=True, test=True):
         self.upload.uploadVideo(file_dir, video_overlay)
         
         
@@ -19,5 +19,5 @@ if __name__ == "__main__":
     tiktok_bot.uploadVideo("test1.mp4", "This is text \n overlay on \n the video", 1, 45)
 
     # Or use youtube url as video source. [Simpsons Meme 1:16 - 1:32 Example]
-    tiktok_bot.uploadVideo("https://www.youtube.com/watch?v=OGEouryaQ3g", "Youtube test", startTime=76, endTime=92, private=False)
+    tiktok_bot.uploadVideo("https://www.youtube.com/watch?v=OGEouryaQ3g", "Youtube test", startTime=76, endTime=92, private=False, test=False)
 
