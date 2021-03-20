@@ -10,9 +10,11 @@ Automatically Edits Videos and Uploads to Tiktok with 1 line of code.
 
 Please use chromedriver.exe as its source code has been edited to avoid bot detection on tiktok website.
 
+Use only tiktok accounts that can be accessed through email password on browser, OAuth2.0 may not work, slightly probable.
+
 Do not spam upload videos as tiktok will most likely ban you after this or during the act.
 
-I am not responsible/ liable for any damages or problems you face using this tool, use at own risk. 
+I am not responsible/ liable for any damages or problems or resulting effects you face using this tool or in relation with this tool, use at own risk. 
 
 
 
