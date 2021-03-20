@@ -1,6 +1,11 @@
 # TiktokAutoUploader - Complete
 Automatically Edits Videos and Uploads to Tiktok with 1 line of code.
 
+#### Setup
+
+> pip install -r requirements.txt
+
+
 ### Basic Usage Example
 
 > if __name__ == "__main__":
