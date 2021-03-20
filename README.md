@@ -12,7 +12,7 @@ Automatically Edits Videos and Uploads to Tiktok with 1 line of code.
 
 #### Notes
 
-Please use chromedriver.exe as its source code has been edited to avoid bot detection on tiktok website.
+Please use chromedriver.exe provided as its source code has been edited to avoid bot detection on tiktok website.
 
 Use only tiktok accounts that can be accessed through email password on browser, OAuth2.0 may not work, slightly probable.
 
