@@ -26,9 +26,9 @@ class Upload:
         self.userPreference = user
 
 
-    def uploadVideo(self, video_dir, videoText, startTime=0, endTime=0, private=True, test=True):
+    def uploadVideo(self, video_dir, videoText, startTime=0, endTime=0, private=True, test=False):
         video_dir = self.downloadIfYoutubeURL(video_dir)
-        self.userRequest["dir"] = os.path.join(video_dir)
+        self.userRequest["dir"] = video_dir
         self.checkFileExtensionValid()
         self.userRequest["cap"] = self.IO.getHashTagsFromFile()
         self.bot.get(self.url)
@@ -71,7 +71,9 @@ class Upload:
         # Check if file has correct .mp4 extension, else throw error.
         self.video = Video(self.userRequest["dir"], self.userRequest["vidTxt"])
         self.video.createVideo()
-        if not startTime == 0 and endTime == 0:
+        print(f"startTime: {startTime}, endTime: {endTime}")
+        if startTime != 0 and endTime != 0:
+            print(f"Cropping Video timestamps: {startTime}, {endTime}")
             self.video.customCrop(startTime, endTime)
         while not os.path.exists(self.userRequest["dir"]):  # Wait for path to exist
             time.sleep(1)

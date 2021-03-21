@@ -31,7 +31,7 @@ class Video:
         # Used to wrap caption appropriately.
         lines = self.caption.splitlines()
         for line in lines:
-            if len(line) > (.7 * clip.size[0]):
+            if len(line) > (.7 * self.clip.size[0]):
                 # 13 characters allowed per line including spaces.
                 pass
 
@@ -87,6 +87,5 @@ class Video:
 
 if __name__ == "__main__":
     # test code
-    clip = VideoFileClip(r"VideosDirPath\1616262380.mp4")
-    width = (.7 * clip.size[0])
-    print(f"Width of tag: {width} pixels out of {clip.w} pixels.")
+    video = Video(r"VideosDirPath\test.mp4", "")
+    video.customCrop(0, 2)
