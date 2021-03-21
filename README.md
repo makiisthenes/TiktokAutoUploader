@@ -37,3 +37,10 @@ I am not responsible/ liable for any damages or problems or resulting effects yo
 >     # Or use youtube url as video source. [Simpsons Meme 1:16 - 1:32 Example]
 >     
 >     tiktok_bot.uploadVideo("https://www.youtube.com/watch?v=OGEouryaQ3g", "TextOverlay", startTime=76, endTime=92, private=False)
+
+### Example Video
+
+https://user-images.githubusercontent.com/52138450/111905871-d07a8900-8a45-11eb-8da7-531793703809.mp4
+
+
+
