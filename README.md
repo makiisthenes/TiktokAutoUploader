@@ -40,7 +40,7 @@ I am not responsible/ liable for any damages or problems or resulting effects yo
 
 ### Example Video
 
-<video src="https://user-images.githubusercontent.com/52138450/111905871-d07a8900-8a45-11eb-8da7-531793703809.mp4"/>
+https://user-images.githubusercontent.com/52138450/111905871-d07a8900-8a45-11eb-8da7-531793703809.mp4
 
 
 
