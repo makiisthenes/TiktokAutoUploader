@@ -9,6 +9,18 @@ Automatically Edits Videos and Uploads to Tiktok with 1 line of code.
 
 > pip install -r requirements.txt
 
+Have you installed ImageMagick on your system,
+
+https://imagemagick.org/script/download.php
+
+Then in site-packages, go to moviepy and edit config_defualts.py
+
+![image](https://user-images.githubusercontent.com/52138450/111904491-27c92b00-8a3f-11eb-85ee-56bdcb4ac4c9.png)
+
+Change this auto to your path like shown in image above.
+
+
+
 
 #### Notes
 
