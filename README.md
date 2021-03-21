@@ -4,7 +4,9 @@ Automatically Edits Videos and Uploads to Tiktok with 1 line of code.
 <center>
 <image src="https://user-images.githubusercontent.com/52138450/111885490-04ab6680-89c0-11eb-955a-f833577b4406.png" width="35%">
 </center>
-  
+
+--------------------------------------
+
 #### Setup
 
 > pip install -r requirements.txt
@@ -19,8 +21,7 @@ Then in site-packages, go to moviepy and edit config_defualts.py
 
 Change this auto to your path like shown in image above.
 
-
-
+-----------------------------------
 
 #### Notes
 
@@ -32,7 +33,7 @@ Do not spam upload videos as tiktok will most likely ban you after this or durin
 
 I am not responsible/ liable for any damages or problems or resulting effects you face using this tool or in relation with this tool, use at own risk. 
 
-
+---------------------------------
 
 ### Basic Usage Example
 
@@ -49,6 +50,8 @@ I am not responsible/ liable for any damages or problems or resulting effects yo
 >     # Or use youtube url as video source. [Simpsons Meme 1:16 - 1:32 Example]
 >     
 >     tiktok_bot.uploadVideo("https://www.youtube.com/watch?v=OGEouryaQ3g", "TextOverlay", startTime=76, endTime=92, private=False)
+
+--------------------------------
 
 ### Example Video
 
