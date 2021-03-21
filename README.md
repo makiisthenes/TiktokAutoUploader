@@ -62,7 +62,13 @@ I am not responsible/ liable for any damages or problems or resulting effects yo
 >     tiktok_bot.uploadVideo("https://www.youtube.com/watch?v=OGEouryaQ3g", "TextOverlay", startTime=76, endTime=92, private=False)
 
 --------------------------------
+### Image Overlay Feature
 
+![image](https://user-images.githubusercontent.com/52138450/111910179-3a9c2980-8a58-11eb-9dcc-b3356cede5eb.png)
+![image](https://user-images.githubusercontent.com/52138450/111910201-47208200-8a58-11eb-8d53-927ab5608ff8.png)
+
+
+--------------------------------
 ### Example Video
 
 https://user-images.githubusercontent.com/52138450/111905871-d07a8900-8a45-11eb-8da7-531793703809.mp4
