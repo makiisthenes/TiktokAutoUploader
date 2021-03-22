@@ -1,4 +1,4 @@
-# TiktokAutoUploader - Open to edits
+# TiktokAutoUploader - Open to code contributions
 Automatically Edits Videos and Uploads to Tiktok with 1 line of code.
 
 <center>
