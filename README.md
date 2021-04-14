@@ -25,7 +25,7 @@ Change this auto to your path like shown in image above.
 
 #### Parameters
 
-> method uploadVideo(video_dir, videoText, startTime=0, endTime=0, private=True, test=True)
+> method uploadVideo(video_dir, videoText, startTime=0, endTime=0, private=True, test=False)
 
 By defualt test=True meaning it will not upload and only stay preview for user to click upload.
 
