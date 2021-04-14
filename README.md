@@ -27,9 +27,9 @@ Change this auto to your path like shown in image above.
 
 > method uploadVideo(video_dir, videoText, startTime=0, endTime=0, private=True, test=False)
 
-By defualt test=True meaning it will not upload and only stay preview for user to click upload.
+By defualt test=False meaning it will upload and not stay preview for user to click upload.
 
-Switching to test=False, it will upload.
+Switching to test=True, it will allow you to preview.
 
 -----------------------------------
 
