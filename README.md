@@ -81,9 +81,7 @@ I am not responsible/ liable for any damages or problems or resulting effects yo
 --------------------------------
 ### Image Overlay Feature
 
-![image](https://user-images.githubusercontent.com/52138450/111910179-3a9c2980-8a58-11eb-9dcc-b3356cede5eb.png)
-![image](https://user-images.githubusercontent.com/52138450/111910201-47208200-8a58-11eb-8d53-927ab5608ff8.png)
-
+![image](https://user-images.githubusercontent.com/52138450/115037820-c756cd80-9ec6-11eb-97b0-e617e1b029b7.png)
 
 --------------------------------
 ### Example Video
