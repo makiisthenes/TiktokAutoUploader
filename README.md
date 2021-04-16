@@ -1,4 +1,4 @@
-# TiktokAutoUploader
+# TiktokAutoUploader v1.1
 Automatically Edits Videos and Uploads to Tiktok with 1 line of code.
 
 <center>
@@ -72,6 +72,8 @@ Use only tiktok accounts that can be accessed through email password on browser,
 Do not spam upload videos as tiktok will most likely ban you after this or during the act.
 
 I am not responsible/ liable for any damages or problems or resulting effects you face using this tool or in relation with this tool, use at own risk. 
+
+Webdriver selected classes that are most likely not going to change in a while, looking for alternatives.
 
 ---------------------------------
 
