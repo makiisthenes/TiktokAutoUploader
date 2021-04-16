@@ -93,9 +93,9 @@ class Upload:
         if startTime != 0 and endTime != 0:
             print(f"Cropping Video timestamps: {startTime}, {endTime}")
             self.video.customCrop(startTime, endTime)
-        while not os.path.exists(self.userRequest["dir"]):  # Wait for path to exist
+        while not os.path.exists(self.video.dir):  # Wait for path to exist
             time.sleep(1)
-        abs_path = os.path.join(os.getcwd(), self.userRequest["dir"])
+        abs_path = os.path.join(os.getcwd(), self.video.dir)
         file_input_element.send_keys(abs_path)
 
 
