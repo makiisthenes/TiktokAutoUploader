@@ -10,8 +10,13 @@ from Bot import Bot
 from Cookies import Cookies
 from IO import IO
 from Video import Video
+from moviepy.editor import VideoFileClip, AudioFileClip
 
 # TODO: Decouple Bot functionality in Upload Class
+# TODO: Decouple Video Class Functionality in Youtube Section.
+
+
+PROTECTED_FILES = ["processed.mp4", "VideosSaveHere.txt"]
 
 
 class Upload:
@@ -19,15 +24,18 @@ class Upload:
         self.bot = Bot().getBot()
         self.url = "https://www.tiktok.com/upload?lang=en"
         self.cookies = Cookies()
-        self.userRequest = {"dir":"", "cap": "", "vidTxt": ""}
+        self.userRequest = {"dir": "", "cap": "", "vidTxt": ""}
         self.video = None
         self.IO = IO("hashtags.txt")
         self.videoFormats = ["mov", "flv", "avi"]
         self.userPreference = user
 
 
+    # Class used to upload video.
     def uploadVideo(self, video_dir, videoText, startTime=0, endTime=0, private=True, test=False):
         video_dir = self.downloadIfYoutubeURL(video_dir)
+        if not video_dir:
+            return
         self.userRequest["dir"] = video_dir
         self.checkFileExtensionValid()
         self.userRequest["cap"] = self.IO.getHashTagsFromFile()
@@ -48,14 +56,23 @@ class Upload:
             self.bot.execute_script(
                 'document.getElementsByClassName("radio-group")[0].children[2].click()')  # private video selection
         else:
-            self.bot.execute_script(
-            'document.getElementsByClassName("radio-group")[0].children[0].click()')  # public video selection
+            self.bot.execute_script('document.getElementsByClassName("radio-group")[0].children[0].click()')  # public video selection
         utils.randomTimeQuery()
         if not test:
             self.bot.execute_script('document.getElementsByClassName("btn-post")[0].click()')  # upload button
         input("Exit")
 
 
+    # Method to check file is valid.
+    def checkFileExtensionValid(self):
+        if self.userRequest["dir"].endswith('.mp4'):
+            pass
+        else:
+            self.bot.close()
+            exit(f"File: {self.userRequest['dir']} has wrong file extension.")
+
+
+    # This gets the hashtags from file and adds them to the website input
     def addCaptions(self):
         # Add div elements to dom.
         self.bot.implicitly_wait(3)
@@ -65,12 +82,13 @@ class Upload:
             caption_elem.send_keys(hashtag)
 
 
+    # This is in charge of adding the video into tiktok input element.
     def inputVideo(self, startTime=0, endTime=0):
         WebDriverWait(self.bot, 10).until(EC.presence_of_element_located((By.CLASS_NAME, "upload-btn-input")))
         file_input_element = self.bot.find_elements_by_class_name("upload-btn-input")[0]
         # Check if file has correct .mp4 extension, else throw error.
-        self.video = Video(self.userRequest["dir"], self.userRequest["vidTxt"])
-        self.video.createVideo()
+        self.video = Video(self.userRequest["dir"], self.userRequest["vidTxt"], self.userPreference)
+        self.video.createVideo()  # Link to video class method
         print(f"startTime: {startTime}, endTime: {endTime}")
         if startTime != 0 and endTime != 0:
             print(f"Cropping Video timestamps: {startTime}, {endTime}")
@@ -81,37 +99,81 @@ class Upload:
         file_input_element.send_keys(abs_path)
 
 
-
-    def checkFileExtensionValid(self):
-        if self.userRequest["dir"].endswith('.mp4'):
-            pass
-        else:
-            self.bot.close()
-            exit(f"File: {self.userRequest['dir']} has wrong file extension.")
-
-
+    # This is in charge of determining if is youtube url and downloading video if available.
     def downloadIfYoutubeURL(self, video_dir):
-        if "www.youtube.com/" in video_dir:
+        # https://stackoverflow.com/questions/6556559/youtube-api-extract-video-id/6556662#6556662
+        url_variants = ["http://youtu.be/", "https://youtu.be/", "http://youtube.com/", "https://youtube.com/", "https://m.youtube.com/", "http://www.youtube.com/", "https://www.youtube.com/"]
+        # if "www.youtube.com/" in video_dir:
+        if any(ext in video_dir for ext in url_variants):
             print("Detected Youtube Video...")
-            video = YouTube(video_dir)
-            [print(i) for i in video.streams.filter(file_extension="mp4").all()]
-            index = input("Enter iTag value of video you want to use:: ")
-            while type(index) != int:
-                try:
-                    index = int(index)
-                except Exception as e:
-                    index = input("Please enter an integer, iTag value of video you want to use:: ")
-            random_filename = str(int(time.time()))
-            video_path = os.path.join(self.userPreference.video_save_dir, random_filename)+".mp4"
-            video.streams.get_by_itag(int(index)).download(output_path=self.userPreference.video_save_dir, filename=random_filename)
-            return video_path
+            video = YouTube(video_dir).streams.filter(file_extension="mp4", adaptive=True).first()
+            audio = YouTube(video_dir).streams.filter(file_extension="webm", only_audio=True, adaptive=True).first()
+            if video and audio:
+                random_filename = str(int(time.time()))  # extension is added automatically.
+                video_path = os.path.join(self.userPreference.video_save_dir, "pre-processed")+".mp4"
+                resolution = int(video.resolution[:-1])
+                if resolution >= 360:
+                    video.download(output_path="VideosDirPath", filename=random_filename)
+                    print("Downloaded Video File")
+                    audio.download(output_path="VideosDirPath", filename="a" + random_filename)
+                    print("Downloaded Audio File")
+                    file_check_iter = 0
+                    while not os.path.exists("VideosDirPath\\" + random_filename + ".mp4") and os.path.exists("VideosDirPath\\" + "a" + random_filename + ".webm"):
+                        time.sleep(1)
+                        file_check_iter=+1
+                        if file_check_iter > 10:
+                            print("Error saving these files to directory, please try again")
+                            return
+                    video = VideoFileClip(os.path.join(self.userPreference.video_save_dir, random_filename + ".mp4"))
+                    audio = AudioFileClip(os.path.join(self.userPreference.video_save_dir, "a" + random_filename + ".webm"))
+                    composite_video = video.set_audio(audio)
+                    # composite_video = composite_video.subclip(t_start=0, t_end=3)
+                    composite_video.write_videofile(video_path)
+                    return video_path
+                else:
+                    print("All videos have are too low of quality.")
+                    return
+            print("No videos available with both audio and video available...")
+            return False
         return video_dir
 
-    @staticmethod
-    def checkTiktokStatus():
-        pass
 
 
 if __name__ == "__main__":
+    from User import User
+    from Video import Video
+    from moviepy.editor import VideoFileClip, AudioFileClip
+    from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip  # not needed
     # Upload Test Code
-    pass
+    '''
+        video = YouTube("https://www.youtube.com/watch?v=-doMNIdooe8").streams.filter(file_extension="mp4", adaptive=True).first()
+        audio = YouTube("https://www.youtube.com/watch?v=-doMNIdooe8").streams.filter(file_extension="webm", only_audio=True, adaptive=True).first()
+        if video and audio:
+            resolution = int(video.first().resolution[:-1])
+            if resolution < 360:
+                print("All videos have are too low of quality.")
+    
+            random_filename = str(int(time.time()))
+    
+            video.download(output_path="VideosDirPath", filename=random_filename)
+            print("Downloaded Video File")
+            audio.download(output_path="VideosDirPath", filename="a"+random_filename)
+            print("Downloaded Audio File")
+            while not os.path.exists("VideosDirPath\\" + random_filename+".mp4") and os.path.exists("VideosDirPath\\" + "a" + random_filename+".webm"):
+                time.sleep(1)
+            video = VideoFileClip("VideosDirPath\\" + random_filename+".mp4")
+            audio = AudioFileClip("VideosDirPath\\" + "a"+random_filename+".webm")
+            # Merging both audio and video clips together.
+            composite_video = video.set_audio(audio)
+            composite_video = composite_video.subclip(t_start=5, t_end=8)
+            composite_video.write_videofile("merged.mp4", fps=24)
+    
+    
+    '''
+
+    # dir = "VideosDirPath/1618578553.mp4"
+    ffmpeg_extract_subclip(dir, 0, 3, targetname="1618578553.mp4")
+    dir = (Upload(User("VideosDirPath")).downloadIfYoutubeURL("https://www.youtube.com/watch?v=-doMNIdooe8"))
+
+    # Issues with cropping videos using moviepy, looking at docs or alt.
+    Video(dir, "Test").customCrop(0, 3)

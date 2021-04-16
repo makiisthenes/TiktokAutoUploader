@@ -1,8 +1,5 @@
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 import os
 # https://stackoverflow.com/questions/33225947/can-a-website-detect-when-you-are-using-selenium-with-chromedriver
 
@@ -31,12 +28,11 @@ class Bot:
     def getBot(self):
         return self.bot
 
-
     @staticmethod
     def createUndetectedChromeDriver():
         # In charge of removing tell-tale variable names that show its a automation bot in Javascript. PERL required.
-        os.popen("perl - pi - e 's/cdc_/dog_/g' 'B:\Coding Projects\Python PROJECTS\TikTokAutomation\chromedriver.exe'")
-
+        chromedriver_path = os.path.join(os.getcwd(), "chromedriver.exe")
+        os.popen(f"perl - pi - e 's/cdc_/dog_/g' '{chromedriver_path}'")
 
 
 if __name__ == "__main__":
