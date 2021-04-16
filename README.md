@@ -19,6 +19,10 @@ All these issues have now been fixed.<br>
 <br>
 Current Problems:<br>
 -> Design and layout of classes was not thought out as well and so left it very messy and not structured well.<br>
+TODO: <br>
+-> Allow users to add schedule video uploads using CSV file. <br>
+-> Improve structuring of code and design better one. <br>
+-> Maybe add a GUI? <br>
 <br>
 
 
