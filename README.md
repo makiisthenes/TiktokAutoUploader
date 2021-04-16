@@ -9,19 +9,28 @@ Automatically Edits Videos and Uploads to Tiktok with 1 line of code.
 #### Issues Fixed
 
 Previously the code had a lot of problems with many things when reviewing again: <br>
+<br>
 -> Files were read and being overwritten at same time, leading to corrupt and sometimes frozen video outputs.<br>
+<br>
 -> Sometimes when extracting youtube videos, there may not be audio available and so will continue regardless.<br>
+<br>
 -> The video dimensions never fit the tiktok recommended dims and so was obscured when uploaded.<br>
+<br>
 -> The layout for captions on the video and overall format of the video was not nice to look at.<br>
+<br>
 -> Cropping videos did not work properly most of the time.<br>
 <br>
 All these issues have now been fixed.<br>
 <br>
+<br>
 Current Problems:<br>
 -> Design and layout of classes was not thought out as well and so left it very messy and not structured well.<br>
+<br>
 TODO: <br>
 -> Allow users to add schedule video uploads using CSV file. <br>
+<br>
 -> Improve structuring of code and design better one. <br>
+<br>
 -> Maybe add a GUI? <br>
 <br>
 
