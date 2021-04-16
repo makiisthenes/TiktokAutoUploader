@@ -49,6 +49,9 @@ Then in site-packages, go to moviepy and edit config_defualts.py
 
 ![image](https://user-images.githubusercontent.com/52138450/111904491-27c92b00-8a3f-11eb-85ee-56bdcb4ac4c9.png)
 
+![positioning](https://user-images.githubusercontent.com/52138450/115039715-9b3c4c00-9ec8-11eb-8560-2aa31ff90e32.png)
+
+
 Change this auto to your path like shown in image above.
 
 -----------------------------------
