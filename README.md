@@ -58,11 +58,11 @@ Webdriver selected classes that are most likely not going to change in a while, 
 >     
 >     # Use a video from your directory.
 >     
->     tiktok_bot.uploadVideo("test1.mp4", "This is text \n overlay on \n the video", 1, 45)
+>     tiktok_bot.video.uploadVideo("test1.mp4", "This is text \n overlay on \n the video", 1, 45)
 > 
 >     # Or use youtube url as video source. [Simpsons Meme 1:16 - 1:32 Example]
 >     
->     tiktok_bot.uploadVideo("https://www.youtube.com/watch?v=OGEouryaQ3g", "TextOverlay", startTime=76, endTime=92, private=False)
+>     tiktok_bot.video.uploadVideo("https://www.youtube.com/watch?v=OGEouryaQ3g", "TextOverlay", startTime=76, endTime=92, private=False)
 
 --------------------------------
 ### Image Overlay Feature
