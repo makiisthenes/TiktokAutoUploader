@@ -1,4 +1,5 @@
 from setuptools import setup
+import os
 
 setup(
     name='TikTokAutomation',
@@ -10,3 +11,4 @@ setup(
     author_email='ec20433@qmul.ac.uk',
     description='Tiktok Automatic Uploader'
 )
+

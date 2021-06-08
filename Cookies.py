@@ -7,6 +7,7 @@ class Cookies:
         self.cookie_name = cookie_name
         self.cookie_path = os.path.join(self.cookies_dir, self.cookie_name)
         self.cookies = None
+        self.cookies_users = []
 
     def __len__(self):
         if self.checkCookiesExists():
@@ -32,3 +33,10 @@ class Cookies:
                 bot.add_cookie(cookie)
             return True
         return False
+
+
+if __name__ == "__main__":
+    cookies = pickle.load(open("tiktok.cookie", "rb"))
+    print(cookies)
+    for cookie_key in cookies.keys():
+        print(f"{cookie_key} ==> {cookies[cookie_key]}")
