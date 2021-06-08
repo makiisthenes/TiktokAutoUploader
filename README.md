@@ -54,7 +54,7 @@ Webdriver selected classes that are most likely not going to change in a while, 
 > 
 >     # Example Usage
 >     
->     tiktok_bot = Main("VideosDirPath")
+>     tiktok_bot = TiktokBot("VideosDirPath")
 >     
 >     # Use a video from your directory.
 >     
