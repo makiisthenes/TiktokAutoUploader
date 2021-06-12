@@ -1,4 +1,4 @@
-# TiktokAutoUploader v1.1
+# TiktokAutoUploader v1.1 [cookies uncomplete]
 Automatically Edits Videos and Uploads to Tiktok with 1 line of code.
 
 <center>
