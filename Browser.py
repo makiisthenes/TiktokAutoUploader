@@ -22,7 +22,7 @@ class Browser:
         options.add_experimental_option('useAutomationExtension', False)
         # For ChromeDriver version 79.0.3945.16 or over
         options.add_argument('--disable-blink-features=AutomationControlled')
-        self.bot = webdriver.Chrome(chrome_options=options)
+        self.bot = webdriver.Chrome(options=options)
         self.bot.delete_all_cookies()
 
     def getBot(self):
