@@ -45,6 +45,8 @@ Do not spam upload videos as tiktok will most likely ban you after this or durin
 I am not responsible/ liable for any damages or problems or resulting effects you face using this tool or in relation with this tool, use at own risk. 
 
 Webdriver selected classes that are most likely not going to change in a while, looking for alternatives.
+  
+If you have any issues or errors with pytube, please use `pip install git+https://github.com/pytube/pytube` instead of pip install pytube3, as that is usually slow to update from githup repo.
 
 ---------------------------------
 
