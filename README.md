@@ -118,7 +118,8 @@ TODO: <br>
 <br>
 -> Maybe add a GUI? <br>
 <br>
-
+-> Allow direct uploading of videos.<br>
+<br>
 
 --------------------------------------
 
