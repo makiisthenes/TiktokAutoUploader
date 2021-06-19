@@ -22,8 +22,9 @@ PROTECTED_FILES = ["processed.mp4", "VideosSaveHere.txt"]
 class Upload:
     def __init__(self, user):
         self.bot = None
-        self.url = "https://www.tiktok.com/upload?lang=en"
-        self.cookies = Cookies()
+        self.lang = "en"
+        self.url = f"https://www.tiktok.com/upload?lang={self.lang}"
+        self.cookies = None
         self.userRequest = {"dir": "", "cap": "", "vidTxt": ""}
         self.video = None
         self.IO = IO("hashtags.txt", "schedule.csv")
@@ -50,14 +51,8 @@ class Upload:
 
 
         # Cookies loaded here.
-        if self.cookies.loadCookies(self.bot):
-            self.bot.refresh()
-        else:
-            # User needs to sign in first...
-            input("Please sign in and do captcha to save captcha.\nPress any button to continue...")
-            self.cookies.writeCookie(self.bot.get_cookies())
-
-
+        self.cookies = Cookies(self.bot)
+        self.bot.refresh()
 
         # User now has logged on and can upload videos
         time.sleep(3)
@@ -73,6 +68,7 @@ class Upload:
         if not test:
             self.bot.execute_script('document.getElementsByClassName("btn-post")[0].click()')  # upload button
         input("Press any button to exit")
+
 
     def createVideo(self, video_dir, videoText, startTime=0, endTime=0):
         video_dir = self.downloadIfYoutubeURL(video_dir)
@@ -120,6 +116,7 @@ class Upload:
             print(f"Cropping Video timestamps: {startTime}, {endTime}")
             self.video.customCrop(startTime, endTime)
         # Crop first and then make video.
+
         self.video.createVideo()  # Link to video class method
         while not os.path.exists(self.video.dir):  # Wait for path to exist
             time.sleep(1)
@@ -134,6 +131,7 @@ class Upload:
         # if "www.youtube.com/" in video_dir:
         if any(ext in video_dir for ext in url_variants):
             print("Detected Youtube Video...")
+            # print(YouTube(video_dir).streams)
             video = YouTube(video_dir).streams.filter(file_extension="mp4", adaptive=True).first()
             audio = YouTube(video_dir).streams.filter(file_extension="webm", only_audio=True, adaptive=True).first()
             if video and audio:
@@ -164,44 +162,3 @@ class Upload:
             print("No videos available with both audio and video available...")
             return False
         return video_dir
-
-
-
-if __name__ == "__main__":
-    from User import User
-    from Video import Video
-    from moviepy.editor import VideoFileClip, AudioFileClip
-    from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip  # not needed
-    # Upload Test Code
-    '''
-        video = YouTube("https://www.youtube.com/watch?v=-doMNIdooe8").streams.filter(file_extension="mp4", adaptive=True).first()
-        audio = YouTube("https://www.youtube.com/watch?v=-doMNIdooe8").streams.filter(file_extension="webm", only_audio=True, adaptive=True).first()
-        if video and audio:
-            resolution = int(video.first().resolution[:-1])
-            if resolution < 360:
-                print("All videos have are too low of quality.")
-    
-            random_filename = str(int(time.time()))
-    
-            video.download(output_path="VideosDirPath", filename=random_filename)
-            print("Downloaded Video File")
-            audio.download(output_path="VideosDirPath", filename="a"+random_filename)
-            print("Downloaded Audio File")
-            while not os.path.exists("VideosDirPath\\" + random_filename+".mp4") and os.path.exists("VideosDirPath\\" + "a" + random_filename+".webm"):
-                time.sleep(1)
-            video = VideoFileClip("VideosDirPath\\" + random_filename+".mp4")
-            audio = AudioFileClip("VideosDirPath\\" + "a"+random_filename+".webm")
-            # Merging both audio and video clips together.
-            composite_video = video.set_audio(audio)
-            composite_video = composite_video.subclip(t_start=5, t_end=8)
-            composite_video.write_videofile("merged.mp4", fps=24)
-    
-    
-    '''
-
-    # dir = "VideosDirPath/1618578553.mp4"
-    ffmpeg_extract_subclip(dir, 0, 3, targetname="1618578553.mp4")
-    dir = (Upload(User("VideosDirPath")).downloadIfYoutubeURL("https://www.youtube.com/watch?v=-doMNIdooe8"))
-
-    # Issues with cropping videos using moviepy, looking at docs or alt.
-    Video(dir, "Test").customCrop(0, 3)

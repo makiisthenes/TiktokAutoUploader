@@ -1,7 +1,7 @@
 from TiktokBot import TiktokBot
 if __name__ == "__main__":
     # Example Usage
- 
+    # pip install git+https://github.com/pytube/pytube
     
     tiktok_bot = TiktokBot("VideosDirPath")  # VideosDirPath, is the directory where images edited will be saved.
         
@@ -13,7 +13,7 @@ if __name__ == "__main__":
     # We can add task schedule from read from a csv: url, caption, startTime, endTime, time_to_release.
     #
 
-    tiktok_bot.upload.uploadVideo("https://www.youtube.com/watch?v=17IQnHON1vc","Peter becomes a Uber Driver!! \nPart1", 4, 45, private=False, test=False)
+    tiktok_bot.upload.uploadVideo("https://www.youtube.com/watch?v=4eegr0W_C5c","", private=False, test=False)
 
 
 
