@@ -1,4 +1,4 @@
-# TiktokAutoUploader v1.1 [cookies uncomplete]
+# TiktokAutoUploader v1.3
 Automatically Edits Videos and Uploads to Tiktok with 1 line of code.
 
 <center>
@@ -81,7 +81,7 @@ If you have any issues or errors with pytube, please use `pip install git+https:
 
 https://user-images.githubusercontent.com/52138450/111905871-d07a8900-8a45-11eb-8da7-531793703809.mp4
 
-
+--------------------------------
 #### Issues Fixed
 
 Previously the code had a lot of problems with many things when reviewing again: <br>
@@ -98,7 +98,16 @@ Previously the code had a lot of problems with many things when reviewing again:
 <br>
 All these issues have now been fixed.<br>
 <br>
+  
+---------------------
+#### Updated Fixes and new features
 <br>
+-> Now you can add multiple tiktok accounts, simple to use prompts.<br>
+<br>
+-> You can now choose not to add a caption to the video without errors.<br>
+<br>
+
+ <br>
 Current Problems:<br>
 -> Design and layout of classes was not thought out as well and so left it very messy and not structured well.<br>
 <br>
