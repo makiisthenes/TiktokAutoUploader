@@ -1,7 +1,11 @@
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.wait import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 import os
 # https://stackoverflow.com/questions/33225947/can-a-website-detect-when-you-are-using-selenium-with-chromedriver
+
 
 
 # Class used to create undetectable selenium bot
@@ -27,6 +31,38 @@ class Bot:
 
     def getBot(self):
         return self.bot
+
+    def getVideoUploadInput(self):
+        WebDriverWait(self.bot, 10).until(EC.presence_of_element_located((By.CLASS_NAME, "upload-btn-input")))
+        file_input_element = self.bot.find_elements_by_class_name("upload-btn-input")[0]
+        return file_input_element
+
+    def getCaptionElem(self):
+        # Add div elements to dom.
+        self.bot.implicitly_wait(3)
+        self.bot.execute_script(
+            f'var element = document.getElementsByClassName("public-DraftStyleDefault-block")[0].children['
+            f'0].getAttribute("data-offset-key");')
+        caption_elem = self.bot.find_elements_by_class_name("public-DraftStyleDefault-block")[0]
+        return caption_elem
+
+    def selectPrivateRadio(self):
+        self.bot.execute_script(
+            'document.getElementsByClassName("radio-group")[0].children[2].click()')
+        return
+
+    def selectPublicRadio(self):
+        self.bot.execute_script(
+            'document.getElementsByClassName("radio-group")[0].children[0].click()')
+        return
+
+    def selectScheduleToggle(self):
+        return self.bot.find_elements_by_class_name("switch-container")[0]
+
+    def uploadButtonClick(self):
+        self.bot.execute_script(
+            'document.getElementsByClassName("btn-post")[0].click()')
+        return
 
     @staticmethod
     def createUndetectedChromeDriver():

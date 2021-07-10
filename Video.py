@@ -25,7 +25,7 @@ class Video:
         self.clip.write_videofile(self.dir)
 
 
-    def createVideo(self):
+    def createVideo(self, direct=False):
         self.clip = self.clip.resize(width=1080)  # Ignore error.
         base_clip = ColorClip(size=(1080, 1920), color=[10, 10, 10], duration=self.clip.duration)
         OFFSET = -20
