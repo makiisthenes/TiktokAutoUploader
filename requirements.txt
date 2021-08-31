@@ -1,7 +1,7 @@
 certifi==2020.12.5
 chardet==4.0.0
 decorator==4.4.2
-idna==3.0
+idna
 imageio==2.9.0
 imageio-ffmpeg==0.4.3
 moviepy==1.0.3
@@ -9,8 +9,10 @@ numpy==1.20.1
 Pillow==8.1.2
 proglog==0.1.9
 requests==2.25.1
-selenium==3.141.0
-tqdm==4.59.0
+selenium
+tqdm
 urllib3==1.26.4
 setuptools~=54.1.2
-git+https://github.com/pytube/pytube
+git+git://github.com/pytube/pytube
+undetected-chromedriver
+fake_useragent

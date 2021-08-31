@@ -1,33 +1,15 @@
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-import os
-# https://stackoverflow.com/questions/33225947/can-a-website-detect-when-you-are-using-selenium-with-chromedriver
+import selenium.common
 
 
 
-# Class used to create undetectable selenium bot
+
 class Bot:
-    def __init__(self):
-        self.user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36"
-        options = Options()
-        options.add_argument("window-size=1280,800")
-        options.add_argument("user-agent=" + self.user_agent)
-        options.add_argument('--disable-extensions')
-        options.add_argument('--profile-directory=Default')
-        options.add_argument("--incognito")
-        options.add_argument("--disable-plugins-discovery")
-        options.add_argument("--start-maximized")
-
-        # For older ChromeDriver under version 79.0.3945.16
-        options.add_experimental_option("excludeSwitches", ["enable-automation"])
-        options.add_experimental_option('useAutomationExtension', False)
-        # For ChromeDriver version 79.0.3945.16 or over
-        options.add_argument('--disable-blink-features=AutomationControlled')
-        self.bot = webdriver.Chrome(chrome_options=options)
-        self.bot.delete_all_cookies()
+    """Bot used as high level interaction with web-browser via Javascript exec"""
+    def __init__(self, bot):
+        self.bot = bot
 
     def getBot(self):
         return self.bot
@@ -47,29 +29,36 @@ class Bot:
         return caption_elem
 
     def selectPrivateRadio(self):
-        self.bot.execute_script(
-            'document.getElementsByClassName("radio-group")[0].children[2].click()')
-        return
+        self.click_elem(
+            'document.getElementsByClassName("radio-group")[0].children[2].click()',
+            "Javascript had trouble finding the 'private' toggle radio button with given selector,"
+            " please submit yourself and edit submit button placement.!!")
 
     def selectPublicRadio(self):
-        self.bot.execute_script(
-            'document.getElementsByClassName("radio-group")[0].children[0].click()')
-        return
+        self.click_elem(
+            'document.getElementsByClassName("radio-group")[0].children[0].click()',
+            "Javascript had trouble finding the 'public' toggle radio button with given selector,"
+            " please submit yourself and edit submit button placement.!!")
 
     def selectScheduleToggle(self):
-        return self.bot.find_elements_by_class_name("switch-container")[0]
+        self.click_elem(
+            "document.getElementsByClassName('switch-container')[0].click()",
+            "Javascript had trouble finding the 'schedule' toggle radio button with given selector,"
+            " please submit yourself and edit submit button placement.!!")
 
     def uploadButtonClick(self):
-        self.bot.execute_script(
-            'document.getElementsByClassName("btn-post")[0].click()')
+        self.click_elem(
+            'document.getElementsByClassName("btn-post")[0].click()',
+            "Javascript had trouble finding the Upload button with given selector,"
+            " please submit yourself and edit submit button placement.!!")
+
+
+    def click_elem(self, javascript_script, error_msg):
+        try:
+            self.bot.execute_script(javascript_script)
+        except selenium.common.exceptions.JavascriptException:
+            print(error_msg)
+        except Exception as e:
+            print(f"Unhandled Error: {e}")
+            exit()
         return
-
-    @staticmethod
-    def createUndetectedChromeDriver():
-        # In charge of removing tell-tale variable names that show its a automation bot in Javascript. PERL required.
-        chromedriver_path = os.path.join(os.getcwd(), "chromedriver.exe")
-        os.popen(f"perl - pi - e 's/cdc_/dog_/g' '{chromedriver_path}'")
-
-
-if __name__ == "__main__":
-    Bot.createUndetectedChromeDriver()

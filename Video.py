@@ -33,9 +33,13 @@ class Video:
         top_meme_pos = 960 - (((1080 / self.clip.size[0]) * (self.clip.size[1])) / 2) - OFFSET
         to_pos = 1920 / 6
         if self.caption != "":
-            memeOverlay = TextClip(txt=self.caption, bg_color=self.bg, color=self.color, size=(900, None), kerning=-1,
+            try:
+                memeOverlay = TextClip(txt=self.caption, bg_color=self.bg, color=self.color, size=(900, None), kerning=-1,
                                    method="caption", font=self.font, fontsize=self.font_size,
                                    align="center")  # stroke_color="black", stroke_width=2.5
+            except OSError:
+                print("Please make sure that you have ImageMagick is not installed on your computer, or (for Windows users) that you didn't specify the path to the ImageMagick binary in file conf.py, or that the path you specified is incorrect")
+                exit()
             memeOverlay = memeOverlay.set_duration(self.clip.duration)
             self.clip = CompositeVideoClip([base_clip, self.clip.set_position(("center", "center")), memeOverlay.set_position(("center", bottom_meme_pos))])
         # Continue normal flow.

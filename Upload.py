@@ -1,7 +1,7 @@
 # This class will be in charge of uploading videos onto tiktok.
 import os, time
 from pytube import YouTube
-
+from Bot import Bot
 import utils
 from Browser import Browser
 from Cookies import Cookies
@@ -36,6 +36,7 @@ class Upload:
 
         if self.bot is None:
             self.bot = Browser().getBot()
+            self.webbot = Bot(self.bot)
 
         self.userRequest["dir"] = video_dir
         self.checkFileExtensionValid()
@@ -54,12 +55,12 @@ class Upload:
         self.addCaptions()
         utils.randomTimeQuery()
         if private:
-            self.bot.selectPrivateRadio()  # private video selection
+            self.webbot.selectPrivateRadio()  # private video selection
         else:
-            self.bot.selectPublicRadio()  # public video selection
+            self.webbot.selectPublicRadio()  # public video selection
         utils.randomTimeQuery()
         if not test:
-            self.bot.uploadButtonClick()  # upload button
+            self.webbot.uploadButtonClick()  # upload button
         input("Press any button to exit")
 
     def createVideo(self, video_dir, videoText, startTime=0, endTime=0):
@@ -80,19 +81,19 @@ class Upload:
 
     # This gets the hashtags from file and adds them to the website input
     def addCaptions(self):
-        caption_elem = self.bot.getCaptionElem()
+        caption_elem = self.webbot.getCaptionElem()
         for hashtag in self.IO.getHashTagsFromFile():
             caption_elem.send_keys(hashtag)
 
     def inputScheduler(self, schdate, schtime):
         # In charge of selecting scheduler in the input.
-        schedule_toggle = self.bot.selectScheduleToggle()
         utils.randomTimeQuery()
-        schedule_toggle.click()
+        self.webbot.selectScheduleToggle()
+
 
     # This is in charge of adding the video into tiktok input element.
     def inputVideo(self, startTime=0, endTime=0):
-        file_input_element = self.bot.getVideoUploadInput()()
+        file_input_element = self.webbot.getVideoUploadInput()
         # Check if file has correct .mp4 extension, else throw error.
         self.video = Video(self.userRequest["dir"], self.userRequest["vidTxt"], self.userPreference)
         print(f"startTime: {startTime}, endTime: {endTime}")

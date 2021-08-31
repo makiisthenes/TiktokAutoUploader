@@ -37,9 +37,13 @@ class Cookies:
 
 
     def loadCookies(self, selected_cookie):
+        # Using chrome, sameSite cookie must not be set to None due to Google's policy.
         cookie_path = os.path.join(self.cookies_dir, selected_cookie)
         cookie_data = pickle.load(open(cookie_path, "rb"))
         for cookie in cookie_data:
+            if 'sameSite' in cookie:
+                if cookie['sameSite'] == 'None':
+                    cookie['sameSite'] = 'Strict'
             self.bot.add_cookie(cookie)
 
 

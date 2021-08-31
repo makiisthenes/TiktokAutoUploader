@@ -12,8 +12,8 @@ if __name__ == "__main__":
 
     # We can add task schedule from read from a csv: url, caption, startTime, endTime, time_to_release.
     #
-
-    tiktok_bot.upload.uploadVideo("https://www.youtube.com/watch?v=4eegr0W_C5c","", private=False, test=False)
+    # tiktok_bot.upload.uploadVideo("https://www.youtube.com/watch?v=4eegr0W_C5c", "", private=False, test=False)
+    tiktok_bot.upload.uploadVideo("test.mp4", "Hi", private=False, test=False)
 
 
 
