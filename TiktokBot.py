@@ -14,9 +14,10 @@ class TiktokBot:
         self.clearDir()
 
     def clearDir(self):
+        """
+        Removes all files from a directory.
+        """
         # self.upload = None
-        shutil.rmtree(self.dir)
-        os.makedirs(self.dir)
-
-
-
+        if self.dir:
+            shutil.rmtree(self.dir)
+            os.makedirs(self.dir)

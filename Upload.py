@@ -6,7 +6,7 @@ from Browser import Browser
 from Cookies import Cookies
 from IO import IO
 from Video import Video
-
+from selenium.common.exceptions import StaleElementReferenceException
 
 PROTECTED_FILES = ["processed.mp4", "VideosSaveHere.txt"]
 
@@ -24,8 +24,7 @@ class Upload:
 
 
     # Class used to upload video.
-    def uploadVideo(self, video_dir, videoText, startTime=0, endTime=0, private=True, test=False, scheduled=False,
-                    schdate="", schtime=""):
+    def uploadVideo(self, video_dir, videoText, startTime=0, endTime=0, private=True, test=False, scheduled=False, schdate="", schtime=""):
 
         video_dir = self.downloadIfYoutubeURL(video_dir)
         if not video_dir:
@@ -80,11 +79,15 @@ class Upload:
 
 
     # This gets the hashtags from file and adds them to the website input
-    def addCaptions(self):
-        caption_elem = self.webbot.getCaptionElem()
-        for hashtag in self.IO.getHashTagsFromFile():
-            caption_elem.send_keys(hashtag)
+    def addCaptions(self, hashtag_file=None):
+        if not hashtag_file:
+            caption_elem = self.webbot.getCaptionElem()
+            for hashtag in self.IO.getHashTagsFromFile():
+                caption_elem.send_keys(hashtag)
 
+    def clearCaptions(self):
+        caption_elem = self.webbot.getCaptionElem()
+        caption_elem.send_keys("")
 
     def inputScheduler(self, schdate, schtime):
         # In charge of selecting scheduler in the input.
@@ -120,7 +123,7 @@ class Upload:
         """
         Function will determine whether given video directory is a youtube link, returning the downloaded video path
         Else it will just return current path.
-         """
+        """
 
         url_variants = ["http://youtu.be/", "https://youtu.be/", "http://youtube.com/", "https://youtube.com/",
                         "https://m.youtube.com/", "http://www.youtube.com/", "https://www.youtube.com/"]
@@ -128,3 +131,51 @@ class Upload:
             print("Detected Youtube Video...")
             video_dir = Video.get_youtube_video(self.userPreference, video_dir)
         return video_dir
+
+
+    def directUpload(self, filename, private=False, test=False):
+        if self.bot is None:
+            self.bot = Browser().getBot()
+            self.webbot = Bot(self.bot)
+        self.bot.get(self.url)
+        utils.randomTimeQuery()
+        self.cookies = Cookies(self.bot)
+        self.bot.refresh()
+
+        try:
+            file_input_element = self.webbot.getVideoUploadInput()
+        except Exception as e:
+            print(f"Error: {e}")
+            print("Major error, cannot find the file upload button, please update getVideoUploadInput() in Bot.py")
+            file_input_element = None
+            exit()
+        abs_path = os.path.join(os.getcwd(), filename)
+        try:
+            file_input_element.send_keys(abs_path)
+        except StaleElementReferenceException as e:
+            try:
+                self.bot.implicitly_wait(5)
+                file_input_element = self.webbot.getVideoUploadInput()
+                file_input_element.send_keys(abs_path)
+            except Exception as e:
+                print("Major error, cannot find the file upload button, please update getVideoUploadInput() in Bot.py")
+                exit()
+
+
+        # We need to wait until it is uploaded and then clear input.
+
+        self.addCaptions()
+        utils.randomTimeQuery()
+        if private:
+            self.webbot.selectPrivateRadio()  # private video selection
+            utils.randomTimeQuery()
+        else:
+            """
+            self.webbot.selectPublicRadio()  # public video selection
+            utils.randomTimeQuery()
+            """
+            pass
+        if not test:
+
+            self.webbot.uploadButtonClick()  # upload button
+        input("Press any button to exit")

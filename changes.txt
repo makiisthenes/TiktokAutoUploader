@@ -21,11 +21,10 @@
 
 
 # Notes
-# Tiktok seems to not allow login using normal email/phone login, so please use Google/Twitter/Facebook etc login instead.
-
-# Current issues, youtube downloader package does not work as of right now,
-# so please use an external youtube downloader and link the local file in main.py script.
+# All tiktok logins works as normal!
 
 # I'm currently working on scheduling tiktok videos, so videos can be scheduled for any date in the future.
 
 # There are some versions conflicts in requirements.txt, I will fix asap.
+
+# Please update undetected chrome driver package using pip git+git:// instead of the pypi package.

@@ -3,6 +3,7 @@ from moviepy.editor import *
 from pytube import YouTube
 from moviepy.editor import VideoFileClip, AudioFileClip
 import time
+from tqdm import tqdm
 
 
 
@@ -59,15 +60,26 @@ class Video:
 
 
     @staticmethod
-    def get_youtube_video(user, url):
-        # https://stackoverflow.com/questions/6556559/youtube-api-extract-video-id/6556662#6556662
+    def get_youtube_video(user, url, max_res=1080):
+
+        streams = YouTube(url).streams.filter(progressive=True)
+        valid_streams = sorted(streams, reverse=True, key=lambda x: x.resolution is not None)
+        filtered_streams = sorted(valid_streams, reverse=True, key=lambda x: int(x.resolution.split("p")[0]))
+        if filtered_streams:
+            selected_stream = filtered_streams[0]
+            print("Starting Download for Video...")
+            selected_stream.download(output_path="VideosDirPath", filename="pre-processed")
+            filename = os.path.join("VideosDirPath", "pre-processed"+".mp4")
+            return filename
+
+
         video = YouTube(url).streams.filter(file_extension="mp4", adaptive=True).first()
         audio = YouTube(url).streams.filter(file_extension="webm", only_audio=True, adaptive=True).first()
-
         if video and audio:
             random_filename = str(int(time.time()))  # extension is added automatically.
             video_path = os.path.join(user.video_save_dir, "pre-processed.mp4")
             resolution = int(video.resolution[:-1])
+            # print(resolution)
             if resolution >= 360:
                 downloaded_v_path = video.download(output_path="VideosDirPath", filename=random_filename)
                 print("Downloaded Video File @ " + video.resolution)
@@ -93,15 +105,3 @@ class Video:
                 return
         print("No videos available with both audio and video available...")
         return False
-
-
-if __name__ == "__main__":
-    # Testing youtube download function
-    from User import User
-    import shutil
-    youtube_url = ""  # Enter youtube video here.
-    user = User()
-    shutil.rmtree(user.video_save_dir)
-    os.makedirs(user.video_save_dir)
-    file_path = Video.get_youtube_video(User(), youtube_url)
-    print(file_path)

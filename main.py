@@ -10,12 +10,16 @@ if __name__ == "__main__":
 
     # Or use youtube url as video source. [Simpsons Meme 1:16 - 1:32 Example]
 
-    # We can add task schedule from read from a csv: url, caption, startTime, endTime, time_to_release.
-    #
-    tiktok_bot.upload.uploadVideo("https://www.youtube.com/watch?v=4eegr0W_C5c", "", private=False, test=False)
+    # tiktok_bot.upload.uploadVideo("https://www.youtube.com/watch?v=4eegr0W_C5c", "", private=True, test=False)
     # tiktok_bot.upload.uploadVideo("test.mp4", "Hi", private=False, test=False)
 
 
+    # You can also choose to upload a file directly with no editing or cropping of the video.
+    tiktok_bot.upload.directUpload("test.mp4", private=True, test=True)
+
+
+    ####################################################################################################################
+    # Scheduling does not work currently.
 
     # tiktok_bot.schedule.printSchedule()
     # playlist = https://www.youtube.com/playlist?list=PLiMQfyKvRdimHicuw1cAmwS7d_UiANXcj
@@ -28,9 +32,7 @@ if __name__ == "__main__":
             # Add this video into the csv so that you can upload yourself, by putting test parameter on and just showing you.
             tiktok_bot.schedule.scheduleVideo(url, caption, timeStart, timeEnd)
     '''
-
+    # We can add task schedule from read from a csv: url, caption, startTime, endTime, time_to_release.
     # tiktok_bot.schedule.submit_all_schedule()
-
-
     # tiktok_bot.schedule.scheduleVideo("https://www.youtube.com/watch?v=yxErIigWRv4", "why do these never have my name!!", 115, 125)
     # Default params: Videos are separated by a day each "", time is constant: "20:10" ;
