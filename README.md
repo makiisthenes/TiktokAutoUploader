@@ -58,13 +58,15 @@ If you have any issues or errors with pytube, please use `pip install git+https:
 > 
 >     # Example Usage
 >     
->     tiktok_bot = TiktokBot("VideosDirPath")
+>     tiktok_bot = TiktokBot()
 >     
 >     # Use a video from your directory.
 >     
 >     tiktok_bot.upload.uploadVideo("test1.mp4", "This is text \n overlay on \n the video", 1, 45)
 > 
 >     # Or use youtube url as video source. [Simpsons Meme 1:16 - 1:32 Example]
+>
+>     tiktok_bot.upload.directUpload("test.mp4", private=True, test=True)
 >     
 >     tiktok_bot.upload.uploadVideo("https://www.youtube.com/watch?v=OGEouryaQ3g", "TextOverlay", startTime=76, endTime=92, private=False)
 
