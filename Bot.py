@@ -11,9 +11,10 @@ class Bot:
         return self.bot
 
     def getVideoUploadInput(self):
-        # Button Works
-
-        WebDriverWait(self.bot, 10).until(EC.presence_of_element_located((By.CLASS_NAME, "upload-btn-input")))
+        # Button is nested in iframe document. Select iframe first then select upload button
+        WebDriverWait(self.bot, 10).until(EC.presence_of_element_located((By.TAG_NAME, "iframe")))
+        self.bot.switch_to.frame(0)
+        self.bot.implicitly_wait(1)
         file_input_element = self.bot.find_elements(By.CLASS_NAME, "upload-btn-input")[0]
         # document.getElementsByClassName("op-part")[0].childNodes[1]  # New locator
         return file_input_element
