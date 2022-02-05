@@ -1,0 +1,14 @@
+DEFAULT_COOKIE_DIR = "../CookiesDir"
+VIDEO_SAVE_DIR = "../VideosDirPath"
+HASHTAG_FILE = "../hashtags.txt"
+SCHEDULE_FILE = ""
+LOG_FILE_DIR = ""
+DEFAULT_FONT = "Arial"
+DEFAULT_FONT_SIZE = 80
+DEFAULT_TEXT_FOREGROUND_COLOR = "white"
+DEFAULT_TEXT_BACKGROUND_COLOR = "black"
+TIKTOK_DIM = (1920, 1080)
+TEMP_YOUTUBE_VID_DIR = ""
+LANG = "en"
+BASE_URL = "https://www.tiktok.com/upload?lang"
+IMAGEMAGICK_BINARY = "C:\Program Files\ImageMagick-7.0.9-Q16\convert.exe"
