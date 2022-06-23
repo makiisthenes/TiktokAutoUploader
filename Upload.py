@@ -1,6 +1,7 @@
 # This class will be in charge of uploading videos onto tiktok.
 import os, time
 from Bot import Bot
+import sys
 import utils
 from Browser import Browser
 from Cookies import Cookies
@@ -75,7 +76,7 @@ class Upload:
             pass
         else:
             self.bot.close()
-            exit(f"File: {self.userRequest['dir']} has wrong file extension.")
+            sys.exit(f"File: {self.userRequest['dir']} has wrong file extension.")
 
 
     # This gets the hashtags from file and adds them to the website input
@@ -103,7 +104,7 @@ class Upload:
             print("Major error, cannot find the upload button, please update getVideoUploadInput() in Bot.py")
             print(f"Actual Error: {e}")
             file_input_element = ""
-            exit()
+            sys.exit()
         # Check if file has correct .mp4 extension, else throw error.
         self.video = Video(self.userRequest["dir"], self.userRequest["vidTxt"], self.userPreference)
         print(f"startTime: {startTime}, endTime: {endTime}")
@@ -148,7 +149,7 @@ class Upload:
             print(f"Error: {e}")
             print("Major error, cannot find the file upload button, please update getVideoUploadInput() in Bot.py")
             file_input_element = None
-            exit()
+            sys.exit()
         abs_path = os.path.join(os.getcwd(), filename)
         try:
             file_input_element.send_keys(abs_path)
@@ -159,7 +160,7 @@ class Upload:
                 file_input_element.send_keys(abs_path)
             except Exception as e:
                 print("Major error, cannot find the file upload button, please update getVideoUploadInput() in Bot.py")
-                exit()
+                sys.exit()
 
 
         # We need to wait until it is uploaded and then clear input.

@@ -2,6 +2,7 @@
 from moviepy.editor import *
 from pytube import YouTube
 from moviepy.editor import VideoFileClip, AudioFileClip
+import sys
 import time
 from tqdm import tqdm
 
@@ -51,7 +52,7 @@ class Video:
             except OSError:
                 print("Please make sure that you have ImageMagick is not installed on your computer, or (for Windows users) that you didn't specify the path to the ImageMagick binary in file conf.py, or that the path you specified is incorrect")
                 memeOverlay = None
-                exit()
+                sys.exit()
             memeOverlay = memeOverlay.set_duration(self.clip.duration)
             self.clip = CompositeVideoClip([base_clip, self.clip.set_position(("center", "center")), memeOverlay.set_position(("center", bottom_meme_pos))])
         # Continue normal flow.

@@ -2,6 +2,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import selenium.common
+import sys
 class Bot:
     """Bot used as high level interaction with web-browser via Javascript exec"""
     def __init__(self, bot):
@@ -101,5 +102,5 @@ class Bot:
             print(je)
         except Exception as e:
             print(f"Unhandled Error: {e}")
-            exit()
+            sys.exit()
         return

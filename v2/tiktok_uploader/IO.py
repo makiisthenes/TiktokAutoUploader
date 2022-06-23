@@ -1,3 +1,4 @@
+import sys
 import threading, pickle, os
 
 class IO:
@@ -72,7 +73,7 @@ class IO:
                     self.magick_path = line.split("=")[1].strip().replace('"', '')
                 else:
                     print("Error reading config file, Please check your config file!")
-                    exit()
+                    sys.exit()
 
 
     def pickle_load(self, file_path) -> object:

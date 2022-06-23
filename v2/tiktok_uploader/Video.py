@@ -2,6 +2,7 @@ from .IO import IO
 from moviepy.editor import *
 from moviepy.editor import VideoFileClip, AudioFileClip
 from pytube import YouTube
+import sys
 import time, os
 
 
@@ -51,7 +52,7 @@ class Video:
                 print("Please make sure that you have ImageMagick is not installed on your computer, or (for Windows users) that you didn't specify the path to the ImageMagick binary in file conf.py, or that the path you specified is incorrect")
                 print("https://imagemagick.org/script/download.php#windows")
                 print(e)
-                exit()
+                sys.exit()
             memeOverlay = memeOverlay.set_duration(self.clip.duration)
             self.clip = CompositeVideoClip([base_clip, self.clip.set_position(("center", "center")),
                                             memeOverlay.set_position(("center", bottom_meme_pos))])
@@ -64,7 +65,7 @@ class Video:
 
     def checkFileExtensionValid(self):
         if not self.source_ref.endswith('.mp4'):
-            exit(f"File: {self.source_ref} has wrong file extension. Must be .mp4")
+            sys.exit(f"File: {self.source_ref} has wrong file extension. Must be .mp4")
 
 
     def get_youtube_video(self, max_res=True):

@@ -1,4 +1,5 @@
 from .Browser import Browser
+import sys
 
 class WebBot:
     # Key Web Elements needed:
@@ -107,5 +108,5 @@ class WebBot:
             print(je)
         except Exception as e:
             print(f"Unhandled Error: {e}")
-            exit()
+            sys.exit()
         return
