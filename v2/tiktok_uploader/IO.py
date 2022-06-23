@@ -75,13 +75,16 @@ class IO:
                     exit()
 
 
-    def pickle_load(self, file_path) -> object:
+    @staticmethod
+    def pickle_load(file_path) -> object:
         return pickle.load(open(file_path, "rb"))
 
-    def pickle_dump(self, obj, file_path):
+    @staticmethod
+    def pickle_dump(obj, file_path):
         pickle.dump(obj, open(file_path, "wb"))
 
-    def listdir(self, path):
+    @staticmethod
+    def listdir(path):
         """ List directory """
         return os.listdir(path)
 

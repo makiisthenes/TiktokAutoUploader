@@ -10,5 +10,6 @@ class User:
         self._checkFileDirExist("VideoUploadQueue")
         self._checkFileDirExist("CookiesDir")
 
-    def _checkFileDirExist(self, video_save_dir):
+    @staticmethod
+    def _checkFileDirExist(video_save_dir):
         os.makedirs(video_save_dir, exist_ok=True)

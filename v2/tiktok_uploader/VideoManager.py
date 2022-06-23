@@ -5,7 +5,8 @@ class VideoManager:
     def __init__(self):
         self.videos = []
 
-    def createVideo(self, dir:str, videoText:str =None):
+    @staticmethod
+    def createVideo(dir:str, videoText:str =None):
         """
         Creates a video from the given directory with a specific video text.
         """
