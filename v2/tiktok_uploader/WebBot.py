@@ -108,4 +108,3 @@ class WebBot:
         except Exception as e:
             print(f"Unhandled Error: {e}")
             exit()
-        return
