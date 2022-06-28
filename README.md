@@ -1,6 +1,12 @@
 # TiktokAutoUploader v1.3
 Automatically Edits Videos and Uploads to Tiktok with 1 line of code.
 
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white&style=flat-square)]([https://www.linkedin.com/in/isaac-kogan-5a45b9193/](https://www.linkedin.com/in/michael-p-88b015200/) )
+[![HitCount](https://hits.dwyl.com/makiisthenes/TiktokAutoUploader.svg?style=flat)](http://hits.dwyl.com/makiisthenes/https://githubcom/makiisthenes/TiktokAutoUploader)
+![Forks](https://img.shields.io/github/forks/makiisthenes/TiktokAutoUploader)
+![Stars](https://img.shields.io/github/stars/makiisthenes/TiktokAutoUploader)
+
+
 <center>
 <image src="https://user-images.githubusercontent.com/52138450/111885490-04ab6680-89c0-11eb-955a-f833577b4406.png" width="35%">
 </center>
