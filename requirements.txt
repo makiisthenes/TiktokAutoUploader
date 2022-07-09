@@ -13,6 +13,6 @@ selenium
 tqdm
 urllib3==1.26.4
 setuptools~=54.1.2
-git+git://github.com/pytube/pytube
+git+https://github.com/pytube/pytube.git
 undetected-chromedriver
 fake_useragent
