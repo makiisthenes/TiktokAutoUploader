@@ -1,25 +1,15 @@
-from .IO import IO
+from .Config import Config
+
 from moviepy.editor import *
 from moviepy.editor import VideoFileClip, AudioFileClip
 from pytube import YouTube
 import time, os
 
-
-
-
 class Video:
-
-    def __init__(self, source_ref, videoText):
+    def __init__(self, source_ref, video_text, config):
+        self.config = Config.get()
         self.source_ref = source_ref
-        self.videoText = videoText
-        self.io = IO.getInstance()
-        self.font = self.io.getDefaultFont()
-        self.font_size = self.io.getDefaultFontSize()
-        self.tt_dim = self.io.getTiktokDimension()
-        self.background_color = self.io.getDefaultTextBackgroundColor()
-        self.foreground_color = self.io.getDefaultTextForegroundColor()
-        self.video_save_dir = self.io.getVideoSaveDir()
-
+        self.video_text = video_text
 
         self.source_ref = self.downloadIfYoutubeURL()
         # Wait until self.source_ref is found in the file system.
@@ -29,10 +19,10 @@ class Video:
         self.clip = VideoFileClip(self.source_ref)
 
 
-    def customCrop(self, start_time, end_time, saveFile=False):
+    def crop(self, start_time, end_time, saveFile=False):
         if end_time > self.clip.duration:
             end_time = self.clip.duration
-        save_path = os.path.join(self.video_save_dir, "processed") + ".mp4"
+        save_path = os.path.join(self.config.post_processing_video_path, "processed") + ".mp4"
         self.clip = self.clip.subclip(t_start=start_time, t_end=end_time)
         if saveFile:
             self.clip.write_videofile(save_path)
@@ -43,26 +33,26 @@ class Video:
         self.clip = self.clip.resize(width=1080)
         base_clip = ColorClip(size=(1080, 1920), color=[10, 10, 10], duration=self.clip.duration)
         bottom_meme_pos = 960 + (((1080 / self.clip.size[0]) * (self.clip.size[1])) / 2) + -20
-        if self.videoText:
+        if self.video_text:
             try:
-                memeOverlay = TextClip(txt=self.videoText, bg_color=self.background_color, color=self.foreground_color, size=(900, None), kerning=-1,
-                            method="caption", font=self.font, fontsize=self.font_size, align="center")
+                meme_overlay = TextClip(txt=self.video_text, bg_color=self.config.imagemagick_text_background_color, color=self.config.imagemagick_text_foreground_color, size=(900, None), kerning=-1,
+                            method="caption", font=self.config.imagemagick_font, fontsize=self.config.imagemagick_font_size, align="center")
             except OSError as e:
                 print("Please make sure that you have ImageMagick is not installed on your computer, or (for Windows users) that you didn't specify the path to the ImageMagick binary in file conf.py, or that the path you specified is incorrect")
                 print("https://imagemagick.org/script/download.php#windows")
                 print(e)
                 exit()
-            memeOverlay = memeOverlay.set_duration(self.clip.duration)
+            meme_overlay = meme_overlay.set_duration(self.clip.duration)
             self.clip = CompositeVideoClip([base_clip, self.clip.set_position(("center", "center")),
-                                            memeOverlay.set_position(("center", bottom_meme_pos))])
+                                            meme_overlay.set_position(("center", bottom_meme_pos))])
             # Continue normal flow.
 
-        dir = os.path.join(self.io.getVideoSaveDir(), "post-processed")+".mp4"
+        dir = os.path.join(self.config.post_processing_video_path, "post-processed")+".mp4"
         self.clip.write_videofile(dir, fps=24)
         return dir, self.clip
 
 
-    def checkFileExtensionValid(self):
+    def is_valid_file_format(self):
         if not self.source_ref.endswith('.mp4'):
             exit(f"File: {self.source_ref} has wrong file extension. Must be .mp4")
 
@@ -84,7 +74,7 @@ class Video:
         audio = YouTube(url).streams.filter(file_extension="webm", only_audio=True, adaptive=True).first()
         if video and audio:
             random_filename = str(int(time.time()))  # extension is added automatically.
-            video_path = os.path.join(self.video_save_dir, "pre-processed.mp4")
+            video_path = os.path.join(self.config.post_processing_video_path, "pre-processed.mp4")
             resolution = int(video.resolution[:-1])
             # print(resolution)
             if resolution >= 360:
@@ -113,14 +103,13 @@ class Video:
         print("No videos available with both audio and video available...")
         return False
 
-
-
-
-
+    _YT_DOMAINS = [
+        "http://youtu.be/", "https://youtu.be/", "http://youtube.com/", "https://youtube.com/",
+        "https://m.youtube.com/", "http://www.youtube.com/", "https://www.youtube.com/"
+    ]
+    
     def downloadIfYoutubeURL(self):
-            url_variants = ["http://youtu.be/", "https://youtu.be/", "http://youtube.com/", "https://youtube.com/",
-                            "https://m.youtube.com/", "http://www.youtube.com/", "https://www.youtube.com/"]
-            if any(ext in self.source_ref for ext in url_variants):
+            if any(ext in self.source_ref for ext in Video._YT_DOMAINS):
                 print("Detected Youtube Video...")
                 video_dir = self.get_youtube_video()
                 return video_dir
