@@ -11,7 +11,7 @@ proglog==0.1.9
 requests==2.25.1
 selenium
 tqdm
-urllib3==1.26.4
+urllib3==1.26.17
 setuptools~=54.1.2
 git+git://github.com/pytube/pytube
 undetected-chromedriver
