@@ -1,9 +1,11 @@
 from .basics import eprint
 
+
 class Config:
     _DEFAULT_OPTIONS = {
-        "COOKIES_DIR": "../CookiesDir", 
-        "POST_PROCESSING_VIDEO_PATH": "../VideosDirPath", 
+        "COOKIES_DIR": "./CookiesDir",
+        "VIDEOS_DIR": "./VideosDirPath",
+        "POST_PROCESSING_VIDEO_PATH": "./VideosDirPath",
         "IMAGEMAGICK_FONT": "Arial", 
         "IMAGEMAGICK_FONT_SIZE": 80,
         "IMAGEMAGICK_TEXT_FOREGROUND_COLOR": "white",
@@ -72,6 +74,11 @@ class Config:
     def cookies_dir(self):
         """Path where selenium cookies are stored"""
         return self.get_option_by_name("COOKIES_DIR")
+
+    @property
+    def videos_dir(self):
+        """Directory where videos are stored"""
+        return self.get_option_by_name("VIDEOS_DIR")
     
     @property
     def post_processing_video_path(self):

@@ -1,9 +1,8 @@
 from .cookies import load_cookies_from_file, save_cookies_to_file
-
-import threading
 from fake_useragent import UserAgent, FakeUserAgentError
 import undetected_chromedriver as uc
-import os
+import threading, os
+
 
 WITH_PROXIES = False
 PROXIES = ["8.219.176.202:8080"]
@@ -57,8 +56,8 @@ class Browser:
             self._driver.add_cookie(cookie)
         self._driver.refresh()
 
-    def save_cookies(self, filename: str):
-        save_cookies_to_file(self._driver.get_cookies(), filename)
+    def save_cookies(self, filename: str, cookies:list=None):
+        save_cookies_to_file(cookies, filename)
 
 
 if __name__ == "__main__":

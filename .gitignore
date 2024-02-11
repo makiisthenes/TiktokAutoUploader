@@ -130,3 +130,9 @@ dmypy.json
 
 # Personal Development Files
 CookiesDir/
+CookiesDir/*
+VideosDirPath/
+*.cookie
+output/
+*.mp4
+youtube_downloader.py
