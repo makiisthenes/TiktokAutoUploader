@@ -13,9 +13,9 @@ Automatically Uploads to Tiktok with 1 command and within 3 seconds.
 <image src="https://user-images.githubusercontent.com/52138450/111885490-04ab6680-89c0-11eb-955a-f833577b4406.png" width="35%">
 </p>
 <p align="center">
-  <img alt="Forks" src="https://img.shields.io/github/forks/wkaisertexas/tiktok-uploader" />
-  <img alt="Stars" src="https://img.shields.io/github/stars/wkaisertexas/tiktok-uploader" />
-  <img alt="Watchers" src="https://img.shields.io/github/watchers/wkaisertexas/tiktok-uploader" />
+  <img alt="Forks" src="https://img.shields.io/github/forks/makiisthenes/TiktokAutoUploader" />
+  <img alt="Stars" src="https://img.shields.io/github/stars/makiisthenes/TiktokAutoUploader" />
+  <img alt="Watchers" src="https://img.shields.io/github/watchers/makiisthenes/TiktokAutoUploader" />
 </p>
 
 <p align="center">The <strong>Fastest</strong> Known <strong>TikTok Auto Video Uploader</strong> with requests not Selenium!</p>
