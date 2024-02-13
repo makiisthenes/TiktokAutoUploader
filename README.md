@@ -1,134 +1,173 @@
-# TiktokAutoUploader v1.3
-Automatically Edits Videos and Uploads to Tiktok with 1 line of code.
+# TiktokAutoUploader v2.0
+
+Fastest Tiktok AutoUploader using Requests, not ~~Selenium ~~
+
+Automatically Uploads to Tiktok with 1 line of code and within 3 seconds.
 
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white&style=flat-square)]([https://www.linkedin.com/in/isaac-kogan-5a45b9193/](https://www.linkedin.com/in/michael-p-88b015200/) )
 [![HitCount](https://hits.dwyl.com/makiisthenes/TiktokAutoUploader.svg?style=flat)](http://hits.dwyl.com/makiisthenes/https://githubcom/makiisthenes/TiktokAutoUploader)
 ![Forks](https://img.shields.io/github/forks/makiisthenes/TiktokAutoUploader)
 ![Stars](https://img.shields.io/github/stars/makiisthenes/TiktokAutoUploader)
 
-
-<center>
+<p align="center">
 <image src="https://user-images.githubusercontent.com/52138450/111885490-04ab6680-89c0-11eb-955a-f833577b4406.png" width="35%">
-</center>
+</p>
+<p align="center">
+  <img alt="Forks" src="https://img.shields.io/github/forks/wkaisertexas/tiktok-uploader" />
+  <img alt="Stars" src="https://img.shields.io/github/stars/wkaisertexas/tiktok-uploader" />
+  <img alt="Watchers" src="https://img.shields.io/github/watchers/wkaisertexas/tiktok-uploader" />
+</p>
+
+<p align="center">The <strong>Fastest</strong> Known <strong>TikTok Auto Video Uploader</strong> with requests not Selenium!</p>
 
 --------------------------------------
 
-#### Setup
+# Quickstart
 
-`pip install -r requirements.txt`
-  
-`pip install git+https://github.com/pytube/pytube`
+This guide covers how to get setup and running your bot ASAP, making basic usage of the library.
 
-Have you installed ImageMagick on your system,
+Want to manage multiple accounts, schedule more than 10 days ahead, and obtain videos from multiple sources automatically, use our service?
 
-https://imagemagick.org/script/download.php
+- ✔️ Uses Requests not Selenium (Super Fast)
 
-Then in site-packages, go to moviepy and edit config_defualts.py
+- ✔️ Will not break when site layout changes. (Robust)
 
-![image](https://user-images.githubusercontent.com/52138450/111904491-27c92b00-8a3f-11eb-85ee-56bdcb4ac4c9.png)
+- ✔️ Handle multiple accounts on local machine (Multi-uploads)
+
+- ✔️ Schedule videos up to 10 days in the future. (Autonomy)
+
+- ✔️ Upload your own videos or use youtube short links. (Sourcing)
+
+### Installation
+
+Clone the repository.
+
+```bash
+git clone https://github.com/makiisthenes/TiktokAutoUploader.git
+```
+
+Install requirements for package.
+
+```bash
+pip install -r requirements.txt
+```
 
 
-Change this auto to your path like shown in image above.
+
+### Using program in CLI:
 
 -----------------------------------
 
-#### Parameters
+### Login to Account 🔒:
 
-> method uploadVideo(video_dir, videoText, startTime=0, endTime=0, private=True, test=False)
+System handles multiple user accounts logging in, and will save this to system. This will prompt you to login into your tiktok account and store these cookies locally.
 
-By defualt test=False meaning it will upload and not stay preview for user to click upload.
-
-Switching to test=True, it will allow you to preview.
-
------------------------------------
-
-#### Notes
-
-Please use chromedriver.exe provided as its source code has been edited to avoid bot detection on tiktok website.
-
-Use only tiktok accounts that can be accessed through email password on browser, OAuth2.0 may not work, slightly probable.
-
-Do not spam upload videos as tiktok will most likely ban you after this or during the act.
-
-I am not responsible/ liable for any damages or problems or resulting effects you face using this tool or in relation with this tool, use at own risk. 
-
-Webdriver selected classes that are most likely not going to change in a while, looking for alternatives.
-  
-If you have any issues or errors with pytube, please use `pip install git+https://github.com/pytube/pytube` instead of pip install pytube3, as that is usually slow to update from githup repo.
-
----------------------------------
-
-### Basic Usage Example
-
-> if __name__ == "__main__":
+> ```bash
+> # Login
 > 
->     # Example Usage
->     
->     tiktok_bot = TiktokBot()
->     
->     # Use a video from your directory.
->     
->     tiktok_bot.upload.uploadVideo("test1.mp4", "This is text \n overlay on \n the video", 1, 45)
-> 
->     # Or use youtube url as video source. [Simpsons Meme 1:16 - 1:32 Example]
->
->     tiktok_bot.upload.directUpload("test.mp4", private=True, test=True)
->     
->     tiktok_bot.upload.uploadVideo("https://www.youtube.com/watch?v=OGEouryaQ3g", "TextOverlay", startTime=76, endTime=92, private=False)
+> python cli.py login -n my_saved_username
+> ```
+
+### Upload Videos 🖼️:
+
+Users can select user, and upload a video from path or directly from a youtube shorts link.
+
+```bash
+# Upload from videos path
+python cli.py upload --user my_saved_username -v "video.mp4" -t "My video title" 
+```
+
+```bash
+# Upload from youtube link
+python cli.py upload --user my_saved_username -yt "https://www.youtube.com/shorts/#####" -t "My video title" 
+```
 
 --------------------------------
-### Image Overlay Feature
 
-![image](https://user-images.githubusercontent.com/52138450/115037820-c756cd80-9ec6-11eb-97b0-e617e1b029b7.png)
+### Show Current Users and Videos ⚙️:
 
-![positioning](https://user-images.githubusercontent.com/52138450/115039847-bb6c0b00-9ec8-11eb-88d9-90623d7f7eb2.png)
+All local videos must be saved under folder `VideosDirPath` if this doesn't exist please create one.
 
+```bash
+# Show all current videos found on system.
+python cli.py show -v 
+```
 
---------------------------------
-### Example Video
+All cookies must be saved under folder `CookiesDir`, if this doesn't exist please create one.
 
-https://user-images.githubusercontent.com/52138450/111905871-d07a8900-8a45-11eb-8da7-531793703809.mp4
+```bash
+# Show all current cookies found on system.
+python cli.py show -c 
+```
 
---------------------------------
-#### Issues Fixed
+-----
 
-Previously the code had a lot of problems with many things when reviewing again: <br>
-<br>
--> Files were read and being overwritten at same time, leading to corrupt and sometimes frozen video outputs.<br>
-<br>
--> Sometimes when extracting youtube videos, there may not be audio available and so will continue regardless.<br>
-<br>
--> The video dimensions never fit the tiktok recommended dims and so was obscured when uploaded.<br>
-<br>
--> The layout for captions on the video and overall format of the video was not nice to look at.<br>
-<br>
--> Cropping videos did not work properly most of the time.<br>
-<br>
-All these issues have now been fixed.<br>
-<br>
-  
----------------------
-#### Updated Fixes and new features
-<br>
--> Now you can add multiple tiktok accounts, simple to use prompts.<br>
-<br>
--> You can now choose not to add a caption to the video without errors.<br>
-<br>
+### Help Command ℹ️:
 
- <br>
-Current Problems:<br>
--> Design and layout of classes was not thought out as well and so left it very messy and not structured well.<br>
-<br>
-TODO: <br>
--> Allow users to add schedule video uploads using CSV file. <br>
-<br>
--> Improve structuring of code and design better one. <br>
-<br>
--> Maybe add a GUI? <br>
-<br>
--> Allow direct uploading of videos.<br>
-<br>
+If you are unsure with command, use the flag `-h`
 
---------------------------------------
+```bash
+# Show all current videos found on system.
+python cli.py -h
+python cli.py show -h
+python cli.py login -h
+python cli.py upload -h
+```
 
+ ----
 
+## Professional Software💼
+
+If you are looking for something more, which can get you faster to your goal, I offer software which can:
+
+- ⭐ Clean and Modern UI
+
+- ⭐ Proxy Support
+
+- ⭐ Handling more than 1000 accounts!
+
+- ⭐ Upload identical vidoes to multiple accounts automatically
+
+- ⭐ Schedule videos for multiple accounts, 20 days to 2 years in advance. 
+
+- 🌌 Automatically source videos from YouTube, X, Reddit, TikTok.
+
+- 🌌 Setup uploading pipelines, from source to uploading schedule!
+
+- 🌌 Metrics for viewing current performance of these different accounts.
+
+- 🌌 Personalised support from me for any issues you may face for up to 3 months.
+
+Available for purchase, if interested please email me at `michaelperes562@gmail.com` with subject line `Tiktok Bot Software` or else I might miss the email.
+
+------
+
+### Support this project ❤️
+
+If you like the work provided, please consider supporting me through the available links for [Patreon ](https://patreon.com/makiisthenes)and [Ko-Fi](https://ko-fi.com/makiperes). 
+
+Else if you have any requests or would like to contribute send a PR.
+
+Alternative consider starring the project, or giving me a follow ;)
+
+----
+
+### Bugs and Issues and Future Work 🛠️
+
+If you find any bugs or issues, please add to the issues tab, please do not email me relating to this, I will see on issues.
+
+Will work to make this more user friendly including making a PyPI package.
+
+------
+
+### Old Branch 📕
+
+If you would like to continue to use the library based uploader, please forward to old branch namely `old`
+
+This still relies on Selenium which is slow and unreliable.
+
+----
+
+### Notes and Terms⌛
+
+I am not responsible for any effects to your account, usage of such tools may ban your account. Please use at your own risk. 
