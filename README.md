@@ -51,7 +51,18 @@ Install requirements for package.
 ```bash
 pip install -r requirements.txt
 ```
+------------
+### Demo
+Video showcases main usage of the app, uploading a video to TikTok.
 
+<p align="center">
+  <video src="https://github.com/makiisthenes/TiktokAutoUploader/assets/52138450/3dc36fd4-b9f4-4059-bcb4-c2ddca2a285d" controls poster="poster.jpg" width="320" height="240">
+  </video>
+</p>
+
+
+
+------------
 
 
 ### Using program in CLI:
