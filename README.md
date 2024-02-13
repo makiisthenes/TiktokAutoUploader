@@ -1,6 +1,6 @@
 # TiktokAutoUploader v2.0
 
-Fastest Tiktok AutoUploader using Requests, not ~~Selenium ~~
+Fastest Tiktok AutoUploader using Requests, not ~~Selenium~~
 
 Automatically Uploads to Tiktok with 1 line of code and within 3 seconds.
 
