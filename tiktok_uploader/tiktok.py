@@ -4,9 +4,7 @@ from requests_auth_aws_sigv4 import AWSSigV4
 from .cookies import load_cookies_from_file
 from .Browser import Browser
 from .bot_utils import *
-from . import Config
-
-
+from . import Config, Video
 
 # Constants
 _UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/68.0.3440.106 Safari/537.36'
@@ -31,7 +29,8 @@ def login(login_name: str):
 				session_cookie = cookie
 				break
 
-	print("Session cookie found: ", session_cookie["value"])
+	# print("Session cookie found: ", session_cookie["value"])
+	print("Account successfully saved.")
 	browser.save_cookies(f"tiktok_session-{login_name}", [session_cookie])
 	browser.driver.quit()
 
@@ -40,12 +39,14 @@ def login(login_name: str):
 
 def get_session_id(cookie_name: str):
 	cookies = load_cookies_from_file(f"tiktok_session-{cookie_name}")
-	print(cookies)
+	# print(cookies)
+	print("User successfully logged in.")
 	return next((c["value"] for c in cookies if c["name"] == 'sessionid'), None)
 
 
 def upload_video(session_id, video, title, schedule_time=0, allow_comment=1, allow_duet=0, allow_stitch=0, visibility_type=0, brand_organic_type=0, branded_content_type=0, ai_label=0, proxy=None):
 
+	print("Uploading video...")
 	# Parameter validation,
 	if schedule_time and (schedule_time > 864000 or schedule_time < 900):
 		print("[-] Cannot schedule video in more than 10 days or less than 20 minutes")
@@ -58,8 +59,6 @@ def upload_video(session_id, video, title, schedule_time=0, allow_comment=1, all
 		return False
 
 	# Check video length - 1 minute max, takes too long to run this.
-
-
 
 
 	# Creating Session
@@ -178,8 +177,9 @@ def upload_video(session_id, video, title, schedule_time=0, allow_comment=1, all
 			uploaded = True
 			break
 		except:
-			print("[-] Could not upload video, retrying...")
-		# time.sleep(5)
+			print("[-] Still uploading, waiting...")
+
+			# time.sleep(1.7)  # wait 1.5 seconds before retrying
 	if not uploaded:
 		print("[-] Could not upload video")
 		return False

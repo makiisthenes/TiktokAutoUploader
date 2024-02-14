@@ -8,7 +8,8 @@ import os
 def load_cookies_from_file(filename: str):
     cookie_path = os.path.join(os.getcwd(), Config.get().cookies_dir, filename + ".cookie")
     if not os.path.exists(cookie_path):
-        eprint(f"Warning: Could not find cookie file at path: {cookie_path} (ignoring)")
+        # eprint(f"Warning: Could not find cookie file at path: {cookie_path} (ignoring)")
+        print("User not found on system.")
         return []
     
     cookie_data = pickle.load(open(cookie_path, "rb"))
