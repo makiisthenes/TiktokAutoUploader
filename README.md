@@ -1,8 +1,8 @@
 # TiktokAutoUploader v2.0
 
-Fastest Tiktok AutoUploader using Requests, not ~~Selenium ~~
+Fastest Tiktok AutoUploader using Requests, not ~~Selenium~~
 
-Automatically Uploads to Tiktok with 1 line of code and within 3 seconds.
+Automatically Uploads to Tiktok with 1 command and within 3 seconds.
 
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white&style=flat-square)]([https://www.linkedin.com/in/isaac-kogan-5a45b9193/](https://www.linkedin.com/in/michael-p-88b015200/) )
 [![HitCount](https://hits.dwyl.com/makiisthenes/TiktokAutoUploader.svg?style=flat)](http://hits.dwyl.com/makiisthenes/https://githubcom/makiisthenes/TiktokAutoUploader)
@@ -13,9 +13,9 @@ Automatically Uploads to Tiktok with 1 line of code and within 3 seconds.
 <image src="https://user-images.githubusercontent.com/52138450/111885490-04ab6680-89c0-11eb-955a-f833577b4406.png" width="35%">
 </p>
 <p align="center">
-  <img alt="Forks" src="https://img.shields.io/github/forks/wkaisertexas/tiktok-uploader" />
-  <img alt="Stars" src="https://img.shields.io/github/stars/wkaisertexas/tiktok-uploader" />
-  <img alt="Watchers" src="https://img.shields.io/github/watchers/wkaisertexas/tiktok-uploader" />
+  <img alt="Forks" src="https://img.shields.io/github/forks/makiisthenes/TiktokAutoUploader" />
+  <img alt="Stars" src="https://img.shields.io/github/stars/makiisthenes/TiktokAutoUploader" />
+  <img alt="Watchers" src="https://img.shields.io/github/watchers/makiisthenes/TiktokAutoUploader" />
 </p>
 
 <p align="center">The <strong>Fastest</strong> Known <strong>TikTok Auto Video Uploader</strong> with requests not Selenium!</p>
@@ -51,7 +51,18 @@ Install requirements for package.
 ```bash
 pip install -r requirements.txt
 ```
+------------
+### Demo
+Video showcases main usage of the app, uploading a video to TikTok.
 
+<p align="center">
+  <video src="https://github.com/makiisthenes/TiktokAutoUploader/assets/52138450/3dc36fd4-b9f4-4059-bcb4-c2ddca2a285d" controls poster="poster.jpg" width="320" height="240">
+  </video>
+</p>
+
+
+
+------------
 
 
 ### Using program in CLI:
