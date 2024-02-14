@@ -6,7 +6,7 @@ from pytube import YouTube
 import time, os
 
 class Video:
-    def __init__(self, source_ref, video_text, config):
+    def __init__(self, source_ref, video_text):
         self.config = Config.get()
         self.source_ref = source_ref
         self.video_text = video_text
@@ -22,7 +22,7 @@ class Video:
     def crop(self, start_time, end_time, saveFile=False):
         if end_time > self.clip.duration:
             end_time = self.clip.duration
-        save_path = os.path.join(self.config.post_processing_video_path, "processed") + ".mp4"
+        save_path = os.path.join(os.getcwd(), self.config.videos_dir, "processed") + ".mp4"
         self.clip = self.clip.subclip(t_start=start_time, t_end=end_time)
         if saveFile:
             self.clip.write_videofile(save_path)
@@ -53,9 +53,8 @@ class Video:
 
 
     def is_valid_file_format(self):
-        if not self.source_ref.endswith('.mp4'):
-            exit(f"File: {self.source_ref} has wrong file extension. Must be .mp4")
-
+        if not self.source_ref.endswith('.mp4') and not self.source_ref.endswith('.webm'):
+            exit(f"File: {self.source_ref} has wrong file extension. Must be .mp4 or .webm.")
 
     def get_youtube_video(self, max_res=True):
         url = self.source_ref
@@ -65,8 +64,8 @@ class Video:
         if filtered_streams:
             selected_stream = filtered_streams[0]
             print("Starting Download for Video...")
-            selected_stream.download(output_path="VideosDirPath", filename="pre-processed.mp4")
-            filename = os.path.join("VideosDirPath", "pre-processed"+".mp4")
+            selected_stream.download(output_path=os.path.join(os.getcwd(), Config.get().videos_dir), filename="pre-processed.mp4")
+            filename = os.path.join(os.getcwd(), Config.get().videos_dir, "pre-processed"+".mp4")
             return filename
 
 
@@ -74,13 +73,13 @@ class Video:
         audio = YouTube(url).streams.filter(file_extension="webm", only_audio=True, adaptive=True).first()
         if video and audio:
             random_filename = str(int(time.time()))  # extension is added automatically.
-            video_path = os.path.join(self.config.post_processing_video_path, "pre-processed.mp4")
+            video_path = os.path.join(os.getcwd(), Config.get().videos_dir, "pre-processed.mp4")
             resolution = int(video.resolution[:-1])
             # print(resolution)
             if resolution >= 360:
-                downloaded_v_path = video.download(output_path="VideosDirPath", filename=random_filename)
+                downloaded_v_path = video.download(output_path=os.path.join(os.getcwd(), self.config.videos_dir), filename=random_filename)
                 print("Downloaded Video File @ " + video.resolution)
-                downloaded_a_path = audio.download(output_path="VideosDirPath", filename="a" + random_filename)
+                downloaded_a_path = audio.download(output_path=os.path.join(os.getcwd(), self.config.videos_dir), filename="a" + random_filename)
                 print("Downloaded Audio File")
                 file_check_iter = 0
                 while not os.path.exists(downloaded_a_path) and os.path.exists(downloaded_v_path):
