@@ -27,7 +27,7 @@ if __name__ == "__main__":
     upload_parser.add_argument("-bo", "--brandorganic", type=int, default=0)
     upload_parser.add_argument("-bc", "--brandcontent", type=int, default=0)
     upload_parser.add_argument("-ai", "--ailabel", type=int, default=0)
-    upload_parser.add_argument("-p", "--proxy", type=int, default=0)
+    upload_parser.add_argument("-p", "--proxy", default="")
 
     # Show cookies
     show_parser = subparsers.add_parser("show", help="Show cookies")
