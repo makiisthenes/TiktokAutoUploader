@@ -50,13 +50,7 @@ if __name__ == "__main__":
         # Obtain session id from the cookie name.
         if not hasattr(args, 'users') or args.users is None:
             parser.error("The 'cookie' argument is required for the 'upload' subcommand.")
-        session_id = tiktok.get_session_id(args.users)
-        # session_id = upload_args.session_id if upload_args.session_id else tiktok.get_session_id()
-        # print(session_id)
-        if not session_id:
-            eprint("No cookie with Tiktok session id found: use login to save session id")
-            sys.exit(1)
-
+        
         # Check if source exists,
         if args.video is None and args.youtube is None:
             eprint("No source provided. Use -v or -yt to provide video source.")
@@ -79,7 +73,7 @@ if __name__ == "__main__":
                     print(f'[-] {name}')
                 sys.exit(1)
 
-        tiktok.upload_video(session_id, args.video,  args.title, args.schedule, args.comment, args.duet, args.stitch, args.visibility, args.brandorganic, args.brandcontent, args.ailabel, args.proxy)
+        tiktok.upload_video(args.users, args.video,  args.title, args.schedule, args.comment, args.duet, args.stitch, args.visibility, args.brandorganic, args.brandcontent, args.ailabel, args.proxy)
 
     elif args.subcommand == "show":
         # if flag is c then show cookie names

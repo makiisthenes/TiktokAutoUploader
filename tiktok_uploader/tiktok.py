@@ -1,10 +1,10 @@
 import time, requests, datetime, hashlib, hmac, random, zlib, json, datetime
-import requests, zlib, json, time, subprocess, string, secrets, os
+import requests, zlib, json, time, subprocess, string, secrets, os, sys
 from requests_auth_aws_sigv4 import AWSSigV4
 from .cookies import load_cookies_from_file
 from .Browser import Browser
 from .bot_utils import *
-from . import Config, Video
+from . import Config, Video, eprint
 
 # Constants
 _UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/68.0.3440.106 Safari/537.36'
@@ -22,30 +22,37 @@ def login(login_name: str):
 
 	browser = Browser.get()
 	browser.driver.get("https://www.tiktok.com/login")
-	#
-	while not session_cookie:
+	
+	session_cookies = []
+	while not session_cookies:
 		for cookie in browser.driver.get_cookies():
-			if cookie["name"] == "sessionid":
-				session_cookie = cookie
-				break
+			if cookie["name"] in ["sessionid", "tt-target-idc"]:
+				if cookie["name"] == "sessionid":
+					cookie_name = cookie
+				session_cookies.append(cookie)
 
 	# print("Session cookie found: ", session_cookie["value"])
 	print("Account successfully saved.")
-	browser.save_cookies(f"tiktok_session-{login_name}", [session_cookie])
+	browser.save_cookies(f"tiktok_session-{login_name}", session_cookies)
 	browser.driver.quit()
 
-	return session_cookie['value']
+	return cookie_name.get('value', '') if cookie_name else ''
 
 
-def get_session_id(cookie_name: str):
-	cookies = load_cookies_from_file(f"tiktok_session-{cookie_name}")
-	# print(cookies)
+def upload_video(session_user, video, title, schedule_time=0, allow_comment=1, allow_duet=0, allow_stitch=0, visibility_type=0, brand_organic_type=0, branded_content_type=0, ai_label=0, proxy=None):
+	cookies = load_cookies_from_file(f"tiktok_session-{session_user}")
+	session_id = next((c["value"] for c in cookies if c["name"] == 'sessionid'), None)
+	dc_id = next((c["value"] for c in cookies if c["name"] == 'tt-target-idc'), None)
+	
+	if not session_id:
+		eprint("No cookie with Tiktok session id found: use login to save session id")
+		sys.exit(1)
+	if not dc_id:
+		print("[WARNING]: Please login, tiktok datacenter id must be allocated, or may fail")
+		dc_id = "useast2a"
 	print("User successfully logged in.")
-	return next((c["value"] for c in cookies if c["name"] == 'sessionid'), None)
-
-
-def upload_video(session_id, video, title, schedule_time=0, allow_comment=1, allow_duet=0, allow_stitch=0, visibility_type=0, brand_organic_type=0, branded_content_type=0, ai_label=0, proxy=None):
-
+	print(f"Tiktok Datacenter Assigned: {dc_id}")
+	
 	print("Uploading video...")
 	# Parameter validation,
 	if schedule_time and (schedule_time > 864000 or schedule_time < 900):
@@ -64,7 +71,7 @@ def upload_video(session_id, video, title, schedule_time=0, allow_comment=1, all
 	# Creating Session
 	session = requests.Session()
 	session.cookies.set("sessionid", session_id, domain=".tiktok.com")
-	session.cookies.set("tt-target-idc", "useast2a", domain=".tiktok.com")
+	session.cookies.set("tt-target-idc", dc_id, domain=".tiktok.com")
 	session.verify = True
 	headers = {
 		'User-Agent': _UA,
@@ -191,7 +198,7 @@ def upload_video(session_id, video, title, schedule_time=0, allow_comment=1, all
 	for j in r.json()["infos"]:
 		if j["creationID"] == creation_id:
 			if j["tasks"][0]["status_msg"] == "Y project task init":
-				print("[+] Video got uploaded")
+				print("[+] Video uploaded successfully.")
 				return True
 			print(f"[-] Video could not be uploaded: {j['tasks'][0]['status_msg']}")
 			return False

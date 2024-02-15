@@ -29,3 +29,26 @@ def save_cookies_to_file(cookies, filename: str):
     with open(cookie_path, "wb") as f:
         pickle.dump(cookies, f)
         f.close()
+
+
+def delete_cookies_file(filename: str):
+    cookie_path = os.path.join(os.getcwd(), Config.get().cookies_dir, filename + ".cookie")
+    if os.path.exists(cookie_path):
+        os.remove(cookie_path)
+        print("Deleted cookies file: ", cookie_path)
+    else:
+        print("No cookies file to delete: ", cookie_path)
+
+
+def delete_all_cookies_files():
+    cookie_dir = os.path.join(os.getcwd(), Config.get().cookies_dir)
+    for filename in os.listdir(cookie_dir):
+        if filename.endswith(".cookie"):
+            os.remove(os.path.join(cookie_dir, filename))
+            print("Deleted cookies file: ", filename)
+    print("Deleted all cookies files.")
+
+
+def update_dc_location(filename:str, new_dc_location: str):
+    """As datacenter location can change per load, we need to update based on response set cookies headers, in the case of dc change, we need to update settings"""
+    raise NotImplementedError("This function is not implemented yet.")
