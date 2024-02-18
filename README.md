@@ -129,6 +129,8 @@ python cli.py upload -h
 
 ## Professional Software💼
 
+Fill waiting list form: https://forms.gle/M4KpdfruqCukQvj99
+
 If you are looking for something more, which can get you faster to your goal, I offer software which can:
 
 - ⭐ Clean and Modern UI
