@@ -38,6 +38,18 @@ Want to manage multiple accounts, schedule more than 10 days ahead, and obtain v
 
 - ✔️ Upload your own videos or use youtube short links. (Sourcing)
 
+--------------------------------------
+# Prerequistes
+
+You must have Node installed on your computer, in order to run this, 
+Please follow instructions in the provided URL, 
+
+`https://nodejs.org/en/download`
+
+Please make sure `node` is in your environment path before running, as it is required in the upload stage. 
+
+
+--------------------------------------
 ### Installation
 
 Clone the repository.
