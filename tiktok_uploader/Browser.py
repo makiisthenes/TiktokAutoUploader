@@ -5,7 +5,6 @@ import threading, os
 
 
 WITH_PROXIES = False
-PROXIES = ["8.219.176.202:8080"]
 
 class Browser:
     __instance = None
@@ -27,8 +26,9 @@ class Browser:
             Browser.__instance = self
         self.user_agent = ""
         options = uc.ChromeOptions()
-        if WITH_PROXIES:
-            options.add_argument('--proxy-server={}'.format(PROXIES[0]))
+        # Proxies not supported on login.
+        # if WITH_PROXIES:
+        #     options.add_argument('--proxy-server={}'.format(PROXIES[0]))
         self._driver = uc.Chrome(options=options)
         self.with_random_user_agent()
 

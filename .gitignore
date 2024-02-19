@@ -102,7 +102,7 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-.env
+tests/.env
 .venv
 env/
 venv/
@@ -136,3 +136,11 @@ VideosDirPath/
 output/
 *.mp4
 youtube_downloader.py
+
+
+node_modules/
+
+tests/*
+.idea/*
+
+tiktok_uploader\tiktok-signature\command.txt

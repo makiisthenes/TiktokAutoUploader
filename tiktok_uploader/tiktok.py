@@ -1,10 +1,16 @@
 import time, requests, datetime, hashlib, hmac, random, zlib, json, datetime
 import requests, zlib, json, time, subprocess, string, secrets, os, sys
+from fake_useragent import FakeUserAgentError, UserAgent
 from requests_auth_aws_sigv4 import AWSSigV4
-from .cookies import load_cookies_from_file
-from .Browser import Browser
-from .bot_utils import *
-from . import Config, Video, eprint
+from tiktok_uploader.cookies import load_cookies_from_file
+from tiktok_uploader.Browser import Browser
+from tiktok_uploader.bot_utils import *
+from tiktok_uploader import Config, Video, eprint
+from dotenv import load_dotenv
+
+
+# Load environment variables
+load_dotenv()
 
 # Constants
 _UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/68.0.3440.106 Safari/537.36'
@@ -14,15 +20,15 @@ def login(login_name: str):
 	# Check if login name is already save in file.
 	cookies = load_cookies_from_file(f"tiktok_session-{login_name}")
 	session_cookie = next((c for c in cookies if c["name"] == 'sessionid'), None)
-	session_from_file = session_cookie != None
+	session_from_file = session_cookie is not None
 
 	if session_from_file:
 		print("Unnecessary login: session already saved!")
 		return session_cookie["value"]
 
 	browser = Browser.get()
-	browser.driver.get("https://www.tiktok.com/login")
-	
+	response = browser.driver.get(os.getenv("TIKTOK_LOGIN_URL"))
+
 	session_cookies = []
 	while not session_cookies:
 		for cookie in browser.driver.get_cookies():
@@ -40,6 +46,12 @@ def login(login_name: str):
 
 
 def upload_video(session_user, video, title, schedule_time=0, allow_comment=1, allow_duet=0, allow_stitch=0, visibility_type=0, brand_organic_type=0, branded_content_type=0, ai_label=0, proxy=None):
+	try:
+		user_agent = UserAgent().random
+	except FakeUserAgentError as e:
+		user_agent = _UA
+		print("[-] Could not get random user agent, using default")
+
 	cookies = load_cookies_from_file(f"tiktok_session-{session_user}")
 	session_id = next((c["value"] for c in cookies if c["name"] == 'sessionid'), None)
 	dc_id = next((c["value"] for c in cookies if c["name"] == 'tt-target-idc'), None)
@@ -73,8 +85,9 @@ def upload_video(session_user, video, title, schedule_time=0, allow_comment=1, a
 	session.cookies.set("sessionid", session_id, domain=".tiktok.com")
 	session.cookies.set("tt-target-idc", dc_id, domain=".tiktok.com")
 	session.verify = True
+
 	headers = {
-		'User-Agent': _UA,
+		'User-Agent': user_agent,
 		'Accept': 'application/json, text/plain, */*',
 	}
 	session.headers.update(headers)
@@ -90,12 +103,13 @@ def upload_video(session_user, video, title, schedule_time=0, allow_comment=1, a
 	creation_id = generate_random_string(21, True)
 	project_url = f"https://www.tiktok.com/api/v1/web/project/create/?creation_id={creation_id}&type=1&aid=1988"
 	r = session.post(project_url)
+
 	if not assert_success(project_url, r):
 		return False
 
 	# get project_id
 	project_id = r.json()["project"]["project_id"]
-	video_id, session_key, upload_id, crcs, upload_host, store_uri, video_auth, aws_auth = uploadToTikTok(video, session)
+	video_id, session_key, upload_id, crcs, upload_host, store_uri, video_auth, aws_auth = upload_to_tiktok(video, session)
 
 	url = f"https://{upload_host}/{store_uri}?uploadID={upload_id}&phase=finish&uploadmode=part"
 	headers = {
@@ -173,38 +187,52 @@ def upload_video(session_user, video, title, schedule_time=0, allow_comment=1, a
 	uploaded = False
 	while True:
 		mstoken = session.cookies.get("msToken")
-		xbogus = subprocess_jsvmp(os.path.join(os.getcwd(), "tiktok_uploader", "./signer.js"), user_agent,
-		                          f"app_name=tiktok_web&channel=tiktok_web&device_platform=web&aid=1988&msToken={mstoken}")
-		url = f"https://www.tiktok.com/api/v1/web/project/post/?app_name=tiktok_web&channel=tiktok_web&device_platform=web&aid=1988&msToken={mstoken}&X-Bogus={xbogus}"
-		r = session.request("POST", url, data=json.dumps(data), headers=headers)
+		# xbogus = subprocess_jsvmp(os.path.join(os.getcwd(), "tiktok_uploader", "./x-bogus.js"), user_agent, f"app_name=tiktok_web&channel=tiktok_web&device_platform=web&aid=1988&msToken={mstoken}")
+		signatures = subprocess_jsvmp(os.path.join(os.getcwd(), "tiktok_uploader", "tiktok-signature", "browser.js"), user_agent, f"https://www.tiktok.com/api/v1/web/project/post/?app_name=tiktok_web&channel=tiktok_web&device_platform=web&aid=1988&msToken={mstoken}")
+		tt_output = json.loads(signatures)["data"]
+		project_post_dict = {
+			"app_name": "tiktok_web",
+			"channel": "tiktok_web",
+			"device_platform": "web",
+			"aid": 1988,
+			"msToken": mstoken,
+			"X-Bogus": tt_output["x-bogus"],
+			"_signature": tt_output["signature"],
+			# "X-TT-Params": tt_output["x-tt-params"],  # not needed rn.
+		}
+		url = f"https://www.tiktok.com/api/v1/web/project/post/"
+		r = session.request("POST", url, params=project_post_dict, data=json.dumps(data), headers=headers)
 		try:
 			if r.json()["status_msg"] == "You are posting too fast. Take a rest.":
 				print("[-] You are posting too fast, try later again")
 				return False
+			print(r.json())
 			uploaded = True
 			break
-		except:
-			print("[-] Still uploading, waiting...")
-
-			# time.sleep(1.7)  # wait 1.5 seconds before retrying
+		except Exception as e:
+			print("[-] Waiting for TikTok to process video...")
+			time.sleep(1.5)  # wait 1.5 seconds before asking again.
 	if not uploaded:
 		print("[-] Could not upload video")
 		return False
+
+	# Check if video uploaded successfully
 	url = f"https://www.tiktok.com/api/v1/web/project/list/?aid=1988"
 
 	r = session.get(url)
 	if not assert_success(url, r):
 		return False
+	# print(r.json()["infos"])
 	for j in r.json()["infos"]:
 		if j["creationID"] == creation_id:
-			if j["tasks"][0]["status_msg"] == "Y project task init":
+			if j["tasks"][0]["status_msg"] == "Y project task init" or j["tasks"][0]["status_msg"] == "Success":
 				print("[+] Video uploaded successfully.")
 				return True
 			print(f"[-] Video could not be uploaded: {j['tasks'][0]['status_msg']}")
 			return False
 
 
-def uploadToTikTok(video_file, session):
+def upload_to_tiktok(video_file, session):
 	url = "https://www.tiktok.com/api/v1/video/upload/auth/?aid=1988"
 	r = session.get(url)
 	if not assert_success(url, r):
@@ -256,3 +284,32 @@ def uploadToTikTok(video_file, session):
 		r = session.post(url, headers=headers, data=chunk)
 
 	return video_id, session_key, upload_id, crcs, upload_host, store_uri, video_auth, aws_auth
+
+
+
+
+if __name__ == "__main__":
+	# Testing login function
+	# login("test")
+	ms_token = ""
+	# path = os.path.join(os.getcwd(), "./x-bogus.js")
+	# print(path)
+	# print(user_agent)
+	base_url = "https://www.tiktok.com/api/v1/web/project/post/"
+	url = f"?app_name=tiktok_web&channel=tiktok_web&device_platform=web&aid=1988&msToken={ms_token}"
+	# xbogus = subprocess_jsvmp(path, user_agent, url)
+	# print(xbogus)
+
+	path = os.path.join(os.getcwd(), "tiktok-signature", "browser.js")
+	proc = subprocess.Popen(['node', path , base_url+url, "agent123"], stdout=subprocess.PIPE)
+	output = proc.stdout.read().decode('utf-8')
+	json_output = json.loads(output)["data"]
+	print(json_output)
+	print(f""
+	      f"X-Bogus: {json_output['x-bogus']}\n"
+	      f"Signature: {json_output['signature']}\n"
+	      f"Signed URL: {json_output['signed_url']}\n"
+	      f"X TT Params: {json_output['x-tt-params']}\n"
+		  f"User Agent: {json_output['navigator']['user_agent']}\n"
+	      f"")
+

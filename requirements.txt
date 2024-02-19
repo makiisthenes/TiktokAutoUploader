@@ -1,8 +1,12 @@
+appdirs==1.4.4
 attrs==23.2.0
+beautifulsoup4==4.12.3
+bs4==0.0.2
 certifi==2024.2.2
 cffi==1.16.0
 charset-normalizer==3.3.2
 colorama==0.4.6
+cssselect==1.2.0
 decorator==4.4.2
 exceptiongroup==1.2.0
 fake-useragent==1.4.0
@@ -10,24 +14,36 @@ h11==0.14.0
 idna==3.6
 imageio==2.33.1
 imageio-ffmpeg==0.4.9
+importlib-metadata==7.0.1
+lxml==5.1.0
 moviepy==1.0.3
+nose2==0.14.1
 numpy==1.26.4
 outcome==1.3.0.post0
+parse==1.20.1
 pillow==10.2.0
 proglog==0.1.10
 pycparser==2.21
+pyee==8.2.2
+pyppeteer==1.0.2
+pyquery==2.0.0
 PySocks==1.7.1
+python-dotenv==1.0.1
 pytube @ git+https://github.com/pytube/pytube@a32fff39058a6f7e5e59ecd06a7467b71197ce35
 requests==2.31.0
 requests-auth-aws-sigv4==0.7
+requests-html==0.10.0
 selenium==4.17.2
 sniffio==1.3.0
 sortedcontainers==2.4.0
+soupsieve==2.5
 tqdm==4.66.2
 trio==0.24.0
 trio-websocket==0.11.1
 typing_extensions==4.9.0
-undetected-chromedriver @ git+https://github.com/ultrafunkamsterdam/undetected-chromedriver@783b8393157b578e19e85b04d300fe06efeef653
-urllib3==2.2.0
-websockets==12.0
+undetected-chromedriver @ git+https://github.com/ultrafunkamsterdam/undetected-chromedriver@0aa5fbe252370b4cb2b95526add445392cad27ba
+urllib3==1.26.18
+w3lib==2.1.2
+websockets==10.4
 wsproto==1.2.0
+zipp==3.17.0

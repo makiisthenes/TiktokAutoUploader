@@ -5,8 +5,11 @@ import pickle
 import os
 
 
-def load_cookies_from_file(filename: str):
-    cookie_path = os.path.join(os.getcwd(), Config.get().cookies_dir, filename + ".cookie")
+def load_cookies_from_file(filename: str, cookies_path=None):
+    if not cookies_path:
+        cookie_path = os.path.join(os.getcwd(), Config.get().cookies_dir, filename + ".cookie")
+    else:
+        cookie_path = os.path.join(cookies_path, filename + ".cookie")
     if not os.path.exists(cookie_path):
         # eprint(f"Warning: Could not find cookie file at path: {cookie_path} (ignoring)")
         print("User not found on system.")
@@ -23,16 +26,22 @@ def load_cookies_from_file(filename: str):
     return cookies
 
 
-def save_cookies_to_file(cookies, filename: str):
-    cookie_path = os.path.join(os.getcwd(), Config.get().cookies_dir, filename + ".cookie")
+def save_cookies_to_file(cookies, filename: str, cookies_path=None):
+    if not cookies_path:
+        cookie_path = os.path.join(os.getcwd(), Config.get().cookies_dir, filename + ".cookie")
+    else:
+        cookie_path = os.path.join(cookies_path, filename + ".cookie")
     print("Saving cookies to file: ", cookie_path)
     with open(cookie_path, "wb") as f:
         pickle.dump(cookies, f)
         f.close()
 
 
-def delete_cookies_file(filename: str):
-    cookie_path = os.path.join(os.getcwd(), Config.get().cookies_dir, filename + ".cookie")
+def delete_cookies_file(filename: str, cookies_path=None):
+    if not cookies_path:
+        cookie_path = os.path.join(os.getcwd(), Config.get().cookies_dir, filename + ".cookie")
+    else:
+        cookie_path = os.path.join(cookies_path, filename + ".cookie")
     if os.path.exists(cookie_path):
         os.remove(cookie_path)
         print("Deleted cookies file: ", cookie_path)
@@ -40,8 +49,11 @@ def delete_cookies_file(filename: str):
         print("No cookies file to delete: ", cookie_path)
 
 
-def delete_all_cookies_files():
-    cookie_dir = os.path.join(os.getcwd(), Config.get().cookies_dir)
+def delete_all_cookies_files(cookies_path=None):
+    if not cookies_path:
+        cookie_dir = os.path.join(os.getcwd(), Config.get().cookies_dir)
+    else:
+        cookie_dir = cookies_path
     for filename in os.listdir(cookie_dir):
         if filename.endswith(".cookie"):
             os.remove(os.path.join(cookie_dir, filename))

@@ -1,0 +1,28 @@
+{
+  "name": "tiktok-signature",
+  "version": "1.8.0",
+  "description": "Generate TikTok Signature",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node listen.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/carcabot/tiktok-signature.git"
+  },
+  "keywords": [
+    "tiktok",
+    "signature",
+    "generator"
+  ],
+  "author": "CarcaBot",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/carcabot/tiktok-signature/issues"
+  },
+  "homepage": "https://github.com/carcabot/tiktok-signature#readme",
+  "dependencies": {
+    "playwright-chromium": "^1.10.0"
+  }
+}
