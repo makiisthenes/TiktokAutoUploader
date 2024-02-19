@@ -63,6 +63,12 @@ Install requirements for package.
 ```bash
 pip install -r requirements.txt
 ```
+Install node packages.
+```bash
+cd tiktok_uploader/tiktok-signature/
+npm i
+```
+
 ------------
 ### Demo
 Video showcases main usage of the app, uploading a video to TikTok.
