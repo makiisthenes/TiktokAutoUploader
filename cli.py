@@ -3,9 +3,53 @@ from tiktok_uploader import tiktok, Video
 from tiktok_uploader.basics import eprint
 from tiktok_uploader.Config import Config
 import sys, os
+from pytube import YouTube
+from moviepy.editor import VideoFileClip
+
+def convert_time_to_seconds(timestr):
+    """Converts time string of the format mm:ss to seconds."""
+    min, sec = map(int, timestr.split(":"))
+    return min * 60 + sec
+
+
+def download_and_trim_video(youtube_url, start_time, end_time, processing_directory):
+    """
+    Downloads a video from the provided YouTube URL, trims it according to the specified start and end times,
+    and returns the path to the trimmed video.
+    """
+    # Download video from YouTube
+    yt = YouTube(youtube_url)
+    stream = yt.streams.filter(progressive=True, file_extension='mp4').order_by('resolution').desc().first()
+    if not stream:
+        raise Exception("No suitable stream found for downloading.")
+
+    # Generate a filename for the downloaded video
+    download_path = stream.download(output_path="VideosDirPath", skip_existing=False)
+
+    # Convert start and end times to seconds
+    start_seconds = convert_time_to_seconds(start_time)
+    end_seconds = convert_time_to_seconds(end_time)
+
+    # Trim the video
+    clip = VideoFileClip(download_path).subclip(start_seconds, end_seconds)
+
+    # Generate a filename for the trimmed video
+    base, ext = os.path.splitext(download_path)
+    trimmed_filename = f"{base}_trimmed{ext}"
+
+    # Write the trimmed clip to a new file
+    clip.write_videofile(trimmed_filename, codec="libx264", audio_codec="aac")
+
+    # Optionally, delete the original downloaded file to save space
+    os.remove(download_path)
+
+    return trimmed_filename
+
 
 if __name__ == "__main__":
     _ = Config.load("./config.txt")
+    config = Config.get()
+
     # print(Config.get().cookies_dir)
     parser = argparse.ArgumentParser(description="TikTokAutoUpload CLI, scheduled and immediate uploads")
     subparsers = parser.add_subparsers(dest="subcommand")
@@ -24,16 +68,19 @@ if __name__ == "__main__":
     upload_parser.add_argument("-ct", "--comment", type=int, default=1, choices=[0, 1])
     upload_parser.add_argument("-d", "--duet", type=int, default=0, choices=[0, 1])
     upload_parser.add_argument("-st", "--stitch", type=int, default=0, choices=[0, 1])
-    upload_parser.add_argument("-vi", "--visibility", type=int, default=0, help="Visibility type: 0 for public, 1 for private")
+    upload_parser.add_argument("-vi", "--visibility", type=int, default=0,
+                               help="Visibility type: 0 for public, 1 for private")
     upload_parser.add_argument("-bo", "--brandorganic", type=int, default=0)
     upload_parser.add_argument("-bc", "--brandcontent", type=int, default=0)
     upload_parser.add_argument("-ai", "--ailabel", type=int, default=0)
     upload_parser.add_argument("-p", "--proxy", default="")
+    upload_parser.add_argument("-s", "--start", help="Start time in format mm:ss")
+    upload_parser.add_argument("-e", "--end", help="End time in format mm:ss")
 
     # Show cookies
     show_parser = subparsers.add_parser("show", help="Show users and videos available for system.")
     show_parser.add_argument("-u", "--users", action='store_true', help="Shows all available cookie names")
-    show_parser.add_argument("-v", "--videos",  action='store_true', help="Shows all available videos")
+    show_parser.add_argument("-v", "--videos", action='store_true', help="Shows all available videos")
 
     # Parse the command-line arguments
     args = parser.parse_args()
@@ -50,7 +97,7 @@ if __name__ == "__main__":
         # Obtain session id from the cookie name.
         if not hasattr(args, 'users') or args.users is None:
             parser.error("The 'cookie' argument is required for the 'upload' subcommand.")
-        
+
         # Check if source exists,
         if args.video is None and args.youtube is None:
             eprint("No source provided. Use -v or -yt to provide video source.")
@@ -61,9 +108,14 @@ if __name__ == "__main__":
 
         if args.youtube:
             video_obj = Video(args.youtube, args.title)
-            video_obj.is_valid_file_format()
-            video = video_obj.source_ref
-            args.video = video
+            if args.start and args.end:
+                # Function to download, trim, and set the path of the trimmed video to `args.video`
+                # This functionality needs to be implemented.
+                args.video = download_and_trim_video(args.youtube, args.start, args.end, config.post_processing_video_path)
+            else:
+                video_obj.is_valid_file_format()
+                video = video_obj.source_ref
+                args.video = video
         else:
             if not os.path.exists(os.path.join(os.getcwd(), Config.get().videos_dir, args.video)) and args.video:
                 print("[-] Video does not exist")
@@ -73,7 +125,10 @@ if __name__ == "__main__":
                     print(f'[-] {name}')
                 sys.exit(1)
 
-        tiktok.upload_video(args.users, args.video,  args.title, args.schedule, args.comment, args.duet, args.stitch, args.visibility, args.brandorganic, args.brandcontent, args.ailabel, args.proxy)
+        tiktok.upload_video(args.users, args.video, args.title, args.schedule, args.comment, args.duet, args.stitch,
+                            args.visibility, args.brandorganic, args.brandcontent, args.ailabel, args.proxy)
+
+        os.remove(args.video)
 
     elif args.subcommand == "show":
         # if flag is c then show cookie names
@@ -95,5 +150,3 @@ if __name__ == "__main__":
 
     else:
         eprint("Invalid subcommand. Use 'login' or 'upload' or 'show'.")
-
-
