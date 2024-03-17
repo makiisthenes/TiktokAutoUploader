@@ -15,6 +15,7 @@ idna==3.6
 imageio==2.33.1
 imageio-ffmpeg==0.4.9
 importlib-metadata==7.0.1
+importlib_resources==6.3.1
 lxml==5.1.0
 moviepy==1.0.3
 nose2==0.14.1
@@ -41,8 +42,9 @@ tqdm==4.66.2
 trio==0.24.0
 trio-websocket==0.11.1
 typing_extensions==4.9.0
-undetected-chromedriver @ git+https://github.com/ultrafunkamsterdam/undetected-chromedriver.git
-urllib3
-websockets
+undetected-chromedriver @ git+https://github.com/ultrafunkamsterdam/undetected-chromedriver.git@0aa5fbe252370b4cb2b95526add445392cad27ba
+urllib3==1.26.18
+w3lib==2.1.2
+websockets==10.4
 wsproto==1.2.0
 zipp==3.17.0
