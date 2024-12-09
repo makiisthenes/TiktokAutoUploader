@@ -1,3 +1,4 @@
+// Browser.js
 const Signer = require("./index");
 
 var url = process.argv[2];

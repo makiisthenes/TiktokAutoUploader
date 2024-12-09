@@ -45,6 +45,7 @@ def login(login_name: str):
 	return cookie_name.get('value', '') if cookie_name else ''
 
 
+# Local Code...
 def upload_video(session_user, video, title, schedule_time=0, allow_comment=1, allow_duet=0, allow_stitch=0, visibility_type=0, brand_organic_type=0, branded_content_type=0, ai_label=0, proxy=None):
 	try:
 		user_agent = UserAgent().random
@@ -92,7 +93,6 @@ def upload_video(session_user, video, title, schedule_time=0, allow_comment=1, a
 	}
 	session.headers.update(headers)
 
-
 	# Setting proxy if provided.
 	if proxy:
 		session.proxies = {
@@ -126,7 +126,11 @@ def upload_video(session_user, video, title, schedule_time=0, allow_comment=1, a
 		r = requests.post(url, headers=headers, data=data)
 		if not assert_success(url, r):
 			return False
+	#
+	# url = f"https://www.tiktok.com/top/v1?Action=CommitUploadInner&Version=2020-11-19&SpaceName=tiktok"
+	# data = '{"SessionKey":"' + session_key + '","Functions":[{"name":"GetMeta"}]}'
 
+	# ApplyUploadInner
 	url = f"https://www.tiktok.com/top/v1?Action=CommitUploadInner&Version=2020-11-19&SpaceName=tiktok"
 	data = '{"SessionKey":"' + session_key + '","Functions":[{"name":"GetMeta"}]}'
 
@@ -153,34 +157,75 @@ def upload_video(session_user, video, title, schedule_time=0, allow_comment=1, a
 	if brand and brand[-1] == ",":
 		brand = brand[:-1]
 	markup_text, text_extra = convert_tags(title, session)
+	# data = {
+	# 	"upload_param": {
+	# 		"video_param": {
+	# 			"text": title,
+	# 			"text_extra": text_extra,
+	# 			"markup_text": markup_text,
+	# 			"poster_delay": 0,
+	# 		},
+	# 		"visibility_type": visibility_type,
+	# 		"allow_comment": allow_comment,
+	# 		"allow_duet": allow_duet,
+	# 		"allow_stitch": allow_stitch,
+	# 		"sound_exemption": 0,
+	# 		"geofencing_regions": [],
+	# 		"creation_id": creation_id,
+	# 		"is_uploaded_in_batch": False,
+	# 		"is_enable_playlist": False,
+	# 		"is_added_to_playlist": False,
+	# 		"tcm_params": '{"commerce_toggle_info":' + brand + "}",
+	# 		"aigc_info": {
+	# 			"aigc_label_type": ai_label
+	# 		}
+	# 	},
+	# 	"project_id": project_id,
+	# 	"draft": "",
+	# 	"single_upload_param": [],
+	# 	"video_id": video_id,
+	# 	"creation_id": creation_id,
+	# }
 	data = {
-		"upload_param": {
-			"video_param": {
-				"text": title,
-				"text_extra": text_extra,
-				"markup_text": markup_text,
-				"poster_delay": 0,
-			},
-			"visibility_type": visibility_type,
-			"allow_comment": allow_comment,
-			"allow_duet": allow_duet,
-			"allow_stitch": allow_stitch,
-			"sound_exemption": 0,
-			"geofencing_regions": [],
+		"post_common_info": {
 			"creation_id": creation_id,
-			"is_uploaded_in_batch": False,
-			"is_enable_playlist": False,
-			"is_added_to_playlist": False,
-			"tcm_params": '{"commerce_toggle_info":' + brand + "}",
-			"aigc_info": {
-				"aigc_label_type": ai_label
-			}
+			"enter_post_page_from": 1,
+			"post_type": 3
 		},
-		"project_id": project_id,
-		"draft": "",
-		"single_upload_param": [],
-		"video_id": video_id,
-		"creation_id": creation_id,
+		"feature_common_info_list": [
+			{
+				"geofencing_regions": [],
+				"playlist_name": "",
+				"playlist_id": "",
+				"tcm_params": "{\"commerce_toggle_info\":{}}",
+				"sound_exemption": 0,
+				"anchors": [],
+				"vedit_common_info": {
+					"draft": "",
+					"video_id": video_id
+				},
+				"privacy_setting_info": {
+					"visibility_type": 0,
+					"allow_duet": 1,
+					"allow_stitch": 1,
+					"allow_comment": 1
+				}
+			}
+		],
+		"single_post_req_list": [
+			{
+				"batch_index": 0,
+				"video_id": video_id,
+				"is_long_video": 0,
+				"single_post_feature_info": {
+					"text": title,
+					"text_extra": text_extra,
+					"markup_text": title,
+					"music_info": {},
+					"poster_delay": 0,
+				}
+			}
+		]
 	}
 	if schedule_time:
 		data["upload_param"]["schedule_time"] = schedule_time + int(time.time())
@@ -188,8 +233,20 @@ def upload_video(session_user, video, title, schedule_time=0, allow_comment=1, a
 	while True:
 		mstoken = session.cookies.get("msToken")
 		# xbogus = subprocess_jsvmp(os.path.join(os.getcwd(), "tiktok_uploader", "./x-bogus.js"), user_agent, f"app_name=tiktok_web&channel=tiktok_web&device_platform=web&aid=1988&msToken={mstoken}")
-		signatures = subprocess_jsvmp(os.path.join(os.getcwd(), "tiktok_uploader", "tiktok-signature", "browser.js"), user_agent, f"https://www.tiktok.com/api/v1/web/project/post/?app_name=tiktok_web&channel=tiktok_web&device_platform=web&aid=1988&msToken={mstoken}")
-		tt_output = json.loads(signatures)["data"]
+		# /tiktok/web/project/post/v1/
+		js_path = os.path.join(os.getcwd(), "tiktok_uploader", "tiktok-signature", "browser.js")
+		sig_url = f"https://www.tiktok.com/api/v1/web/project/post/?app_name=tiktok_web&channel=tiktok_web&device_platform=web&aid=1988&msToken={mstoken}"
+		signatures = subprocess_jsvmp(js_path, user_agent, sig_url)
+		if signatures is None:
+			print("[-] Failed to generate signatures")
+			return False
+
+		try:
+			tt_output = json.loads(signatures)["data"]
+		except (json.JSONDecodeError, KeyError) as e:
+			print(f"[-] Failed to parse signature data: {str(e)}")
+			return False
+
 		project_post_dict = {
 			"app_name": "tiktok_web",
 			"channel": "tiktok_web",
@@ -200,36 +257,55 @@ def upload_video(session_user, video, title, schedule_time=0, allow_comment=1, a
 			"_signature": tt_output["signature"],
 			# "X-TT-Params": tt_output["x-tt-params"],  # not needed rn.
 		}
-		url = f"https://www.tiktok.com/api/v1/web/project/post/"
+
+		# url = f"https://www.tiktok.com/api/v1/web/project/post/"
+		url = f"https://www.tiktok.com/tiktok/web/project/post/v1/"
 		r = session.request("POST", url, params=project_post_dict, data=json.dumps(data), headers=headers)
-		try:
-			if r.json()["status_msg"] == "You are posting too fast. Take a rest.":
-				print("[-] You are posting too fast, try later again")
-				return False
-			print(r.json())
+		if not assertSuccess(url, r):
+			print("[-] Published failed, try later again")
+			printError(url, r)
+			return False
+
+		if r.json()["status_code"] == 0:
+			print(f"Published successfully {'| Scheduled for ' + str(schedule_time) if schedule_time else ''}")
 			uploaded = True
 			break
-		except Exception as e:
-			print("[-] Waiting for TikTok to process video...")
-			time.sleep(1.5)  # wait 1.5 seconds before asking again.
+		else:
+			print("[-] Publish failed to Tiktok, trying again...")
+			printError(url, r)
+			return False
+		#
+		# try:
+		# 	if r.json()["status_msg"] == "You are posting too fast. Take a rest.":
+		# 		print("[-] You are posting too fast, try later again")
+		# 		return False
+		# 	print(r.json())
+		# 	uploaded = True
+		# 	break
+		# except Exception as e:
+		# 	print("[-] Waiting for TikTok to process video...")
+		# 	time.sleep(1.5)  # wait 1.5 seconds before asking again.
 	if not uploaded:
 		print("[-] Could not upload video")
 		return False
-
-	# Check if video uploaded successfully
-	url = f"https://www.tiktok.com/api/v1/web/project/list/?aid=1988"
-
-	r = session.get(url)
-	if not assert_success(url, r):
-		return False
-	# print(r.json()["infos"])
-	for j in r.json()["infos"]:
-		if j["creationID"] == creation_id:
-			if j["tasks"][0]["status_msg"] == "Y project task init" or j["tasks"][0]["status_msg"] == "Success":
-				print("[+] Video uploaded successfully.")
-				return True
-			print(f"[-] Video could not be uploaded: {j['tasks'][0]['status_msg']}")
-			return False
+	# Check if video uploaded successfully (Tiktok has changed endpoint for this)
+	# url = f"https://www.tiktok.com/api/v1/web/project/list/?aid=1988"
+	#
+	# r = session.get(url)
+	# if not assert_success(url, r):
+	# 	return False
+	# # print(r.json()["infos"])
+	# for j in r.json()["infos"]:
+	# 	try:
+	# 		if j["creationID"] == creation_id:
+	# 			if j["tasks"][0]["status_msg"] == "Y project task init" or j["tasks"][0]["status_msg"] == "Success":
+	# 				print("[+] Video uploaded successfully.")
+	# 				return True
+	# 			print(f"[-] Video could not be uploaded: {j['tasks'][0]['status_msg']}")
+	# 			return False
+	# 	except KeyError:
+	# 		print("[-] Video could not be uploaded")
+	# 		print("Response ", j)
 
 
 def upload_to_tiktok(video_file, session):
