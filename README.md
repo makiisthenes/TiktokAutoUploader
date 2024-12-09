@@ -181,6 +181,9 @@ Else if you have any requests or would like to contribute send a PR.
 
 Alternative consider starring the project, or giving me a follow ;)
 
+
+- Thanks [@DelvinBa](https://github.com/DelvinBa) for updating to TikToks' new upload endpoint. (09/12/2024)
+
 ----
 
 ### Bugs and Issues and Future Work 🛠️
