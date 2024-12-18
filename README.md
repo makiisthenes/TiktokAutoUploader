@@ -4,6 +4,8 @@ Fastest Tiktok AutoUploader using Requests, not ~~Selenium~~
 
 Automatically Uploads to Tiktok with 1 command and within 3 seconds.
 
+[Working as of 18th Dec 2024]
+
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white&style=flat-square)]([https://www.linkedin.com/in/isaac-kogan-5a45b9193/](https://www.linkedin.com/in/michael-p-88b015200/) )
 [![HitCount](https://hits.dwyl.com/makiisthenes/TiktokAutoUploader.svg?style=flat)](http://hits.dwyl.com/makiisthenes/https://githubcom/makiisthenes/TiktokAutoUploader)
 ![Forks](https://img.shields.io/github/forks/makiisthenes/TiktokAutoUploader)
