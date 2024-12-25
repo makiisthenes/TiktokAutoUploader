@@ -157,6 +157,13 @@ def upload_video(session_user, video, title, schedule_time=0, allow_comment=1, a
 	if brand and brand[-1] == ",":
 		brand = brand[:-1]
 	markup_text, text_extra = convert_tags(title, session)
+
+
+
+	# Added for showing history of data changes...
+
+	# When uploading fails please check data payload is correct...
+
 	# data = {
 	# 	"upload_param": {
 	# 		"video_param": {
@@ -186,31 +193,78 @@ def upload_video(session_user, video, title, schedule_time=0, allow_comment=1, a
 	# 	"video_id": video_id,
 	# 	"creation_id": creation_id,
 	# }
+
+
+	# data = {
+	# 	"post_common_info": {
+	# 		"creation_id": creation_id,
+	# 		"enter_post_page_from": 1,
+	# 		"post_type": 3
+	# 	},
+	# 	"feature_common_info_list": [
+	# 		{
+	# 			"geofencing_regions": [],
+	# 			"playlist_name": "",
+	# 			"playlist_id": "",
+	# 			"tcm_params": "{\"commerce_toggle_info\":{}}",
+	# 			"sound_exemption": 0,
+	# 			"anchors": [],
+	# 			"vedit_common_info": {
+	# 				"draft": "",
+	# 				"video_id": video_id
+	# 			},
+	# 			"privacy_setting_info": {
+	# 				"visibility_type": 0,
+	# 				"allow_duet": 1,
+	# 				"allow_stitch": 1,
+	# 				"allow_comment": 1
+	# 			},
+	# 			"schedule_time": schedule_time + int(time.time())
+	# 		}
+	# 	],
+	# 	"single_post_req_list": [
+	# 		{
+	# 			"batch_index": 0,
+	# 			"video_id": video_id,
+	# 			"is_long_video": 0,
+	# 			"single_post_feature_info": {
+	# 				"text": title,
+	# 				"text_extra": text_extra,
+	# 				"markup_text": title,
+	# 				"music_info": {},
+	# 				"poster_delay": 0,
+	# 			}
+	# 		}
+	# 	]
+	# }
+
+
 	data = {
 		"post_common_info": {
 			"creation_id": creation_id,
 			"enter_post_page_from": 1,
-			"post_type": 3
+			"post_type": 3,
 		},
 		"feature_common_info_list": [
 			{
 				"geofencing_regions": [],
 				"playlist_name": "",
 				"playlist_id": "",
-				"tcm_params": "{\"commerce_toggle_info\":{}}",
+				"tcm_params": '{"commerce_toggle_info":{}}',
 				"sound_exemption": 0,
 				"anchors": [],
-				"vedit_common_info": {
-					"draft": "",
-					"video_id": video_id
-				},
+				"vedit_common_info": {"draft": "", "video_id": video_id},
 				"privacy_setting_info": {
 					"visibility_type": 0,
 					"allow_duet": 1,
 					"allow_stitch": 1,
-					"allow_comment": 1
+					"allow_comment": 1,
 				},
-				"schedule_time": schedule_time + int(time.time())
+				"content_check_id": "",
+				"schedule_time": schedule_time + int(time.time()),  # schedule time fixes.
+				"aigc_info": {
+					"aigc_label_type": ai_label
+				}
 			}
 		],
 		"single_post_req_list": [
@@ -221,13 +275,17 @@ def upload_video(session_user, video, title, schedule_time=0, allow_comment=1, a
 				"single_post_feature_info": {
 					"text": title,
 					"text_extra": text_extra,
-					"markup_text": title,
+					"markup_text": markup_text,
 					"music_info": {},
 					"poster_delay": 0,
-				}
+					"cloud_edit_video_height": 2160,  # delete if causes issues.
+					"cloud_edit_video_width": 1920,   # delete if causes issues.
+					"cloud_edit_is_use_video_canvas": False,
+				},
 			}
-		]
+		],
 	}
+
 
 	uploaded = False
 	while True:
