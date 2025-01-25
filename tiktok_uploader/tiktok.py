@@ -243,27 +243,25 @@ def upload_video(session_user, video, title, schedule_time=0, allow_comment=1, a
 		"post_common_info": {
 			"creation_id": creation_id,
 			"enter_post_page_from": 1,
-			"post_type": 3,
+			"post_type": 3
 		},
 		"feature_common_info_list": [
 			{
 				"geofencing_regions": [],
 				"playlist_name": "",
 				"playlist_id": "",
-				"tcm_params": '{"commerce_toggle_info":{}}',
+				"tcm_params": "{\"commerce_toggle_info\":{}}",
 				"sound_exemption": 0,
 				"anchors": [],
-				"vedit_common_info": {"draft": "", "video_id": video_id},
+				"vedit_common_info": {
+					"draft": "",
+					"video_id": video_id
+				},
 				"privacy_setting_info": {
 					"visibility_type": 0,
 					"allow_duet": 1,
 					"allow_stitch": 1,
-					"allow_comment": 1,
-				},
-				"content_check_id": "",
-				"schedule_time": schedule_time + int(time.time()),  # schedule time fixes.
-				"aigc_info": {
-					"aigc_label_type": ai_label
+					"allow_comment": 1
 				}
 			}
 		],
@@ -275,16 +273,14 @@ def upload_video(session_user, video, title, schedule_time=0, allow_comment=1, a
 				"single_post_feature_info": {
 					"text": title,
 					"text_extra": text_extra,
-					"markup_text": markup_text,
+					"markup_text": title,
 					"music_info": {},
 					"poster_delay": 0,
-					"cloud_edit_video_height": 2160,  # delete if causes issues.
-					"cloud_edit_video_width": 1920,   # delete if causes issues.
-					"cloud_edit_is_use_video_canvas": False,
-				},
+				}
 			}
-		],
+		]
 	}
+
 
 
 	uploaded = False
