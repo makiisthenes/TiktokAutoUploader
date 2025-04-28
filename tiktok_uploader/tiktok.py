@@ -282,7 +282,10 @@ def upload_video(session_user, video, title, schedule_time=0, allow_comment=1, a
 	}
 
 
-
+	# Add schedule_time to the payload if it's provided
+	if schedule_time > 0:
+		data["feature_common_info_list"][0]["schedule_time"] = schedule_time + int(time.time())
+	
 	uploaded = False
 	while True:
 		mstoken = session.cookies.get("msToken")
