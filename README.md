@@ -335,4 +335,4 @@ I am not responsible for any effects to your account, usage of such tools may ba
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=makiisthenes/TiktokAutoUploader&type=Date)](https://star-history.com/#makiisthenes/TiktokAutoUploader&Date)
+[![Star History Chart](https://star-history.dera.page/svg?repos=makiisthenes/TiktokAutoUploader&type=Date)](https://star-history.dera.page/#makiisthenes/TiktokAutoUploader&Date)
