@@ -131,6 +131,7 @@ dmypy.json
 # Personal Development Files
 CookiesDir/
 VideosDirPath/
+/ChromeProfile/
 *.cookie
 output/
 *.mp4

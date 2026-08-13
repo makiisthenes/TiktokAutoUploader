@@ -139,6 +139,20 @@ python3 cli.py login -n my_username
 
 A Chrome browser window will open. Log into your TikTok account, and the session will be saved automatically once detected.
 
+To reuse an existing Chrome login session, set `MCVM_CHROME_USER_DATA_DIR` to
+the Chrome user-data directory before running the login command. Set
+`MCVM_CHROME_PROFILE` when the session is stored in a profile other than
+`Default`:
+
+```bash
+export MCVM_CHROME_USER_DATA_DIR="/path/to/chrome/user-data"
+export MCVM_CHROME_PROFILE="Profile 1"
+python3 cli.py login -n my_username
+```
+
+Close Chrome instances using that profile before starting the uploader. Browser
+profiles contain sensitive session data and should never be committed.
+
 ### 2. Upload a video
 
 **From a local file:**

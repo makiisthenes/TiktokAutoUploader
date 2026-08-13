@@ -42,6 +42,14 @@ class Browser:
         # Proxies not supported on login.
         # if WITH_PROXIES:
         #     options.add_argument('--proxy-server={}'.format(PROXIES[0]))
+        # Optional: reuse an existing (already-logged-in) Chrome profile so
+        # login inherits the session instead of prompting for a manual sign-in.
+        user_data_dir = os.getenv("MCVM_CHROME_USER_DATA_DIR")
+        if user_data_dir:
+            options.add_argument(f"--user-data-dir={user_data_dir}")
+            options.add_argument(
+                f"--profile-directory={os.getenv('MCVM_CHROME_PROFILE', 'Default')}"
+            )
         self._driver = uc.Chrome(options=options, version_main=_get_chrome_major_version())
         self.with_random_user_agent()
 
