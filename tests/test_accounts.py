@@ -63,6 +63,12 @@ def test_legacy_pickle_cannot_run_code(tmp_path):
     assert not AccountStore().path_for("eve").exists()
 
 
+def test_corrupt_account_file(saved_account, autotok_home):
+    (autotok_home / "accounts" / "alice.json").write_text("{oops")
+    with pytest.raises(ValidationError, match="unreadable"):
+        AccountStore().load("alice")
+
+
 def test_set_proxy_and_clear(saved_account):
     store = AccountStore()
     assert store.set_proxy("alice", "socks5://h.example:1080").proxy == "socks5://h.example:1080"

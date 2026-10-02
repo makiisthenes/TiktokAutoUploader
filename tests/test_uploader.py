@@ -234,3 +234,21 @@ def test_check_session(client):
     assert client.check_session() is True
     responses.replace(responses.GET, f"{TT}/api/v1/video/upload/auth/", json={"status_code": 8})
     assert client.check_session() is False
+
+
+@responses.activate
+def test_environment_proxy_cannot_override_account_proxy(client, video_file, monkeypatch):
+    monkeypatch.setenv("HTTPS_PROXY", "http://corporate.example:3128")
+    monkeypatch.setenv("https_proxy", "http://corporate.example:3128")
+    mock_tiktok(responses)
+    client.upload(video_file, "x")
+    used = {c.request.req_kwargs["proxies"]["https"] for c in responses.calls}
+    assert used == {"http://bob:secret@proxy.example:8000"}
+
+
+@responses.activate
+def test_scheduled_datetime_is_kept_exactly(client, video_file):
+    mock_tiktok(responses)
+    when = datetime.now(timezone.utc).replace(microsecond=0) + timedelta(hours=2)
+    result = client.upload(video_file, "later", schedule=when)
+    assert result.scheduled_for == when

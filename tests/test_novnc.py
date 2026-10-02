@@ -23,7 +23,8 @@ def client(monkeypatch):
         def __exit__(self, *a):
             pass
 
-        def post(self, url, json):
+        def post(self, url, json, headers=None):
+            assert headers == {"X-Requested-With": "autotok"}
             posted.append((url, json))
 
             class R:

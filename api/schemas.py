@@ -166,6 +166,22 @@ class ScheduledUploadUpdate(BaseModel):
         return self
 
 
+def mask_options_json(raw: str) -> str:
+    """Hide the proxy password in stored upload options before returning them."""
+    import json
+
+    try:
+        data = json.loads(raw or "{}")
+    except ValueError:
+        return "{}"
+    if isinstance(data, dict) and data.get("proxy"):
+        try:
+            data["proxy"] = parse_proxy(data["proxy"]).masked()
+        except AutotokValidationError:
+            data["proxy"] = "****"
+    return json.dumps(data)
+
+
 class ScheduledUploadRead(BaseModel):
     id: int
     account_id: int
@@ -182,6 +198,11 @@ class ScheduledUploadRead(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+    @field_validator("options_json")
+    @classmethod
+    def _mask(cls, v: str) -> str:
+        return mask_options_json(v)
 
 
 # ---------- videos / browse --------------------------------------------------

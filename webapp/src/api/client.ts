@@ -2,7 +2,8 @@ import axios from "axios";
 
 export const api = axios.create({
   baseURL: "/api",
-  headers: { "Content-Type": "application/json" },
+  // Required by the API on requests that change data (blocks cross-site requests).
+  headers: { "Content-Type": "application/json", "X-Requested-With": "autotok" },
 });
 
 /** Pull the most useful message out of an axios/FastAPI error. */

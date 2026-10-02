@@ -158,8 +158,13 @@ class AccountStore:
     def load(self, name: str) -> Account:
         path = self.path_for(name)
         if path.is_file():
-            with open(path, encoding="utf-8") as f:
-                return Account.from_dict(json.load(f))
+            try:
+                with open(path, encoding="utf-8") as f:
+                    return Account.from_dict(json.load(f))
+            except (ValueError, KeyError, TypeError) as exc:
+                raise ValidationError(
+                    f"account file {path} is unreadable ({exc}); log in again with --force"
+                ) from None
         legacy = self._legacy_path(name)
         if legacy is None:
             raise AccountNotFoundError(

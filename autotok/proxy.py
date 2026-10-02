@@ -14,7 +14,7 @@ Accepted formats (the scheme defaults to ``http``)::
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from urllib.parse import quote, unquote, urlsplit
 
 from .errors import ValidationError
@@ -31,7 +31,7 @@ class Proxy:
     host: str
     port: int
     username: str | None = None
-    password: str | None = None
+    password: str | None = field(default=None, repr=False)
 
     @classmethod
     def parse(cls, value: str) -> "Proxy":
@@ -132,6 +132,30 @@ def parse_proxy(value: "str | Proxy | None") -> Proxy | None:
     if not str(value).strip():
         return None
     return Proxy.parse(str(value))
+
+
+def proxied_session(proxy: "str | Proxy | None"):
+    """A ``requests.Session`` that always uses ``proxy``.
+
+    ``requests`` lets ``HTTP(S)_PROXY`` environment variables override
+    ``Session.proxies``, which would silently send every account through the
+    same machine-wide proxy. Passing the proxy on each request prevents that.
+    """
+    import requests
+
+    p = parse_proxy(proxy)
+    pinned = p.for_requests() if p else None
+
+    class _ProxiedSession(requests.Session):
+        def request(self, method, url, **kwargs):
+            if pinned is not None and not kwargs.get("proxies"):
+                kwargs["proxies"] = pinned
+            return super().request(method, url, **kwargs)
+
+    s = _ProxiedSession()
+    if pinned:
+        s.proxies.update(pinned)
+    return s
 
 
 def check_proxy(proxy: "str | Proxy | None", timeout: float = 15.0) -> str:

@@ -18,11 +18,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlsplit
 
-import requests
-
 from .browser import launch_chromium, sync_playwright
 from .errors import AutotokError, SigningError
-from .proxy import Proxy, parse_proxy
+from .proxy import Proxy, parse_proxy, proxied_session
 
 log = logging.getLogger("autotok")
 
@@ -54,10 +52,8 @@ class Signer:
         self._browser = None
         self._context = None
         self._page = None
-        self._http = requests.Session()
+        self._http = proxied_session(self.proxy)
         self._http.headers.update({"User-Agent": user_agent, "Accept": "text/html,application/json,*/*"})
-        if self.proxy:
-            self._http.proxies.update(self.proxy.for_requests())
 
     def __enter__(self) -> "Signer":
         self.start()
@@ -71,7 +67,10 @@ class Signer:
             return
         try:
             self._pw = sync_playwright().start()
-            self._browser = launch_chromium(self._pw, headless=True)
+            # Point the browser at a closed local port: anything that slips past
+            # the route handler (e.g. Chrome's preconnect) fails instead of
+            # reaching TikTok from the real IP.
+            self._browser = launch_chromium(self._pw, headless=True, offline=True)
             device = dict(self._pw.devices["iPhone 11 Pro"])
             device.pop("default_browser_type", None)
             device.update(

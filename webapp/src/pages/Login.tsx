@@ -28,8 +28,26 @@ export default function LoginPage() {
   const [vncUrl, setVncUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const esRef = useRef<EventSource | null>(null);
+  const activeRef = useRef<string | null>(null); // session to cancel if the page is left
 
-  useEffect(() => () => esRef.current?.close(), []);
+  useEffect(() => {
+    const cancelActive = () => {
+      const id = activeRef.current;
+      if (id) {
+        fetch(`/api/login/browser/${id}`, {
+          method: "DELETE",
+          keepalive: true,
+          headers: { "X-Requested-With": "autotok" },
+        }).catch(() => undefined);
+      }
+    };
+    window.addEventListener("beforeunload", cancelActive);
+    return () => {
+      window.removeEventListener("beforeunload", cancelActive);
+      esRef.current?.close();
+      cancelActive();
+    };
+  }, []);
 
   const onSubmit = async ({ username, proxy }: FormValues) => {
     setError(null);
@@ -37,12 +55,16 @@ export default function LoginPage() {
     try {
       const r = await Login.start(username, proxy?.trim());
       setSessionId(r.session_id);
+      activeRef.current = r.session_id;
       setVncUrl(r.vnc_url);
       const es = new EventSource(Login.eventStreamUrl(r.session_id));
       esRef.current = es;
       es.addEventListener("status", (e: MessageEvent) => {
         setPhase(e.data as Phase);
-        if (["completed", "failed", "expired"].includes(e.data)) es.close();
+        if (["completed", "failed", "expired"].includes(e.data)) {
+          activeRef.current = null;
+          es.close();
+        }
       });
       es.addEventListener("failure", (e: MessageEvent) => setError(e.data));
       es.onerror = () => {
@@ -61,6 +83,7 @@ export default function LoginPage() {
       await Login.cancel(sessionId).catch(() => undefined);
     }
     esRef.current?.close();
+    activeRef.current = null;
     setPhase("idle");
     setSessionId(null);
     setVncUrl(null);

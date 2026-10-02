@@ -243,6 +243,9 @@ mkdir -p data/autotok/accounts && cp ~/.autotok/accounts/my_account.json data/au
 (Files the containers write are owned by root on Linux, so use the web app's own login for
 accounts you manage there.)
 
+Scripts that call the API directly must send the header `X-Requested-With: autotok` on
+`POST`/`PATCH`/`DELETE` requests. This stops other web pages from using the local API.
+
 > The web app has no login of its own and only listens on `127.0.0.1`. Don't expose it to the
 > internet.
 

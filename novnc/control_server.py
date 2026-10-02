@@ -85,6 +85,7 @@ def _launch_and_watch(sid: str, callback_url: str, proxy: Optional[str], cancel:
             client.post(
                 callback_url,
                 json={"cookies": cookies, "user_agent": user_agent, "proxy": proxy},
+                headers={"X-Requested-With": "autotok"},
             ).raise_for_status()
         _state.update(sid, "completed")
     except httpx.HTTPError as e:

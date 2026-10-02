@@ -66,8 +66,12 @@ def _callback_secret() -> bytes:
                 os.link(tmp, path)  # atomic: if another worker won the race, keep theirs
             except FileExistsError:
                 pass
+            except OSError:  # filesystem without hard links
+                if not path.exists():
+                    os.replace(tmp, path)
             finally:
-                os.unlink(tmp)
+                if tmp.exists():
+                    os.unlink(tmp)
         _secret = path.read_text().strip().encode()
     return _secret
 
@@ -96,6 +100,16 @@ def start_browser_login(
     payload: LoginBrowserStartRequest,
     session: Session = Depends(get_session),
 ):
+    # One virtual browser at a time: a new login replaces any earlier one that
+    # was abandoned (closed tab, refresh) instead of waiting for its timeout.
+    for old in session.exec(select(LoginSession).where(LoginSession.status.in_(("pending", "active")))).all():
+        old.status = "expired"
+        old.error = "replaced by a newer login"
+        old.completed_at = now_utc()
+        session.add(old)
+        novnc_client.stop_browser(old.id)
+    session.commit()
+
     sid = uuid.uuid4().hex
     vnc_url = novnc_client.build_vnc_url(sid)
     row = LoginSession(id=sid, username=payload.username, status="pending", vnc_url=vnc_url)
@@ -160,7 +174,9 @@ async def browser_events(session_id: str, request: Request):
             with Session(_api_db.engine) as s:
                 row = s.get(LoginSession, session_id)
                 if not row:
-                    yield {"event": "error", "data": "unknown session"}
+                    # Not named "error": that would fire EventSource.onerror in the browser.
+                    yield {"event": "failure", "data": "unknown login session"}
+                    yield {"event": "status", "data": "failed"}
                     return
                 status_now, error = row.status, row.error
             if status_now != last_status:

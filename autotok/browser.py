@@ -23,8 +23,17 @@ def sync_playwright():
     return _sp()
 
 
-def launch_chromium(pw, *, headless: bool = True, proxy: Proxy | None = None, args: list[str] | None = None):
-    """Launch Chromium honouring ``AUTOTOK_BROWSER_PATH`` / ``AUTOTOK_BROWSER_CHANNEL``."""
+# A proxy nobody listens on: used to make a browser fail closed.
+_BLACKHOLE_PROXY = {"server": "http://127.0.0.1:9"}
+
+
+def launch_chromium(pw, *, headless: bool = True, proxy: Proxy | None = None,
+                    args: list[str] | None = None, offline: bool = False):
+    """Launch Chromium honouring ``AUTOTOK_BROWSER_PATH`` / ``AUTOTOK_BROWSER_CHANNEL``.
+
+    ``offline=True`` routes the browser through a dead proxy so it cannot make
+    any direct connection (requests must be fulfilled by a route handler).
+    """
     from playwright.sync_api import Error as PlaywrightError
 
     kwargs: dict = {
@@ -38,8 +47,12 @@ def launch_chromium(pw, *, headless: bool = True, proxy: Proxy | None = None, ar
         kwargs["executable_path"] = executable
     elif channel:
         kwargs["channel"] = channel
-    if proxy is not None:
+    if offline:
+        kwargs["proxy"] = _BLACKHOLE_PROXY
+    elif proxy is not None:
         kwargs["proxy"] = proxy.for_playwright()
+        # Stop WebRTC from revealing the real IP over UDP, around the proxy.
+        kwargs["args"].append("--force-webrtc-ip-handling-policy=disable_non_proxied_udp")
     try:
         return pw.chromium.launch(**kwargs)
     except PlaywrightError as exc:

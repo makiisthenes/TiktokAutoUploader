@@ -8,13 +8,22 @@ from __future__ import annotations
 
 import os
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 import autotok
 from api.db import init_db
 from api.routers import accounts, login, proxy, schedules, uploads, videos
 from autotok import settings
+
+
+# Browsers can't add custom headers to cross-site requests without a CORS
+# preflight, which this API never approves. Requiring one on every request that
+# changes something stops other web pages from driving the local API (CSRF).
+CSRF_HEADER = "X-Requested-With"
+CSRF_VALUE = "autotok"
+_SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 
 
 def create_app() -> FastAPI:
@@ -28,15 +37,29 @@ def create_app() -> FastAPI:
         ),
     )
 
-    # Local-first tool — webapp and api are on the same compose network and
-    # the api port binds to 127.0.0.1. CORS is permissive for dev convenience.
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_methods=["*"],
-        allow_headers=["*"],
-        allow_credentials=False,
-    )
+    # The web app is served from the same origin (nginx / the Vite dev proxy),
+    # so no cross-origin access is allowed unless explicitly configured.
+    origins = [o.strip() for o in os.getenv("AUTOTOK_CORS_ORIGINS", "").split(",") if o.strip()]
+    if origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=origins,
+            allow_methods=["*"],
+            allow_headers=["*"],
+            allow_credentials=False,
+        )
+
+    @app.middleware("http")
+    async def _require_csrf_header(request: Request, call_next):
+        if (
+            request.method not in _SAFE_METHODS
+            and request.url.path.startswith("/api/")
+            and request.headers.get(CSRF_HEADER) != CSRF_VALUE
+        ):
+            return JSONResponse(
+                {"detail": f"missing header {CSRF_HEADER}: {CSRF_VALUE}"}, status_code=403
+            )
+        return await call_next(request)
 
     @app.on_event("startup")
     def _startup() -> None:

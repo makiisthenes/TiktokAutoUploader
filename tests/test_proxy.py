@@ -24,6 +24,30 @@ def test_masked_hides_password():
     assert "topsecret" not in repr(p.masked())
 
 
+def test_repr_hides_password():
+    p = Proxy.parse("http://user:topsecret@h.example:8000")
+    assert "topsecret" not in repr(p) and "topsecret" not in f"{p!r} {p}"
+
+
+def test_proxied_session_pins_proxy(monkeypatch):
+    from autotok.proxy import proxied_session
+
+    monkeypatch.setenv("HTTPS_PROXY", "http://env.example:1")
+    s = proxied_session("http://acct.example:2")
+    seen = {}
+
+    def fake_send(request, **kwargs):
+        seen.update(kwargs)
+        raise RuntimeError("stop")
+
+    monkeypatch.setattr(s, "send", fake_send)
+    try:
+        s.get("https://www.tiktok.com/")
+    except RuntimeError:
+        pass
+    assert seen["proxies"]["https"] == "http://acct.example:2"
+
+
 def test_requests_and_playwright_forms():
     p = Proxy.parse("socks5://h.example:1080")
     assert p.for_requests()["https"] == "socks5h://h.example:1080"  # DNS through the proxy

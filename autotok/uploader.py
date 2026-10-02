@@ -28,7 +28,7 @@ from .errors import (
     UploadError,
     ValidationError,
 )
-from .proxy import Proxy, parse_proxy
+from .proxy import Proxy, parse_proxy, proxied_session
 from .signer import Signer
 
 log = logging.getLogger("autotok")
@@ -153,7 +153,7 @@ class Client:
     # -- helpers ---------------------------------------------------------------
 
     def _session(self) -> requests.Session:
-        s = requests.Session()
+        s = proxied_session(self.proxy)
         s.cookies.set("sessionid", self.account.session_id, domain=".tiktok.com")
         datacenter = self.account.datacenter
         if not datacenter:
@@ -162,8 +162,6 @@ class Client:
             datacenter = DEFAULT_DATACENTER
         s.cookies.set("tt-target-idc", datacenter, domain=".tiktok.com")
         s.headers.update({"User-Agent": self.user_agent, "Accept": "application/json, text/plain, */*"})
-        if self.proxy:
-            s.proxies.update(self.proxy.for_requests())
         return s
 
     def _request(self, session, method: str, url: str, what: str, *, expect_ok: bool = True,
@@ -214,6 +212,10 @@ class Client:
         delay = schedule_delay(schedule)
         if delay is not None and vis == 1:
             raise ValidationError("TikTok does not allow scheduling private videos")
+        # Fix the publish time now, so a slow upload doesn't push it back.
+        publish_at = None
+        if delay is not None:
+            publish_at = schedule if isinstance(schedule, datetime) else datetime.now(timezone.utc) + delay
         path = resolve_video_path(video)
 
         log.info("Uploading %s as '%s'%s", path.name, self.account.name,
@@ -236,8 +238,13 @@ class Client:
             scheduled_for = None
             payload = self._payload(creation_id, video_id, caption, caption_markup, text_extra,
                                     vis, allow_comment, allow_duet, allow_stitch, ai_label)
-            if delay is not None:
-                ts = int(time.time() + delay.total_seconds())
+            if publish_at is not None:
+                ts = int(publish_at.timestamp())
+                earliest = int(time.time() + MIN_SCHEDULE.total_seconds())
+                if ts < earliest:
+                    log.warning("The upload took long enough that the scheduled time is now less than "
+                                "15 minutes away; publishing 15 minutes from now instead.")
+                    ts = earliest
                 payload["feature_common_info_list"][0]["schedule_time"] = ts
                 scheduled_for = datetime.fromtimestamp(ts, tz=timezone.utc)
 
@@ -310,9 +317,7 @@ class Client:
 
         # Finishing the multipart upload goes straight to the storage host
         # without TikTok's cookies, like the web client does.
-        with requests.Session() as bare:
-            if self.proxy:
-                bare.proxies.update(self.proxy.for_requests())
+        with proxied_session(self.proxy) as bare:
             self._request(
                 bare, "POST",
                 f"https://{upload_host}/{store_uri}?uploadID={upload_id}&phase=finish&uploadmode=part",

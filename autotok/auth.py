@@ -48,7 +48,10 @@ def wait_for_session_cookies(
             return [c for c in cookies if "tiktok" in str(c.get("domain", ""))]
         if timeout is not None and time.monotonic() - start > timeout:
             raise LoginError(f"timed out after {int(timeout)}s waiting for TikTok login")
-        sleep(poll_interval)
+        try:
+            sleep(poll_interval)
+        except Exception as exc:  # e.g. the user closed the browser window
+            raise LoginError(f"the browser was closed before login finished ({exc})") from None
 
 
 def open_login_session(

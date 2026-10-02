@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, select
 
 from api.db import get_session, now_utc
-from api.models import Account
+from api.models import Account, ScheduledUpload
 from api.schemas import AccountCreate, AccountRead, AccountUpdate, SessionCheckResponse
 from api.services import account_store
 from autotok import Client
@@ -116,9 +116,18 @@ def check_account_session(account_id: int, session: Session = Depends(get_sessio
 @router.delete("/{account_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_account(account_id: int, session: Session = Depends(get_session)):
     acct = _get(session, account_id)
-    # Delete DB row first — if file deletion fails afterwards the user can
+    rows = session.exec(select(ScheduledUpload).where(ScheduledUpload.account_id == acct.id)).all()
+    if any(r.status in ("pending", "running") for r in rows):
+        raise HTTPException(
+            status_code=409,
+            detail="this account has pending or running scheduled uploads; cancel them first",
+        )
+    # Delete DB rows first — if file deletion fails afterwards the user can
     # still re-import. The reverse is harder to recover from.
     username = acct.username
+    for r in rows:  # finished schedule history for this account
+        session.delete(r)
+    session.flush()  # the rows reference the account, so they must go first
     session.delete(acct)
     session.commit()
     account_store.delete(username)

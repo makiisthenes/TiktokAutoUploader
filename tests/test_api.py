@@ -23,7 +23,7 @@ def engine(tmp_path):
 def client(engine):
     from api.main import create_app
 
-    with TestClient(create_app()) as c:
+    with TestClient(create_app(), headers={"X-Requested-With": "autotok"}) as c:
         yield c
 
 
@@ -178,3 +178,57 @@ def test_callback_secret_is_persisted(monkeypatch, autotok_home):
     assert (autotok_home / ".callback_secret").is_file()
     monkeypatch.setattr(login_router, "_secret", None)  # simulate an API restart
     assert login_router.callback_token("abc") == token
+
+
+def test_state_changing_requests_need_csrf_header(engine, saved_account):
+    from api.main import create_app
+
+    with TestClient(create_app()) as bare:
+        assert bare.post("/api/accounts/import-from-disk").status_code == 403
+        assert bare.get("/api/accounts").status_code == 200  # reads are fine
+        r = bare.get("/api/accounts", headers={"Origin": "https://evil.example"})
+        assert "access-control-allow-origin" not in r.headers
+
+
+def test_schedules_never_return_proxy_password(client, saved_account, video_file):
+    _import(client)
+    when = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
+    r = client.post("/api/schedules", json={
+        "username": "alice", "title": "t", "source_type": "local", "source_ref": "clip.mp4",
+        "scheduled_for": when, "options": {"proxy": "http://carol:topsecret@h.example:8000"}})
+    assert r.status_code == 201
+    assert "topsecret" not in r.text and "carol:****@h.example" in r.json()["options_json"]
+    assert "topsecret" not in client.get("/api/schedules").text
+    from sqlmodel import Session
+
+    from api.models import ScheduledUpload
+    with Session(api_db.engine) as s:  # the real value is kept for the scheduler
+        assert "topsecret" in s.get(ScheduledUpload, r.json()["id"]).options_json
+
+
+def test_delete_account_with_schedules(client, saved_account, video_file):
+    acct = _import(client)[0]
+    when = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
+    sched = client.post("/api/schedules", json={"username": "alice", "title": "t", "source_type": "local",
+                                                "source_ref": "clip.mp4", "scheduled_for": when}).json()
+    assert client.delete(f"/api/accounts/{acct['id']}").status_code == 409
+    client.patch(f"/api/schedules/{sched['id']}", json={"status": "cancelled"})
+    assert client.delete(f"/api/accounts/{acct['id']}").status_code == 204
+    assert client.get("/api/schedules").json() == []
+
+
+def test_new_login_replaces_abandoned_one(client, monkeypatch):
+    stopped = []
+    monkeypatch.setattr("api.services.novnc_client.start_browser", lambda *a, **k: {})
+    monkeypatch.setattr("api.services.novnc_client.stop_browser", stopped.append)
+    first = client.post("/api/login/browser/start", json={"username": "a"}).json()["session_id"]
+    second = client.post("/api/login/browser/start", json={"username": "b"}).json()["session_id"]
+    assert stopped == [first]
+    assert client.get(f"/api/login/browser/{first}").json()["status"] == "expired"
+    assert client.get(f"/api/login/browser/{second}").json()["status"] == "active"
+
+
+def test_unknown_login_session_stream(client):
+    body = client.get("/api/login/browser/nope/events").text
+    assert "event: error" not in body
+    assert body.index("event: failure") < body.index("event: status")
