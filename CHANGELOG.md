@@ -10,7 +10,9 @@ First release on PyPI as **autotok** (`pip install autotok`).
 - Proxy support everywhere an account talks to TikTok: the login browser, signature generation and
   every upload request. Proxies are saved per account (`autotok proxy set|clear|test`,
   `autotok login -p`), accept the common provider formats (including `host:port:user:pass`) and
-  SOCKS5, and are always shown with the password masked.
+  SOCKS5, and are always shown with the password masked. The account proxy is pinned on every
+  request, so `HTTP(S)_PROXY` environment variables can't redirect an account through another IP,
+  and the signing browser can't make direct connections.
 - `autotok accounts list|check|remove`, `autotok install-browser`, `autotok shell`.
 - Sessions can be imported from a browser cookie (`autotok login --sessionid`).
 - Web app: per-account proxy editing and testing, session check, video library (add, delete,
@@ -44,6 +46,11 @@ First release on PyPI as **autotok** (`pip install autotok`).
   was not built first.
 - Login callbacks from the virtual browser are now signed, so other local processes can't inject a
   session.
+
+### Security
+- The web app's API no longer allows cross-origin requests, and `POST`/`PATCH`/`DELETE` requests
+  must send `X-Requested-With: autotok`, so other web pages can't drive the local API.
+- Proxy passwords are never returned by the API or shown in logs and `repr()`.
 
 ### Removed
 - `config.txt`, `setup.py` and the unused ImageMagick video-editing helpers.
