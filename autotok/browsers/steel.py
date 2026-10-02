@@ -18,6 +18,10 @@ Environment variables:
 Notes:
 
 * A self-hosted steel-browser runs one session at a time.
+* Start a self-hosted server with ``DOMAIN=<host>:<port>`` (e.g.
+  ``DOMAIN=localhost:3000``). Otherwise it reports ``0.0.0.0`` addresses: autotok
+  rewrites the ones it uses, but the live view page connects to ``0.0.0.0`` by
+  itself and stays blank, so logging in through it fails.
 * Account proxies are passed as ``proxyUrl``; custom proxies on Steel Cloud may
   need a paid plan.
 * Logging in uses the session's live view with ``interactive=true``.
@@ -119,6 +123,13 @@ class SteelProvider(CloudProvider):
             connect = add_query(CLOUD_CONNECT_URL, f"sessionId={sid}")
         if key:
             connect = add_query(connect, f"apiKey={key}")
+        reported = data.get("debugUrl") or data.get("websocketUrl") or ""
+        if reported and reachable(reported, base) != reported:
+            log.warning(
+                "Steel at %s reports its address as 0.0.0.0, so its live view can't connect "
+                "(logging in through it won't work). Restart steel-browser with DOMAIN=%s.",
+                base, urlsplit(base).netloc,
+            )
         debug = reachable(data.get("debugUrl") or f"{base}/v1/sessions/debug", base)
         log.debug("started Steel session %s", sid)
         return SteelSession(id=sid, connect_url=connect, base_url=base, debug_url=debug, api_key=key)

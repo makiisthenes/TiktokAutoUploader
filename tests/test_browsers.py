@@ -1,6 +1,7 @@
 """Browser providers: the factory, Browserbase and Steel (mocked HTTP), and
 the cloud code path end to end against a local Chromium posing as the cloud."""
 import json
+import logging
 import os
 import shutil
 import subprocess
@@ -180,15 +181,30 @@ def test_steel_cloud_session(monkeypatch):
 
 
 @responses.activate
-def test_steel_self_hosted_fixes_unroutable_urls(monkeypatch):
+def test_steel_self_hosted_fixes_unroutable_urls(monkeypatch, caplog):
     monkeypatch.setenv("STEEL_BASE_URL", "http://steel.lan:3000/")
     responses.add(responses.POST, "http://steel.lan:3000/v1/sessions", json={
         "id": "local1", "websocketUrl": "ws://0.0.0.0:3000/",
         "debugUrl": "http://0.0.0.0:3000/v1/sessions/debug"})
-    session = SteelProvider().create_session()
+    monkeypatch.setattr(logging.getLogger("autotok"), "propagate", True)  # the CLI turns it off
+    with caplog.at_level("WARNING", logger="autotok"):
+        session = SteelProvider().create_session()
     assert "steel-api-key" not in responses.calls[0].request.headers
     assert session.connect_url == "ws://steel.lan:3000/"
     assert session.live_view_url() == "http://steel.lan:3000/v1/sessions/debug?interactive=true&showControls=true"
+    # its live view page would still connect to 0.0.0.0 by itself: tell the user how to fix it
+    assert "DOMAIN=steel.lan:3000" in caplog.text
+
+
+@responses.activate
+def test_steel_with_domain_set_has_no_warning(monkeypatch, caplog):
+    monkeypatch.setenv("STEEL_BASE_URL", "http://localhost:3000")
+    responses.add(responses.POST, "http://localhost:3000/v1/sessions", json={
+        "id": "s", "websocketUrl": "ws://localhost:3000/", "debugUrl": "http://localhost:3000/v1/sessions/debug"})
+    monkeypatch.setattr(logging.getLogger("autotok"), "propagate", True)  # the CLI turns it off
+    with caplog.at_level("WARNING", logger="autotok"):
+        SteelProvider().create_session()
+    assert "DOMAIN" not in caplog.text
 
 
 @responses.activate

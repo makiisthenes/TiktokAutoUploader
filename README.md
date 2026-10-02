@@ -181,12 +181,14 @@ TikTok in that page; the session is saved as soon as you're in and the cloud bro
 **Self-hosted Steel** is free and open source:
 
 ```bash
-docker run -p 3000:3000 ghcr.io/steel-dev/steel-browser
+docker run -p 3000:3000 -e DOMAIN=localhost:3000 ghcr.io/steel-dev/steel-browser
 setx AUTOTOK_BROWSER steel
 setx STEEL_BASE_URL http://localhost:3000
 ```
 
-A self-hosted steel-browser runs one session at a time.
+Set `DOMAIN` to the address you reach the server at. Without it, steel-browser tells browsers to
+connect to `0.0.0.0` and its live view stays blank, so you can't log in. autotok warns when it sees
+this. A self-hosted steel-browser runs one session at a time.
 
 Good to know:
 
