@@ -86,7 +86,8 @@ class SteelSession(CloudSession):
 class SteelProvider(CloudProvider):
     label = "Steel"
 
-    def create_session(self, *, proxy: Proxy | None = None, timeout: float | None = None) -> SteelSession:
+    def create_session(self, *, proxy: Proxy | None = None, timeout: float | None = None,
+                       offline: bool = False) -> SteelSession:
         base = base_url()
         key = (os.environ.get("STEEL_API_KEY") or "").strip() or None
         if _is_cloud(base) and not key:

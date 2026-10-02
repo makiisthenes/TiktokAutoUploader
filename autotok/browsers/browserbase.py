@@ -12,9 +12,14 @@ Environment variables:
     Optional; Browserbase infers it from the API key when omitted.
 ``BROWSERBASE_REGION``
     Optional, e.g. ``eu-central-1`` (Browserbase's default is ``us-west-2``).
+``BROWSERBASE_PROXY_COUNTRY``
+    Optional two-letter country, e.g. ``GB``. Logins from accounts without a
+    proxy then go through Browserbase's residential proxies in that country,
+    so TikTok sees a home connection near you instead of a datacenter (fewer
+    "Verify it's really you" checks).
 
-Account proxies are applied as Browserbase "external" proxies, which need a
-Developer plan or higher and must be HTTP or HTTPS.
+Account proxies are applied as Browserbase "external" proxies (HTTP or HTTPS
+only). Custom and Browserbase proxies need a Developer plan or higher.
 """
 from __future__ import annotations
 
@@ -91,7 +96,8 @@ class BrowserbaseProvider(CloudProvider):
             )
         return key
 
-    def create_session(self, *, proxy: Proxy | None = None, timeout: float | None = None) -> BrowserbaseSession:
+    def create_session(self, *, proxy: Proxy | None = None, timeout: float | None = None,
+                       offline: bool = False) -> BrowserbaseSession:
         key = self.api_key()
         body: dict = {}
         project = (os.environ.get("BROWSERBASE_PROJECT_ID") or "").strip()
@@ -102,8 +108,11 @@ class BrowserbaseProvider(CloudProvider):
             body["region"] = region
         if timeout is not None:
             body["timeout"] = max(MIN_TIMEOUT, min(MAX_TIMEOUT, int(timeout)))
+        country = (os.environ.get("BROWSERBASE_PROXY_COUNTRY") or "").strip().upper()
         if proxy is not None:
             body["proxies"] = [_proxy_config(proxy)]
+        elif country and not offline:
+            body["proxies"] = [{"type": "browserbase", "geolocation": {"country": country}}]
 
         try:
             r = requests.post(f"{API_URL}/sessions", headers=_headers(key), json=body, timeout=_HTTP_TIMEOUT)

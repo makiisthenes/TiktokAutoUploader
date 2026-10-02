@@ -13,3 +13,6 @@ VideosDirPath/
 .pytest_cache/
 .coverage
 tests/
+.env
+.env.*
+!.env.example

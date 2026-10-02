@@ -163,11 +163,16 @@ locally, which makes it a good fit for servers and Docker.
 | `browserbase` | [Browserbase](https://www.browserbase.com) | `BROWSERBASE_API_KEY` (optional `BROWSERBASE_PROJECT_ID`, `BROWSERBASE_REGION`) |
 | `steel` | [Steel Cloud](https://steel.dev), or your own [steel-browser](https://github.com/steel-dev/steel-browser) server | Cloud: `STEEL_API_KEY`. Self-hosted: `STEEL_BASE_URL`, e.g. `http://localhost:3000` |
 
-```bash
-# Windows: setx sets it for new terminals (macOS/Linux: export AUTOTOK_BROWSER=browserbase)
-setx AUTOTOK_BROWSER browserbase
-setx BROWSERBASE_API_KEY bb_live_...
+Put the settings in your `.env` file (copy [`.env.example`](.env.example)):
 
+```bash
+AUTOTOK_BROWSER=browserbase
+BROWSERBASE_API_KEY=bb_live_...
+```
+
+Then use autotok as usual:
+
+```bash
 autotok browser check                 # starts a session and shows the IP it browses from
 autotok login -n alice -p http://user:pass@gate.example.com:7000
 autotok upload -u alice -v clip.mp4 -t "Hello #fyp"
@@ -182,8 +187,13 @@ TikTok in that page; the session is saved as soon as you're in and the cloud bro
 
 ```bash
 docker run -p 3000:3000 -e DOMAIN=localhost:3000 ghcr.io/steel-dev/steel-browser
-setx AUTOTOK_BROWSER steel
-setx STEEL_BASE_URL http://localhost:3000
+```
+
+and in `.env`:
+
+```bash
+AUTOTOK_BROWSER=steel
+STEEL_BASE_URL=http://localhost:3000
 ```
 
 Set `DOMAIN` to the address you reach the server at. Without it, steel-browser tells browsers to
@@ -195,6 +205,13 @@ Good to know:
 - **Use an account proxy with cloud logins.** The account's proxy is applied to the cloud login
   session, so TikTok sees the same IP at login and upload. Without one, TikTok sees the login come
   from the provider's IP and uploads come from yours.
+- **"Verify it's really you"** after logging in means TikTok saw an unfamiliar device on a datacenter
+  IP. You can complete it in the live view, but it's better to avoid it: use an account proxy, or on
+  a paid Browserbase plan set `BROWSERBASE_PROXY_COUNTRY=GB` (your country) to log in through a home
+  IP there. On the free plan, `BROWSERBASE_REGION` set to the region nearest you
+  (e.g. `eu-central-1`) at least avoids a US login.
+- The live view shows only the TikTok tab, so autotok closes popups such as "Continue with Google"
+  during cloud logins. Use the QR code, email/username or phone instead.
 - Browserbase only takes HTTP/HTTPS proxies, and custom proxies need its Developer plan or higher.
   Custom proxies on Steel Cloud may need a paid plan too.
 - Only the browser runs in the cloud. The video file still goes from your machine (through the
@@ -355,7 +372,10 @@ Scripts that call the API directly must send the header `X-Requested-With: autot
 
 ## Configuration
 
-Everything is optional and set through environment variables:
+Everything is optional. Put settings in a `.env` file: copy [`.env.example`](.env.example) to `.env`
+and fill in what you use. `autotok` reads `.env` from the folder you run it in, then
+`~/.autotok/.env`. Variables already set in your environment take priority, and `docker compose`
+reads the same file. `.env` holds API keys, so never commit it (it's in `.gitignore`).
 
 | Variable | Purpose | Default |
 |---|---|---|

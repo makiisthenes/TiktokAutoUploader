@@ -17,6 +17,9 @@ First release on PyPI as **autotok** (`pip install autotok`).
   steel-browser) runs the login and signing browser remotely instead of on your machine. Login
   happens through a live-view link; the account's proxy is applied to the cloud session. Providers
   plug into a small factory (`autotok.browsers.register_provider`).
+- Settings can live in a `.env` file (`.env.example` is the template). The CLI reads `./.env`, then
+  `~/.autotok/.env`, without overriding real environment variables; `autotok.load_env()` does the
+  same from Python.
 - `Dockerfile` for the CLI (with or without a local Chromium) and a CI job that builds it and the
   web app's compose stack.
 - `autotok accounts list|check|remove`, `autotok browser check`, `autotok install-browser`,

@@ -29,6 +29,7 @@ from .errors import (
     ValidationError,
 )
 from .auth import import_session, login_interactive
+from .env import load_env
 from .proxy import Proxy, check_proxy, parse_proxy
 from .uploader import Client, UploadResult, upload_video
 
@@ -43,6 +44,7 @@ __all__ = [
     "UploadResult",
     "check_proxy",
     "import_session",
+    "load_env",
     "login",
     "login_interactive",
     "parse_proxy",

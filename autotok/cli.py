@@ -336,6 +336,9 @@ def _configure_logging(quiet: bool, debug: bool) -> None:
 
 
 def main(argv: "list[str] | None" = None, *, _store: AccountStore | None = None) -> int:
+    from .env import load_env
+
+    load_env()  # .env in the current directory, then $AUTOTOK_HOME/.env
     parser = build_parser()
     args = parser.parse_args(argv)
     if args.command is None:

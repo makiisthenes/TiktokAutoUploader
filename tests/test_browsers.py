@@ -73,7 +73,7 @@ def test_cloud_open_releases_session_when_connect_fails():
     class Fake(CloudProvider):
         label = "Fake"
 
-        def create_session(self, *, proxy=None, timeout=None):
+        def create_session(self, *, proxy=None, timeout=None, offline=False):
             return FakeSession()
 
     class PW:
@@ -121,6 +121,21 @@ def test_browserbase_timeout_is_clamped(monkeypatch):
     responses.add(responses.POST, f"{BB}/sessions", json={"id": "s", "connectUrl": "wss://x"})
     BrowserbaseProvider().create_session(timeout=5)
     assert json.loads(responses.calls[0].request.body)["timeout"] == 60
+
+
+@responses.activate
+def test_browserbase_country_proxy_for_logins_only(monkeypatch):
+    monkeypatch.setenv("BROWSERBASE_API_KEY", "k")
+    monkeypatch.setenv("BROWSERBASE_PROXY_COUNTRY", "gb")
+    responses.add(responses.POST, f"{BB}/sessions", json={"id": "s", "connectUrl": "wss://x"})
+    provider = BrowserbaseProvider()
+    provider.create_session()  # login: residential proxy in the chosen country
+    provider.create_session(offline=True)  # signing: no proxy needed
+    provider.create_session(proxy=Proxy.parse("http://h.example:1"))  # account proxy wins
+    bodies = [json.loads(c.request.body) for c in responses.calls]
+    assert bodies[0]["proxies"] == [{"type": "browserbase", "geolocation": {"country": "GB"}}]
+    assert "proxies" not in bodies[1]
+    assert bodies[2]["proxies"][0]["type"] == "external"
 
 
 def test_browserbase_rejects_socks_proxy(monkeypatch):
@@ -264,7 +279,7 @@ class _LocalCdpProvider(CloudProvider):
     sessions = []
     executable = ""
 
-    def create_session(self, *, proxy=None, timeout=None):
+    def create_session(self, *, proxy=None, timeout=None, offline=False):
         user_dir = tempfile.mkdtemp(prefix="autotok-cdp-")
         proc = subprocess.Popen([self.executable, "--headless=new", "--no-sandbox", "--remote-debugging-port=0",
                                  f"--user-data-dir={user_dir}", "--no-first-run",

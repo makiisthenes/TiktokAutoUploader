@@ -93,13 +93,17 @@ class CloudProvider(BrowserProvider):
     """A provider that hands out remote Chromium sessions over CDP."""
 
     @abstractmethod
-    def create_session(self, *, proxy: Proxy | None = None, timeout: float | None = None) -> CloudSession:
-        """Start a remote session (its traffic goes through ``proxy`` if given)."""
+    def create_session(self, *, proxy: Proxy | None = None, timeout: float | None = None,
+                       offline: bool = False) -> CloudSession:
+        """Start a remote session (its traffic goes through ``proxy`` if given).
+
+        ``offline`` sessions only run page scripts, so providers should skip
+        any managed proxy for them."""
 
     def open(self, pw, *, headless: bool = True, proxy: Proxy | None = None,
              args: list[str] | None = None, offline: bool = False,
              timeout: float | None = None) -> BrowserHandle:
-        session = self.create_session(proxy=None if offline else proxy, timeout=timeout)
+        session = self.create_session(proxy=None if offline else proxy, timeout=timeout, offline=offline)
         try:
             browser = pw.chromium.connect_over_cdp(session.connect_url)
         except Exception as exc:

@@ -58,6 +58,27 @@ def wait_for_session_cookies(
             raise LoginError(f"the browser was closed before login finished ({exc})") from None
 
 
+def _keep_login_tab_in_front(context, login_page) -> None:
+    """Cloud live views show only the login tab, so a popup (e.g. "Continue
+    with Google") would be invisible and steal focus from it. Close popups and
+    keep the login tab in front."""
+    closed = False
+    for p in list(context.pages):
+        if p is not login_page and not p.is_closed():
+            try:
+                p.close()
+                closed = True
+            except Exception:  # pragma: no cover - best effort
+                pass
+    if closed:
+        log.warning("Closed a popup window: popups (e.g. 'Continue with Google') can't be shown in "
+                    "the live view. Log in with the QR code, email/username or phone instead.")
+        try:
+            login_page.bring_to_front()
+        except Exception:  # pragma: no cover
+            pass
+
+
 def _announce_live_view(url: str) -> None:
     log.warning("Open this link in your browser and log in to TikTok there:\n  %s", url)
 
@@ -100,6 +121,8 @@ def open_login_session(
             def get_cookies() -> list[dict]:
                 if page.is_closed():
                     raise RuntimeError("page closed")
+                if handle.is_remote:
+                    _keep_login_tab_in_front(context, page)
                 return context.cookies()
 
             cookies = wait_for_session_cookies(
