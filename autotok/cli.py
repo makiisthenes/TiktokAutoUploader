@@ -6,12 +6,16 @@ clip.mp4 -t "caption"`` keeps working (``cli.py`` in the repo forwards here).
 from __future__ import annotations
 
 import argparse
+import json
 import logging
+import os
 import shlex
 import sys
+import webbrowser
 
 from . import __version__
 from .accounts import AccountStore
+from .browsers import CloudProvider, available_providers, get_provider
 from .errors import AutotokError, ValidationError
 from .proxy import check_proxy, parse_proxy
 
@@ -26,6 +30,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--version", action="version", version=f"autotok {__version__}")
     parser.add_argument("-q", "--quiet", action="store_true", help="only print errors")
     parser.add_argument("--debug", action="store_true", help="verbose logging")
+    parser.add_argument("--browser", choices=available_providers(),
+                        help="where the login/signing browser runs (default: $AUTOTOK_BROWSER or local)")
     sub = parser.add_subparsers(dest="command", metavar="<command>")
 
     lp = sub.add_parser("login", help="log in to TikTok and save the session")
@@ -82,6 +88,11 @@ def build_parser() -> argparse.ArgumentParser:
     ib = sub.add_parser("install-browser", help="download the Chromium build autotok uses")
     ib.add_argument("--with-deps", action="store_true", help="also install system libraries (Linux, needs root)")
 
+    bp = sub.add_parser("browser", help="check the login/signing browser (local or cloud)")
+    bsub = bp.add_subparsers(dest="action", metavar="<action>", required=True)
+    bc = bsub.add_parser("check", help="start the browser and show the IP it browses from")
+    bc.add_argument("-u", "--user", help="use this account's proxy")
+
     sub.add_parser("shell", help="interactive prompt")
     return parser
 
@@ -105,12 +116,26 @@ def cmd_login(args, store: AccountStore) -> int:
         if not args.datacenter:
             print("Tip: also pass --datacenter <tt-target-idc cookie value> to avoid upload errors.")
         return 0
-    print("A browser window will open. Log in to TikTok there; it closes by itself when done.")
+    provider = get_provider()
+    if isinstance(provider, CloudProvider):
+        print(f"Starting a {provider.label} cloud browser...")
+    else:
+        print("A browser window will open. Log in to TikTok there; it closes by itself when done.")
     if proxy:
         print(f"Using proxy {parse_proxy(proxy).masked()}")
-    login_interactive(args.name, proxy=proxy, timeout=args.timeout, store=store)
+    login_interactive(args.name, proxy=proxy, timeout=args.timeout, store=store, on_live_url=_show_live_url)
     print(f"Account '{args.name}' saved.")
     return 0
+
+
+def _show_live_url(url: str) -> None:
+    print("\nOpen this link in your browser and log in to TikTok there. "
+          "The session is saved as soon as you're in:")
+    print(f"  {url}\n", flush=True)
+    try:
+        webbrowser.open(url)
+    except Exception:  # no desktop browser (servers, containers)
+        pass
 
 
 def cmd_upload(args, store: AccountStore) -> int:
@@ -220,9 +245,45 @@ def cmd_proxy(args, store: AccountStore) -> int:
 
 
 def cmd_install_browser(args, store: AccountStore) -> int:
-    from .browser import install_browser
+    from .browsers import install_browser
 
+    provider = get_provider()
+    if isinstance(provider, CloudProvider):
+        print(f"Not needed: browsers run on {provider.label} (AUTOTOK_BROWSER). "
+              "Use --browser local to install Chromium for local mode.")
+        return 0
     return install_browser(with_deps=args.with_deps)
+
+
+def cmd_browser(args, store: AccountStore) -> int:
+    from .browsers import sync_playwright
+    from .proxy import IP_ECHO_URL
+
+    provider = get_provider()
+    proxy = store.load(args.user).get_proxy() if args.user else None
+    print(f"Provider: {provider.label}" + (f" via proxy {proxy.masked()}" if proxy else ""))
+    with sync_playwright() as pw:
+        handle = provider.open(pw, headless=True, proxy=proxy, timeout=120)
+        try:
+            page = handle.page(handle.context())
+            if handle.is_remote:
+                print(f"Session: {handle.session.id}")
+            print(f"User agent: {page.evaluate('() => navigator.userAgent')}")
+            try:
+                page.goto(IP_ECHO_URL, timeout=30_000)
+                text = page.inner_text("body").strip()
+                try:
+                    text = json.loads(text)["ip"]
+                except (ValueError, KeyError, TypeError):
+                    pass
+                print(f"Browsing from IP: {text}")
+            except Exception as exc:
+                print(f"Could not load a page ({exc}); check the proxy.", file=sys.stderr)
+                return 1
+        finally:
+            handle.close()
+    print("Browser OK.")
+    return 0
 
 
 def cmd_shell(args, store: AccountStore) -> int:
@@ -259,6 +320,7 @@ COMMANDS = {
     "accounts": cmd_accounts,
     "proxy": cmd_proxy,
     "install-browser": cmd_install_browser,
+    "browser": cmd_browser,
     "shell": cmd_shell,
 }
 
@@ -280,6 +342,8 @@ def main(argv: "list[str] | None" = None, *, _store: AccountStore | None = None)
         parser.print_help()
         return 1
     _configure_logging(args.quiet, args.debug)
+    if args.browser:
+        os.environ["AUTOTOK_BROWSER"] = args.browser
     try:
         return COMMANDS[args.command](args, _store or AccountStore())
     except ValidationError as exc:

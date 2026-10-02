@@ -1,27 +1,19 @@
-"""Shared Playwright/Chromium launch helpers."""
+"""Chromium on this machine (the default provider)."""
 from __future__ import annotations
 
 import subprocess
 import sys
 
-from . import settings
-from .errors import BrowserNotInstalledError, MissingDependencyError
-from .proxy import Proxy
+from .. import settings
+from ..errors import BrowserNotInstalledError
+from ..proxy import Proxy
+from .base import BrowserHandle, BrowserProvider
 
 # Hide the most obvious automation flags from the pages we open.
 STEALTH_ARGS = [
     "--disable-blink-features=AutomationControlled",
     "--disable-infobars",
 ]
-
-
-def sync_playwright():
-    try:
-        from playwright.sync_api import sync_playwright as _sp
-    except ImportError as exc:  # pragma: no cover - playwright is a core dependency
-        raise MissingDependencyError("playwright is not installed: pip install autotok") from exc
-    return _sp()
-
 
 # A proxy nobody listens on: used to make a browser fail closed.
 _BLACKHOLE_PROXY = {"server": "http://127.0.0.1:9"}
@@ -71,3 +63,13 @@ def install_browser(with_deps: bool = False) -> int:
         cmd.append("--with-deps")
     cmd.append("chromium")
     return subprocess.call(cmd)
+
+
+class LocalProvider(BrowserProvider):
+    label = "local Chromium"
+
+    def open(self, pw, *, headless: bool = True, proxy: Proxy | None = None,
+             args: list[str] | None = None, offline: bool = False,
+             timeout: float | None = None) -> BrowserHandle:
+        browser = launch_chromium(pw, headless=headless, proxy=proxy, args=args, offline=offline)
+        return BrowserHandle(browser, provider=self.label)

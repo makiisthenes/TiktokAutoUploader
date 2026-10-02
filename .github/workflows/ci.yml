@@ -50,6 +50,24 @@ jobs:
           /tmp/wheel-env/bin/autotok --version
           /tmp/wheel-env/bin/python -c "import autotok, pathlib; assert (pathlib.Path(autotok.__file__).parent / 'signer_js' / 'xbogus.js').is_file()"
 
+  docker:
+    name: Docker images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the CLI image (full and slim)
+        run: |
+          docker build -t autotok:ci .
+          docker build --build-arg INSTALL_BROWSER=false -t autotok:ci-slim .
+      - name: Smoke-test the CLI image
+        run: |
+          docker run --rm autotok:ci --version
+          docker run --rm autotok:ci browser check
+          docker run --rm autotok:ci-slim --version
+          docker run --rm -e AUTOTOK_BROWSER=steel autotok:ci-slim install-browser
+      - name: Build the web app stack
+        run: docker compose build
+
   webapp:
     name: Web app build
     runs-on: ubuntu-latest

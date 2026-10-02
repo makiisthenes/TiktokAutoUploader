@@ -38,6 +38,12 @@ services:
       - NOVNC_CONTROL_URL=http://novnc:7900
       - NOVNC_PUBLIC_URL=/novnc/vnc.html
       - API_PUBLIC_URL=http://api:8000
+      # Optional cloud browser for signing uploads (README: Cloud browsers). Set in .env.
+      - AUTOTOK_BROWSER=${AUTOTOK_BROWSER:-local}
+      - BROWSERBASE_API_KEY=${BROWSERBASE_API_KEY:-}
+      - BROWSERBASE_PROJECT_ID=${BROWSERBASE_PROJECT_ID:-}
+      - STEEL_API_KEY=${STEEL_API_KEY:-}
+      - STEEL_BASE_URL=${STEEL_BASE_URL:-}
     volumes:
       - ./data:/data
     # cwd on the volume so 1.x session files in data/CookiesDir are migrated.
@@ -62,6 +68,12 @@ services:
       - AUTOTOK_VIDEOS_DIR=/data/VideosDirPath
       - SCHEDULER_POLL_SECONDS=30
       - SCHEDULER_CONCURRENCY=1
+      # Optional cloud browser for signing uploads (README: Cloud browsers). Set in .env.
+      - AUTOTOK_BROWSER=${AUTOTOK_BROWSER:-local}
+      - BROWSERBASE_API_KEY=${BROWSERBASE_API_KEY:-}
+      - BROWSERBASE_PROJECT_ID=${BROWSERBASE_PROJECT_ID:-}
+      - STEEL_API_KEY=${STEEL_API_KEY:-}
+      - STEEL_BASE_URL=${STEEL_BASE_URL:-}
     volumes:
       - ./data:/data
     working_dir: /data

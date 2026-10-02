@@ -14,6 +14,10 @@ Environment variables:
     Use this Chrome/Chromium binary instead of Playwright's bundled Chromium.
 ``AUTOTOK_BROWSER_CHANNEL``
     Playwright channel such as ``chrome`` to use an installed Google Chrome.
+``AUTOTOK_BROWSER``
+    Where the login and signing browser runs: ``local`` (default, Chromium on
+    this machine), ``browserbase`` or ``steel``. See :mod:`autotok.browsers`
+    for each provider's settings.
 """
 from __future__ import annotations
 
@@ -69,3 +73,8 @@ def browser_executable() -> str | None:
 
 def browser_channel() -> str | None:
     return os.environ.get("AUTOTOK_BROWSER_CHANNEL") or None
+
+
+def browser_provider() -> str:
+    """Name of the browser provider (``AUTOTOK_BROWSER``, default ``local``)."""
+    return (os.environ.get("AUTOTOK_BROWSER") or "local").strip().lower()

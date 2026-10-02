@@ -39,6 +39,16 @@ class MissingDependencyError(AutotokError):
     """An optional extra (e.g. ``autotok[youtube]``) is not installed."""
 
 
+class ConfigurationError(AutotokError):
+    """A setting is missing or invalid (e.g. ``BROWSERBASE_API_KEY`` is not set)."""
+
+
+class RemoteBrowserError(AutotokError):
+    """A cloud browser (Browserbase) session could not be started or reached."""
+
+    retryable = True
+
+
 class SigningError(AutotokError):
     """Generating TikTok's request signatures failed (nothing was published)."""
 

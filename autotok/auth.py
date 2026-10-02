@@ -4,6 +4,10 @@
 page, routed through the account's proxy, and waits until TikTok sets the
 ``sessionid`` cookie. The cookies and the browser's user agent are saved, so
 later uploads present the same browser identity that created the session.
+
+With a cloud browser (``AUTOTOK_BROWSER=browserbase`` or ``steel``) the
+browser runs remotely instead, and you log in through its live view link from
+your own browser.
 """
 from __future__ import annotations
 
@@ -13,7 +17,7 @@ from typing import Callable, Optional
 
 from . import settings
 from .accounts import DATACENTER_COOKIE, SESSION_COOKIE, Account, AccountStore, validate_account_name
-from .browser import launch_chromium, sync_playwright
+from .browsers import open_browser, sync_playwright
 from .errors import LoginError
 from .proxy import Proxy, parse_proxy
 
@@ -54,30 +58,44 @@ def wait_for_session_cookies(
             raise LoginError(f"the browser was closed before login finished ({exc})") from None
 
 
+def _announce_live_view(url: str) -> None:
+    log.warning("Open this link in your browser and log in to TikTok there:\n  %s", url)
+
+
 def open_login_session(
     *,
     proxy: "str | Proxy | None" = None,
     timeout: float | None = 600,
     should_stop: Optional[Callable[[], bool]] = None,
+    on_live_url: Optional[Callable[[str], None]] = None,
 ) -> tuple[list[dict], str]:
     """Open a browser for the user to log in. Returns ``(cookies, user_agent)``.
 
-    Shared by the CLI and the Docker web app's virtual browser.
+    Shared by the CLI and the Docker web app's virtual browser. For cloud
+    browsers, ``on_live_url`` receives the link the user logs in through
+    (default: it is logged).
     """
     from playwright.sync_api import Error as PlaywrightError
 
     p = parse_proxy(proxy)
     with sync_playwright() as pw:
-        browser = launch_chromium(pw, headless=False, proxy=p, args=["--start-maximized"])
+        session_timeout = (timeout or 3600) + 300
+        handle = open_browser(pw, headless=False, proxy=p, args=["--start-maximized"], timeout=session_timeout)
         try:
-            context = browser.new_context(no_viewport=True)
-            page = context.new_page()
+            if handle.is_remote:
+                context = handle.context()
+                page = handle.page(context)
+            else:
+                context = handle.context(no_viewport=True)
+                page = context.new_page()
             try:
                 page.goto(settings.TIKTOK_LOGIN_URL, wait_until="domcontentloaded", timeout=60_000)
                 user_agent = page.evaluate("() => navigator.userAgent")
             except PlaywrightError as exc:
                 hint = " (check the proxy)" if p else ""
                 raise LoginError(f"could not open TikTok's login page{hint}: {exc.message}") from None
+            if handle.is_remote:
+                (on_live_url or _announce_live_view)(handle.live_view_url())
 
             def get_cookies() -> list[dict]:
                 if page.is_closed():
@@ -92,10 +110,7 @@ def open_login_session(
                 sleep=lambda s: page.wait_for_timeout(s * 1000),
             )
         finally:
-            try:
-                browser.close()
-            except Exception:  # pragma: no cover
-                pass
+            handle.close()
     return cookies, user_agent
 
 
@@ -105,11 +120,15 @@ def login_interactive(
     proxy: "str | Proxy | None" = None,
     timeout: float | None = 600,
     store: AccountStore | None = None,
+    on_live_url: Optional[Callable[[str], None]] = None,
 ) -> Account:
-    """Log in through a browser window and save the session as ``name``."""
+    """Log in through a browser window and save the session as ``name``.
+
+    With a cloud browser, ``on_live_url`` gets the link to log in through.
+    """
     validate_account_name(name)
     p = parse_proxy(proxy)
-    cookies, user_agent = open_login_session(proxy=p, timeout=timeout)
+    cookies, user_agent = open_login_session(proxy=p, timeout=timeout, on_live_url=on_live_url)
     account = Account(name=name, cookies=cookies, user_agent=user_agent, proxy=p.url if p else None)
     (store or AccountStore()).save(account)
     log.info("Saved session for '%s'", name)

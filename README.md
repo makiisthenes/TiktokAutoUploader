@@ -50,7 +50,9 @@
 - **Clickable hashtags and @mentions**, emoji-safe.
 - **YouTube links** download automatically with [yt-dlp](https://github.com/yt-dlp/yt-dlp).
 - **Python SDK, CLI, and an optional web app** (Docker) with a browser-based login.
-- **No Node.js**: TikTok's request signatures are computed locally in headless Chromium.
+- **Cloud browsers**: run the login and signing browser on [Browserbase](https://www.browserbase.com) or [Steel](https://github.com/steel-dev/steel-browser) (cloud or self-hosted) instead of your computer.
+- **Docker image** for running the CLI on servers.
+- **No Node.js**: TikTok's request signatures are computed in headless Chromium.
 
 ---
 
@@ -148,6 +150,59 @@ Need proxies? See our [sponsors](#sponsors).
 
 ---
 
+## Cloud browsers (Browserbase, Steel)
+
+autotok needs a browser in two places: the one-time **login**, and **signing** each upload (TikTok's
+anti-bot signatures are computed in a browser page). By default that's Chromium on your machine.
+Set `AUTOTOK_BROWSER` to run it in the cloud instead. Nothing then needs to be installed or opened
+locally, which makes it a good fit for servers and Docker.
+
+| `AUTOTOK_BROWSER` | Where the browser runs | Settings |
+|---|---|---|
+| `local` (default) | Chromium on this machine | `autotok install-browser` once |
+| `browserbase` | [Browserbase](https://www.browserbase.com) | `BROWSERBASE_API_KEY` (optional `BROWSERBASE_PROJECT_ID`, `BROWSERBASE_REGION`) |
+| `steel` | [Steel Cloud](https://steel.dev), or your own [steel-browser](https://github.com/steel-dev/steel-browser) server | Cloud: `STEEL_API_KEY`. Self-hosted: `STEEL_BASE_URL`, e.g. `http://localhost:3000` |
+
+```bash
+# Windows: setx sets it for new terminals (macOS/Linux: export AUTOTOK_BROWSER=browserbase)
+setx AUTOTOK_BROWSER browserbase
+setx BROWSERBASE_API_KEY bb_live_...
+
+autotok browser check                 # starts a session and shows the IP it browses from
+autotok login -n alice -p http://user:pass@gate.example.com:7000
+autotok upload -u alice -v clip.mp4 -t "Hello #fyp"
+```
+
+Or pick per command: `autotok --browser steel login -n alice`.
+
+**Logging in:** `autotok login` prints a live-view link and opens it in your normal browser. Log in to
+TikTok in that page; the session is saved as soon as you're in and the cloud browser is closed.
+
+**Self-hosted Steel** is free and open source:
+
+```bash
+docker run -p 3000:3000 ghcr.io/steel-dev/steel-browser
+setx AUTOTOK_BROWSER steel
+setx STEEL_BASE_URL http://localhost:3000
+```
+
+A self-hosted steel-browser runs one session at a time.
+
+Good to know:
+
+- **Use an account proxy with cloud logins.** The account's proxy is applied to the cloud login
+  session, so TikTok sees the same IP at login and upload. Without one, TikTok sees the login come
+  from the provider's IP and uploads come from yours.
+- Browserbase only takes HTTP/HTTPS proxies, and custom proxies need its Developer plan or higher.
+  Custom proxies on Steel Cloud may need a paid plan too.
+- Only the browser runs in the cloud. The video file still goes from your machine (through the
+  account proxy) straight to TikTok, so cloud usage stays small: one short session per login and
+  per upload.
+- Want another provider? Subclass `autotok.browsers.CloudProvider` and call
+  `autotok.browsers.register_provider("name", YourProvider)`.
+
+---
+
 ## Python SDK
 
 ```python
@@ -198,8 +253,11 @@ autotok upload    -u NAME (-v FILE | -yt URL) -t CAPTION [options]
 autotok accounts  list | check NAME | remove NAME
 autotok proxy     set NAME PROXY | clear NAME | test [PROXY | -u NAME]
 autotok show      -u (accounts) | -v (videos)
+autotok browser check [-u NAME]       # test the local or cloud browser
 autotok install-browser [--with-deps]
 autotok shell                         # interactive prompt
+
+autotok --browser {local,browserbase,steel} <command> ...   # choose where the browser runs
 ```
 
 Upload options:
@@ -220,6 +278,34 @@ Upload options:
 | `--no-proxy` | Ignore the account's saved proxy | — |
 
 `python cli.py ...` in this repository still works and is the same as `autotok ...`.
+
+---
+
+## Docker
+
+The `Dockerfile` in the repository builds the CLI with Chromium included:
+
+```bash
+docker build -t autotok .
+
+docker run --rm -it -v autotok-data:/data autotok accounts list
+docker run --rm -it -v autotok-data:/data -v "$PWD/videos:/data/videos" \
+  autotok upload -u alice -v clip.mp4 -t "Hello #fyp"
+```
+
+Saved accounts live in `/data`, so keep it in a volume. Containers have no screen, so log in with a
+[cloud browser](#cloud-browsers-browserbase-steel) and open the link it prints:
+
+```bash
+docker run --rm -it -v autotok-data:/data \
+  -e AUTOTOK_BROWSER=browserbase -e BROWSERBASE_API_KEY=bb_live_... \
+  autotok login -n alice -p http://user:pass@gate.example.com:7000
+```
+
+You can also save a session cookie from your own browser with `login --sessionid ... --datacenter ...`.
+
+Using a cloud browser for everything? Build without the local Chromium for a much smaller image:
+`docker build --build-arg INSTALL_BROWSER=false -t autotok:slim .`
 
 ---
 
@@ -253,6 +339,10 @@ mkdir -p data/autotok/accounts && cp ~/.autotok/accounts/my_account.json data/au
 (Files the containers write are owned by root on Linux, so use the web app's own login for
 accounts you manage there.)
 
+To sign uploads with a cloud browser, put `AUTOTOK_BROWSER` and its settings (see
+[Cloud browsers](#cloud-browsers-browserbase-steel)) in a `.env` file next to `docker-compose.yml`.
+Logging in through the web app still uses its built-in virtual browser.
+
 Scripts that call the API directly must send the header `X-Requested-With: autotok` on
 `POST`/`PATCH`/`DELETE` requests. This stops other web pages from using the local API.
 
@@ -269,8 +359,11 @@ Everything is optional and set through environment variables:
 |---|---|---|
 | `AUTOTOK_HOME` | Saved accounts and settings | `~/.autotok` |
 | `AUTOTOK_VIDEOS_DIR` | Videos folder and YouTube downloads | `$AUTOTOK_HOME/videos` |
+| `AUTOTOK_BROWSER` | Where login/signing browsers run: `local`, `browserbase`, `steel` | `local` |
 | `AUTOTOK_BROWSER_CHANNEL` | Use an installed browser, e.g. `chrome` | Playwright Chromium |
 | `AUTOTOK_BROWSER_PATH` | Full path to a Chrome/Chromium binary | Playwright Chromium |
+| `BROWSERBASE_API_KEY`, `BROWSERBASE_PROJECT_ID`, `BROWSERBASE_REGION` | Browserbase settings | — |
+| `STEEL_API_KEY`, `STEEL_BASE_URL`, `STEEL_CONNECT_URL` | Steel settings (`STEEL_BASE_URL` for self-hosted) | Steel Cloud |
 
 Account files contain your TikTok session (equivalent to your password). They are saved with
 owner-only permissions; keep them private.

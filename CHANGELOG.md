@@ -13,7 +13,14 @@ First release on PyPI as **autotok** (`pip install autotok`).
   SOCKS5, and are always shown with the password masked. The account proxy is pinned on every
   request, so `HTTP(S)_PROXY` environment variables can't redirect an account through another IP,
   and the signing browser can't make direct connections.
-- `autotok accounts list|check|remove`, `autotok install-browser`, `autotok shell`.
+- Cloud browsers: `AUTOTOK_BROWSER=browserbase` or `steel` (Steel Cloud or a self-hosted
+  steel-browser) runs the login and signing browser remotely instead of on your machine. Login
+  happens through a live-view link; the account's proxy is applied to the cloud session. Providers
+  plug into a small factory (`autotok.browsers.register_provider`).
+- `Dockerfile` for the CLI (with or without a local Chromium) and a CI job that builds it and the
+  web app's compose stack.
+- `autotok accounts list|check|remove`, `autotok browser check`, `autotok install-browser`,
+  `autotok shell`, `--browser`, and `python -m autotok`.
 - Sessions can be imported from a browser cookie (`autotok login --sessionid`).
 - Web app: per-account proxy editing and testing, session check, video library (add, delete,
   schedule by name), immediate upload from the library, proxy field on browser login.

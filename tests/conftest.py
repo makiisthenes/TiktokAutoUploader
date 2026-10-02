@@ -18,6 +18,11 @@ def autotok_home(tmp_path, monkeypatch):
         d.mkdir()
     monkeypatch.setenv("AUTOTOK_HOME", str(home))
     monkeypatch.setenv("AUTOTOK_VIDEOS_DIR", str(videos))
+    # setenv (not delenv) so values set during a test, e.g. by `--browser`, are undone.
+    monkeypatch.setenv("AUTOTOK_BROWSER", "local")
+    for var in ("BROWSERBASE_API_KEY", "BROWSERBASE_PROJECT_ID", "BROWSERBASE_REGION",
+                "STEEL_API_KEY", "STEEL_BASE_URL", "STEEL_CONNECT_URL"):
+        monkeypatch.setenv(var, "")
     monkeypatch.chdir(work)
     return home
 

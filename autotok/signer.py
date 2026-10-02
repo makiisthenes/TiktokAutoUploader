@@ -8,7 +8,9 @@ is given a blank page on that origin, and every other request is blocked. No
 Node.js needed.
 
 A :class:`Signer` can be reused for many signatures; starting it costs about
-two seconds.
+two seconds. With a cloud browser (``AUTOTOK_BROWSER=browserbase`` or
+``steel``) the page runs remotely; the page fetch and every other request still
+go through the route handler, so TikTok traffic keeps using the account's proxy.
 """
 from __future__ import annotations
 
@@ -18,7 +20,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from .browser import launch_chromium, sync_playwright
+from .browsers import open_browser, sync_playwright
 from .errors import AutotokError, SigningError
 from .proxy import Proxy, parse_proxy, proxied_session
 
@@ -49,7 +51,7 @@ class Signer:
         self.proxy = parse_proxy(proxy)
         self.timeout = timeout
         self._pw = None
-        self._browser = None
+        self._handle = None
         self._context = None
         self._page = None
         self._http = proxied_session(self.proxy)
@@ -67,22 +69,27 @@ class Signer:
             return
         try:
             self._pw = sync_playwright().start()
-            # Point the browser at a closed local port: anything that slips past
-            # the route handler (e.g. Chrome's preconnect) fails instead of
+            # Locally, point the browser at a closed port: anything that slips
+            # past the route handler (e.g. Chrome's preconnect) fails instead of
             # reaching TikTok from the real IP.
-            self._browser = launch_chromium(self._pw, headless=True, offline=True)
-            device = dict(self._pw.devices["iPhone 11 Pro"])
-            device.pop("default_browser_type", None)
-            device.update(
-                user_agent=self.user_agent,
-                locale="en-US",
-                device_scale_factor=random.randint(1, 3),
-                is_mobile=random.random() > 0.5,
-                has_touch=random.random() > 0.5,
-                viewport={"width": random.randint(320, 1920), "height": random.randint(320, 1920)},
-            )
-            self._context = self._browser.new_context(bypass_csp=True, **device)
-            page = self._context.new_page()
+            self._handle = open_browser(self._pw, headless=True, offline=True,
+                                        timeout=max(300, self.timeout * 4))
+            if self._handle.is_remote:
+                self._context = self._handle.context()
+                page = self._handle.page(self._context)
+            else:
+                device = dict(self._pw.devices["iPhone 11 Pro"])
+                device.pop("default_browser_type", None)
+                device.update(
+                    user_agent=self.user_agent,
+                    locale="en-US",
+                    device_scale_factor=random.randint(1, 3),
+                    is_mobile=random.random() > 0.5,
+                    has_touch=random.random() > 0.5,
+                    viewport={"width": random.randint(320, 1920), "height": random.randint(320, 1920)},
+                )
+                self._context = self._handle.context(bypass_csp=True, **device)
+                page = self._context.new_page()
             page.route("**/*", self._route)
             ms = self.timeout * 1000
             page.goto(PAGE_URL, wait_until="load", timeout=ms)
@@ -136,11 +143,11 @@ class Signer:
                          signed_url=f"{signed}&X-Bogus={bogus}")
 
     def close(self) -> None:
-        for obj, method in ((self._browser, "close"), (self._pw, "stop")):
+        for obj, method in ((self._handle, "close"), (self._pw, "stop")):
             if obj is not None:
                 try:
                     getattr(obj, method)()
                 except Exception:  # pragma: no cover - best effort cleanup
                     pass
-        self._page = self._context = self._browser = self._pw = None
+        self._page = self._context = self._handle = self._pw = None
         self._http.close()
