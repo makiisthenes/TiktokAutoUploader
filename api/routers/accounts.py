@@ -15,7 +15,7 @@ from api.models import Account
 from api.schemas import AccountCreate, AccountRead, AccountUpdate, SessionCheckResponse
 from api.services import account_store
 from autotok import Client
-from autotok.errors import AutotokError
+from autotok.errors import AutotokError, NotLoggedInError
 
 router = APIRouter(prefix="/api/accounts", tags=["accounts"])
 
@@ -95,12 +95,17 @@ def update_account(
 
 @router.post("/{account_id}/check", response_model=SessionCheckResponse)
 def check_account_session(account_id: int, session: Session = Depends(get_session)):
-    """Ask TikTok whether the saved session still works (through the account's proxy)."""
+    """Ask TikTok whether the saved session still works (through the account's proxy).
+
+    Only TikTok rejecting the session marks it invalid; a network or proxy
+    failure is reported as 502 and leaves the stored state alone."""
     acct = _get(session, account_id)
     try:
         valid = Client.from_account(acct.username).check_session()
-    except AutotokError:
+    except NotLoggedInError:
         valid = False
+    except AutotokError as e:
+        raise HTTPException(status_code=502, detail=str(e)) from None
     acct.has_valid_session = valid
     acct.updated_at = now_utc()
     session.add(acct)

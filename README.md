@@ -233,8 +233,15 @@ Open <http://localhost:3000>. The API docs are at <http://localhost:8000/docs>.
 - **Schedules**: the scheduler retries only failures that happened before anything reached TikTok,
   so a job can't post twice.
 
-Data lives in `./data`. To share accounts between the CLI and the web app, run the CLI with
-`AUTOTOK_HOME=./data/autotok`.
+Data lives in `./data`. To use an account you logged in to with the CLI, copy its file into the
+app's store and click **Import from disk** on the Accounts page:
+
+```bash
+mkdir -p data/autotok/accounts && cp ~/.autotok/accounts/my_account.json data/autotok/accounts/
+```
+
+(Files the containers write are owned by root on Linux, so use the web app's own login for
+accounts you manage there.)
 
 > The web app has no login of its own and only listens on `127.0.0.1`. Don't expose it to the
 > internet.

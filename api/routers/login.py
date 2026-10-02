@@ -39,15 +39,41 @@ from api.schemas import (
     LoginSessionRead,
 )
 from api.services import account_store, novnc_client
+from autotok import settings
 
 router = APIRouter(prefix="/api/login/browser", tags=["login"])
 
 TERMINAL = ("completed", "failed", "expired")
-_SECRET = (os.getenv("AUTOTOK_CALLBACK_SECRET") or secrets.token_hex(32)).encode()
+_secret: bytes | None = None
+
+
+def _callback_secret() -> bytes:
+    """AUTOTOK_CALLBACK_SECRET, or a random secret persisted (0600) in
+    $AUTOTOK_HOME so it survives API restarts during a 10-minute login."""
+    global _secret
+    env = os.getenv("AUTOTOK_CALLBACK_SECRET")
+    if env:
+        return env.encode()
+    if _secret is None:
+        path = settings.home() / ".callback_secret"
+        if not path.is_file():
+            path.parent.mkdir(parents=True, exist_ok=True)
+            tmp = path.with_name(f".callback_secret.{os.getpid()}.tmp")
+            fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+            with os.fdopen(fd, "w") as f:
+                f.write(secrets.token_hex(32))
+            try:
+                os.link(tmp, path)  # atomic: if another worker won the race, keep theirs
+            except FileExistsError:
+                pass
+            finally:
+                os.unlink(tmp)
+        _secret = path.read_text().strip().encode()
+    return _secret
 
 
 def callback_token(session_id: str) -> str:
-    return hmac.new(_SECRET, session_id.encode(), hashlib.sha256).hexdigest()
+    return hmac.new(_callback_secret(), session_id.encode(), hashlib.sha256).hexdigest()
 
 
 def _callback_url() -> str:
@@ -139,9 +165,11 @@ async def browser_events(session_id: str, request: Request):
                 status_now, error = row.status, row.error
             if status_now != last_status:
                 last_status = status_now
-                yield {"event": "status", "data": status_now}
+                # The client closes the stream on a terminal status, so the
+                # reason has to arrive first.
                 if status_now == "failed" and error:
                     yield {"event": "failure", "data": error}
+                yield {"event": "status", "data": status_now}
             if status_now in TERMINAL:
                 return
             polls += 1

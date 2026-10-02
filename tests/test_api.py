@@ -123,3 +123,58 @@ def test_login_callback_requires_token(client, monkeypatch):
     assert accounts[0]["username"] == "carol" and accounts[0]["proxy"] == "http://h.example:8000"
     from autotok import AccountStore
     assert AccountStore().load("carol").user_agent == "UA"
+
+
+def test_session_check_only_invalidates_on_rejection(client, saved_account, monkeypatch):
+    from autotok.errors import NotLoggedInError, UploadError
+
+    acct = _import(client)[0]
+
+    def network_down(self):
+        raise UploadError("session check: network error: proxy refused")
+
+    monkeypatch.setattr("autotok.Client.check_session", network_down)
+    r = client.post(f"/api/accounts/{acct['id']}/check")
+    assert r.status_code == 502
+    assert client.get(f"/api/accounts/{acct['id']}").json()["has_valid_session"] is True
+
+    def rejected(self):
+        raise NotLoggedInError("rejected")
+
+    monkeypatch.setattr("autotok.Client.check_session", rejected)
+    assert client.post(f"/api/accounts/{acct['id']}/check").json() == {"valid": False}
+    assert client.get(f"/api/accounts/{acct['id']}").json()["has_valid_session"] is False
+
+
+def test_corrupt_account_file_does_not_break_listing(client, saved_account, autotok_home):
+    _import(client)
+    (autotok_home / "accounts" / "alice.json").write_text("{not json")
+    r = client.get("/api/accounts")
+    assert r.status_code == 200 and r.json()[0]["proxy"] is None
+
+
+def test_failure_reason_is_sent_before_terminal_status(client, monkeypatch):
+    monkeypatch.setattr("api.services.novnc_client.start_browser", lambda *a, **k: {})
+    sid = client.post("/api/login/browser/start", json={"username": "dave"}).json()["session_id"]
+    from sqlmodel import Session
+
+    from api.models import LoginSession
+    with Session(api_db.engine) as s:
+        row = s.get(LoginSession, sid)
+        row.status, row.error = "failed", "timed out waiting for TikTok login"
+        s.add(row)
+        s.commit()
+    body = client.get(f"/api/login/browser/{sid}/events").text
+    assert body.index("event: failure") < body.index("event: status")
+    assert "timed out waiting for TikTok login" in body
+
+
+def test_callback_secret_is_persisted(monkeypatch, autotok_home):
+    from api.routers import login as login_router
+
+    monkeypatch.delenv("AUTOTOK_CALLBACK_SECRET", raising=False)
+    monkeypatch.setattr(login_router, "_secret", None)
+    token = login_router.callback_token("abc")
+    assert (autotok_home / ".callback_secret").is_file()
+    monkeypatch.setattr(login_router, "_secret", None)  # simulate an API restart
+    assert login_router.callback_token("abc") == token

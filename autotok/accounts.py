@@ -165,7 +165,11 @@ class AccountStore:
             raise AccountNotFoundError(
                 f"no saved session for '{name}'. Run: autotok login -n {name}"
             )
-        account = Account(name=name, cookies=read_legacy_cookie_file(legacy))
+        try:
+            cookies = read_legacy_cookie_file(legacy)
+        except (pickle.UnpicklingError, ValueError, EOFError) as exc:
+            raise ValidationError(f"cannot migrate legacy session {legacy}: {exc}") from None
+        account = Account(name=name, cookies=cookies)
         self.save(account)
         log.info("Migrated legacy session %s to %s", legacy, path)
         return account

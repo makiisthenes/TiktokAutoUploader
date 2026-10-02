@@ -5,10 +5,13 @@ an account logged in with ``autotok login`` shows up after "Import from disk".
 """
 from __future__ import annotations
 
+import logging
 from typing import Iterable
 
 from autotok import Account, AccountStore, Proxy
-from autotok.errors import AccountNotFoundError
+from autotok.errors import AutotokError
+
+log = logging.getLogger("api.accounts")
 
 
 def store() -> AccountStore:
@@ -50,9 +53,17 @@ def has_valid_session(username: str) -> bool:
 
 
 def get_proxy(username: str) -> Proxy | None:
+    """The account's saved proxy, or None. Never raises and never writes:
+    1.x sessions (which have no proxy) are not migrated from a read path,
+    and an unreadable file must not break account listings."""
+    s = store()
     try:
-        return load(username).get_proxy()
-    except AccountNotFoundError:
+        path = s.path_for(username)
+        if not path.is_file():
+            return None
+        return s.load(username).get_proxy()
+    except (AutotokError, ValueError, KeyError, OSError):
+        log.warning("cannot read the saved proxy for %s", username, exc_info=True)
         return None
 
 

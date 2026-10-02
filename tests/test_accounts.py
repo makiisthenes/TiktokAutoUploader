@@ -58,8 +58,9 @@ def test_legacy_pickle_cannot_run_code(tmp_path):
     legacy.mkdir()
     with open(legacy / "tiktok_session-eve.cookie", "wb") as f:
         pickle.dump([_Evil()], f)
-    with pytest.raises(pickle.UnpicklingError):
+    with pytest.raises(ValidationError, match="cannot migrate legacy session"):
         AccountStore().load("eve")
+    assert not AccountStore().path_for("eve").exists()
 
 
 def test_set_proxy_and_clear(saved_account):
