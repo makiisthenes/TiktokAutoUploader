@@ -11,25 +11,20 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+import autotok
 from api.db import init_db
-from api.routers import accounts, login, schedules, uploads, videos
-from tiktok_uploader.Config import Config
+from api.routers import accounts, login, proxy, schedules, uploads, videos
+from autotok import settings
 
 
 def create_app() -> FastAPI:
-    # Load config.txt the same way cli.py does, so paths stay consistent when
-    # the api container cwd is /app.
-    config_path = os.getenv("TIKTOK_CONFIG_PATH", "./config.txt")
-    if os.path.exists(config_path):
-        Config.load(config_path)
-
     app = FastAPI(
-        title="TiktokAutoUploader API",
-        version="1.0.0",
+        title="autotok API",
+        version=autotok.__version__,
         description=(
             "REST API for managing TikTok accounts, uploading videos "
             "(local file or YouTube URL), and scheduling uploads. "
-            "Backs the React web UI; the legacy CLI also remains supported."
+            "Backs the React web UI; shares its account store with the autotok CLI."
         ),
     )
 
@@ -45,9 +40,9 @@ def create_app() -> FastAPI:
 
     @app.on_event("startup")
     def _startup() -> None:
-        # Ensure CookiesDir and VideosDirPath exist on the shared volume.
-        for d in (Config.get().cookies_dir, Config.get().videos_dir):
-            os.makedirs(os.path.join(os.getcwd(), d), exist_ok=True)
+        # Ensure the account store and video library exist on the shared volume.
+        for d in (settings.accounts_dir(), settings.videos_dir()):
+            os.makedirs(d, exist_ok=True)
         init_db()
 
     @app.get("/health", tags=["meta"])
@@ -59,6 +54,7 @@ def create_app() -> FastAPI:
     app.include_router(uploads.router)
     app.include_router(schedules.router)
     app.include_router(login.router)
+    app.include_router(proxy.router)
     return app
 
 

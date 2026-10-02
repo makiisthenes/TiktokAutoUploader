@@ -3,8 +3,8 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useDropzone } from "react-dropzone";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { Accounts, Schedules, Uploads } from "../api/client";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Accounts, Schedules, Uploads, Videos, errorMessage } from "../api/client";
 import clsx from "clsx";
 
 const ytRe =
@@ -14,14 +14,16 @@ const schema = z
   .object({
     username: z.string().min(1, "Select an account"),
     title: z.string().min(1, "Required").max(2200, "Max 2200 chars"),
-    source_type: z.enum(["local", "youtube"]),
+    source_type: z.enum(["local", "library", "youtube"]),
     youtube_url: z.string().optional(),
+    library_name: z.string().optional(),
     scheduled_for: z.string().optional(), // datetime-local
-    // Options
-    allow_comment: z.number().default(1),
-    allow_duet: z.number().default(0),
-    allow_stitch: z.number().default(0),
-    visibility_type: z.number().default(0),
+    // Checkboxes produce booleans; converted to 0/1 for the API.
+    allow_comment: z.boolean(),
+    allow_duet: z.boolean(),
+    allow_stitch: z.boolean(),
+    private: z.boolean(),
+    ai_label: z.boolean(),
   })
   .superRefine((val, ctx) => {
     if (val.source_type === "youtube") {
@@ -31,43 +33,52 @@ const schema = z
         ctx.addIssue({ code: "custom", path: ["youtube_url"], message: "Not a valid YouTube URL" });
       }
     }
+    if (val.source_type === "library" && !val.library_name) {
+      ctx.addIssue({ code: "custom", path: ["library_name"], message: "Pick a video" });
+    }
     if (val.scheduled_for) {
       const when = new Date(val.scheduled_for);
       if (isNaN(when.getTime()) || when.getTime() <= Date.now()) {
         ctx.addIssue({ code: "custom", path: ["scheduled_for"], message: "Must be in the future" });
       }
-    }
-    if (val.scheduled_for && val.visibility_type === 1) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["visibility_type"],
-        message: "Private videos cannot be scheduled",
-      });
+      if (val.private) {
+        ctx.addIssue({ code: "custom", path: ["private"], message: "Private videos cannot be scheduled" });
+      }
     }
   });
 
 type FormValues = z.infer<typeof schema>;
 
+const SOURCES = [
+  ["local", "Upload a file"],
+  ["library", "From library"],
+  ["youtube", "YouTube URL"],
+] as const;
+
 export default function UploadPage() {
+  const qc = useQueryClient();
   const { data: accounts } = useQuery({ queryKey: ["accounts"], queryFn: Accounts.list });
+  const { data: videos } = useQuery({ queryKey: ["videos"], queryFn: Videos.list });
   const [file, setFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
       source_type: "local",
-      allow_comment: 1,
-      allow_duet: 0,
-      allow_stitch: 0,
-      visibility_type: 0,
+      allow_comment: true,
+      allow_duet: false,
+      allow_stitch: false,
+      private: false,
+      ai_label: false,
     },
   });
   const sourceType = form.watch("source_type");
+  const selectedUser = form.watch("username");
 
   const dz = useDropzone({
-    accept: { "video/mp4": [".mp4"], "video/webm": [".webm"] },
+    accept: { "video/mp4": [".mp4"], "video/webm": [".webm"], "video/quicktime": [".mov"] },
     maxFiles: 1,
     onDrop: files => {
       setFileError(null);
@@ -75,75 +86,86 @@ export default function UploadPage() {
     },
   });
 
-  const scheduleMut = useMutation({ mutationFn: Schedules.create });
-  const uploadFileMut = useMutation({ mutationFn: Uploads.file });
-  const uploadYtMut = useMutation({ mutationFn: Uploads.youtube });
+  const submit = useMutation({
+    mutationFn: async (values: FormValues) => {
+      const options = {
+        allow_comment: values.allow_comment ? 1 : 0,
+        allow_duet: values.allow_duet ? 1 : 0,
+        allow_stitch: values.allow_stitch ? 1 : 0,
+        visibility_type: values.private ? 1 : 0,
+        ai_label: values.ai_label ? 1 : 0,
+      };
 
-  const isBusy = scheduleMut.isPending || uploadFileMut.isPending || uploadYtMut.isPending;
-
-  const optionsPayload = (values: FormValues) => ({
-    allow_comment: values.allow_comment,
-    allow_duet: values.allow_duet,
-    allow_stitch: values.allow_stitch,
-    visibility_type: values.visibility_type,
-  });
-
-  const onSubmit = async (values: FormValues) => {
-    setMessage(null);
-
-    // Local + no file = error not covered by zod (file state is outside form).
-    if (values.source_type === "local" && !file) {
-      setFileError("Drop a video file or switch to YouTube URL");
-      return;
-    }
-
-    try {
       if (values.scheduled_for) {
-        const whenIso = new Date(values.scheduled_for).toISOString();
-        // Local files can only be scheduled if they already live on the shared
-        // volume. The drag-and-drop flow here is for *immediate* uploads.
+        let source_type: "local" | "youtube" = "youtube";
+        let source_ref = values.youtube_url ?? "";
         if (values.source_type === "local") {
-          setMessage(
-            "Scheduled uploads with a drag-and-drop file aren't supported — " +
-              "drop the file into VideosDirPath first, or schedule a YouTube URL.",
-          );
-          return;
+          // Save the dropped file to the library so the scheduler can find it later.
+          const saved = await Videos.add(file!);
+          qc.invalidateQueries({ queryKey: ["videos"] });
+          source_type = "local";
+          source_ref = saved.name;
+        } else if (values.source_type === "library") {
+          source_type = "local";
+          source_ref = values.library_name!;
         }
-        const r = await scheduleMut.mutateAsync({
+        const r = await Schedules.create({
           username: values.username,
           title: values.title,
-          source_type: "youtube",
-          source_ref: values.youtube_url!,
-          scheduled_for: whenIso,
-          options: optionsPayload(values),
+          source_type,
+          source_ref,
+          scheduled_for: new Date(values.scheduled_for).toISOString(),
+          options,
         });
-        setMessage(`Scheduled — job #${r.id} at ${new Date(r.scheduled_for).toLocaleString()}`);
-      } else if (values.source_type === "local") {
-        const fd = new FormData();
-        fd.append("video", file!);
-        fd.append("username", values.username);
-        fd.append("title", values.title);
-        fd.append("options_json", JSON.stringify(optionsPayload(values)));
-        const r = await uploadFileMut.mutateAsync(fd);
-        setMessage(r.message);
-      } else {
-        const r = await uploadYtMut.mutateAsync({
+        return { ok: true, text: `Scheduled — job #${r.id} at ${new Date(r.scheduled_for).toLocaleString()}` };
+      }
+
+      if (values.source_type === "youtube") {
+        const r = await Uploads.youtube({
           username: values.username,
           title: values.title,
           youtube_url: values.youtube_url,
-          options: optionsPayload(values),
+          options,
         });
-        setMessage(r.message);
+        return { ok: r.ok, text: r.ok ? `Published (video id ${r.video_id})` : r.message };
       }
-    } catch (e: any) {
-      setMessage(`Error: ${e?.response?.data?.detail ?? e.message}`);
+
+      if (values.source_type === "library") {
+        const r = await Uploads.library({
+          username: values.username,
+          title: values.title,
+          name: values.library_name,
+          options,
+        });
+        return { ok: r.ok, text: r.ok ? `Published (video id ${r.video_id})` : r.message };
+      }
+
+      const fd = new FormData();
+      fd.append("video", file!);
+      fd.append("username", values.username);
+      fd.append("title", values.title);
+      fd.append("options_json", JSON.stringify(options));
+      const r = await Uploads.file(fd);
+      return { ok: r.ok, text: r.ok ? `Published (video id ${r.video_id})` : r.message };
+    },
+    onSuccess: m => setMessage(m),
+    onError: e => setMessage({ ok: false, text: `Error: ${errorMessage(e)}` }),
+  });
+
+  const onSubmit = (values: FormValues) => {
+    setMessage(null);
+    if (values.source_type === "local" && !file) {
+      setFileError("Drop a video file, or pick another source");
+      return;
     }
+    submit.mutate(values);
   };
 
   const accountOptions = useMemo(
     () => (accounts ?? []).filter(a => a.has_valid_session),
     [accounts],
   );
+  const selectedAccount = accountOptions.find(a => a.username === selectedUser);
 
   return (
     <div className="space-y-6">
@@ -155,7 +177,6 @@ export default function UploadPage() {
       </div>
 
       <form onSubmit={form.handleSubmit(onSubmit)} className="card space-y-5">
-        {/* Account */}
         <div>
           <label className="label">Account</label>
           <select className="input" {...form.register("username")}>
@@ -169,11 +190,15 @@ export default function UploadPage() {
           {form.formState.errors.username && (
             <p className="text-xs text-red-600 mt-1">{form.formState.errors.username.message}</p>
           )}
+          {selectedAccount && (
+            <p className="text-xs text-slate-500 mt-1">
+              Proxy: <span className="font-mono">{selectedAccount.proxy ?? "direct (no proxy)"}</span>
+            </p>
+          )}
         </div>
 
-        {/* Source toggle */}
         <div className="flex gap-2 rounded-md bg-slate-100 p-1 w-fit">
-          {(["local", "youtube"] as const).map(t => (
+          {SOURCES.map(([t, label]) => (
             <button
               key={t}
               type="button"
@@ -183,12 +208,12 @@ export default function UploadPage() {
               )}
               onClick={() => form.setValue("source_type", t)}
             >
-              {t === "local" ? "Local file" : "YouTube URL"}
+              {label}
             </button>
           ))}
         </div>
 
-        {sourceType === "local" ? (
+        {sourceType === "local" && (
           <div>
             <label className="label">Video</label>
             <div
@@ -202,30 +227,39 @@ export default function UploadPage() {
               {file ? (
                 <p className="text-sm">
                   <span className="font-medium">{file.name}</span>{" "}
-                  <span className="text-slate-500">
-                    ({(file.size / 1024 / 1024).toFixed(1)} MB)
-                  </span>
+                  <span className="text-slate-500">({(file.size / 1024 / 1024).toFixed(1)} MB)</span>
                 </p>
               ) : (
-                <p className="text-sm text-slate-500">
-                  Drop an .mp4 or .webm here, or click to pick.
-                </p>
+                <p className="text-sm text-slate-500">Drop an .mp4, .webm or .mov here, or click to pick.</p>
               )}
             </div>
             {fileError && <p className="text-xs text-red-600 mt-1">{fileError}</p>}
           </div>
-        ) : (
+        )}
+
+        {sourceType === "library" && (
+          <div>
+            <label className="label">Video from library</label>
+            <select className="input" {...form.register("library_name")}>
+              <option value="">Select a video…</option>
+              {(videos ?? []).map(v => (
+                <option key={v.name} value={v.name}>
+                  {v.name} ({(v.size_bytes / 1024 / 1024).toFixed(1)} MB)
+                </option>
+              ))}
+            </select>
+            {form.formState.errors.library_name && (
+              <p className="text-xs text-red-600 mt-1">{form.formState.errors.library_name.message}</p>
+            )}
+          </div>
+        )}
+
+        {sourceType === "youtube" && (
           <div>
             <label className="label">YouTube URL</label>
-            <input
-              className="input"
-              placeholder="https://www.youtube.com/watch?v=…"
-              {...form.register("youtube_url")}
-            />
+            <input className="input" placeholder="https://www.youtube.com/watch?v=…" {...form.register("youtube_url")} />
             {form.formState.errors.youtube_url && (
-              <p className="text-xs text-red-600 mt-1">
-                {form.formState.errors.youtube_url.message}
-              </p>
+              <p className="text-xs text-red-600 mt-1">{form.formState.errors.youtube_url.message}</p>
             )}
           </div>
         )}
@@ -239,61 +273,43 @@ export default function UploadPage() {
         </div>
 
         <details className="border-t pt-4">
-          <summary className="text-sm font-medium text-slate-600 cursor-pointer">
-            Advanced options
-          </summary>
+          <summary className="text-sm font-medium text-slate-600 cursor-pointer">Advanced options</summary>
           <div className="grid grid-cols-2 gap-4 mt-4">
             {(
               [
                 ["allow_comment", "Allow comments"],
                 ["allow_duet", "Allow duet"],
                 ["allow_stitch", "Allow stitch"],
+                ["private", "Private"],
+                ["ai_label", "Label as AI-generated"],
               ] as const
             ).map(([key, label]) => (
               <label key={key} className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  {...form.register(key, { setValueAs: v => (v ? 1 : 0) })}
-                />
+                <input type="checkbox" {...form.register(key)} />
                 {label}
               </label>
             ))}
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                {...form.register("visibility_type", { setValueAs: v => (v ? 1 : 0) })}
-              />
-              Private
-            </label>
           </div>
-          {form.formState.errors.visibility_type && (
-            <p className="text-xs text-red-600 mt-2">
-              {form.formState.errors.visibility_type.message as string}
-            </p>
+          {form.formState.errors.private && (
+            <p className="text-xs text-red-600 mt-2">{form.formState.errors.private.message}</p>
           )}
         </details>
 
         <div>
           <label className="label">Schedule for (optional)</label>
-          <input
-            type="datetime-local"
-            className="input w-fit"
-            {...form.register("scheduled_for")}
-          />
+          <input type="datetime-local" className="input w-fit" {...form.register("scheduled_for")} />
           {form.formState.errors.scheduled_for && (
-            <p className="text-xs text-red-600 mt-1">
-              {form.formState.errors.scheduled_for.message}
-            </p>
+            <p className="text-xs text-red-600 mt-1">{form.formState.errors.scheduled_for.message}</p>
           )}
-          <p className="text-xs text-slate-500 mt-1">
-            Leave blank to upload immediately.
-          </p>
+          <p className="text-xs text-slate-500 mt-1">Leave blank to upload immediately.</p>
         </div>
 
         <div className="flex items-center justify-between pt-2">
-          <div className="text-sm text-slate-600">{message}</div>
-          <button className="btn-primary" disabled={isBusy}>
-            {isBusy ? "Working…" : form.watch("scheduled_for") ? "Schedule" : "Upload now"}
+          <div className={clsx("text-sm", message?.ok === false ? "text-red-600" : "text-slate-600")}>
+            {message?.text}
+          </div>
+          <button className="btn-primary" disabled={submit.isPending}>
+            {submit.isPending ? "Working…" : form.watch("scheduled_for") ? "Schedule" : "Upload now"}
           </button>
         </div>
       </form>

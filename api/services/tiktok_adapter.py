@@ -1,66 +1,47 @@
-"""Thin mockable seam around tiktok_uploader.tiktok.upload_video.
+"""The one place the API and the scheduler call into autotok to upload.
 
-Both the API (immediate uploads) and the scheduler (due jobs) go through here.
-Tests patch `perform_upload` rather than reaching into the uploader package,
-which means no real network / subprocess fires in the test suite.
+Never raises for upload problems: everything comes back as an
+:class:`UploadOutcome`, with ``retryable`` set only when nothing reached
+TikTok's publish endpoint (so retrying cannot create a duplicate post). Tests
+patch ``upload_from_options``.
 """
 from __future__ import annotations
 
-from typing import Any
+import logging
+from dataclasses import dataclass
+from typing import Any, Optional
 
-from tiktok_uploader import tiktok as _tiktok
+from autotok import Client
+from autotok.errors import AutotokError
+from autotok.proxy import parse_proxy
 
-
-def perform_upload(
-    username: str,
-    video_path: str,
-    title: str,
-    *,
-    allow_comment: int = 1,
-    allow_duet: int = 0,
-    allow_stitch: int = 0,
-    visibility_type: int = 0,
-    brand_organic_type: int = 0,
-    branded_content_type: int = 0,
-    ai_label: int = 0,
-    proxy: str = "",
-) -> bool:
-    """Delegate to the underlying uploader. Returns True on success.
-
-    Note: schedule_time is deliberately 0 here — the new scheduler handles
-    time-based dispatch on our side, replacing TikTok's unreliable
-    server-side schedule_time.
-    """
-    result = _tiktok.upload_video(
-        username,
-        video_path,
-        title,
-        0,  # schedule_time — unused, handled by our scheduler
-        allow_comment,
-        allow_duet,
-        allow_stitch,
-        visibility_type,
-        brand_organic_type,
-        branded_content_type,
-        ai_label,
-        proxy,
-    )
-    # upload_video returns True on success, False on most failure paths.
-    return bool(result)
+log = logging.getLogger("api.upload")
 
 
-def upload_from_options(username: str, video_path: str, title: str, options: dict[str, Any]) -> bool:
-    """Convenience: fan out an options dict into perform_upload kwargs."""
-    return perform_upload(
-        username,
-        video_path,
-        title,
-        allow_comment=int(options.get("allow_comment", 1)),
-        allow_duet=int(options.get("allow_duet", 0)),
-        allow_stitch=int(options.get("allow_stitch", 0)),
-        visibility_type=int(options.get("visibility_type", 0)),
-        brand_organic_type=int(options.get("brand_organic_type", 0)),
-        branded_content_type=int(options.get("branded_content_type", 0)),
-        ai_label=int(options.get("ai_label", 0)),
-        proxy=str(options.get("proxy", "")),
-    )
+@dataclass
+class UploadOutcome:
+    ok: bool
+    message: str
+    retryable: bool = False
+    video_id: Optional[str] = None
+
+
+def upload_from_options(username: str, video_path: str, title: str, options: dict[str, Any]) -> UploadOutcome:
+    try:
+        override = parse_proxy(options.get("proxy") or None)
+        client = Client.from_account(username, proxy=override if override else True)
+        result = client.upload(
+            video_path,
+            title,
+            visibility=int(options.get("visibility_type", 0)),
+            allow_comment=bool(int(options.get("allow_comment", 1))),
+            allow_duet=bool(int(options.get("allow_duet", 0))),
+            allow_stitch=bool(int(options.get("allow_stitch", 0))),
+            ai_label=bool(int(options.get("ai_label", 0))),
+        )
+    except AutotokError as exc:
+        return UploadOutcome(ok=False, message=str(exc), retryable=exc.retryable)
+    except Exception as exc:  # a bug: never retry automatically, it may have posted
+        log.exception("unexpected upload failure")
+        return UploadOutcome(ok=False, message=f"unexpected error: {exc}", retryable=False)
+    return UploadOutcome(ok=True, message="published", video_id=result.video_id)

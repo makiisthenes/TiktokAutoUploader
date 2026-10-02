@@ -20,6 +20,7 @@ from api.schemas import (
     ScheduledUploadRead,
     ScheduledUploadUpdate,
 )
+from api.services import videos as library
 
 router = APIRouter(prefix="/api/schedules", tags=["schedules"])
 
@@ -52,10 +53,19 @@ def create_schedule(
     if not acct:
         raise HTTPException(status_code=404, detail=f"account '{payload.username}' not found")
 
+    source_ref = payload.source_ref
+    if payload.source_type == "local":
+        # Only files in the video library can be scheduled; store the name so
+        # the row stays valid if the volume is mounted somewhere else.
+        try:
+            source_ref = library.resolve(payload.source_ref).name
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
     row = ScheduledUpload(
         account_id=acct.id,
         source_type=payload.source_type,
-        source_ref=payload.source_ref,
+        source_ref=source_ref,
         title=payload.title,
         options_json=json.dumps(payload.options.model_dump()),
         scheduled_for=payload.scheduled_for,

@@ -21,21 +21,28 @@ def build_vnc_url(session_id: str) -> str:
     return f"{_VNC_EXTERNAL_BASE}?autoconnect=1&resize=scale&path=websockify&session={session_id}"
 
 
-def start_browser(session_id: str, username: str, callback_url: str) -> dict:
-    """Ask the control server to spin up a Chromium session at tiktok.com/login."""
+def start_browser(session_id: str, username: str, callback_url: str, proxy: str | None = None) -> dict:
+    """Ask the control server to spin up a Chromium session at tiktok.com/login.
+
+    ``proxy`` (full URL) is applied to that browser, so the account logs in
+    from the same IP it will upload from."""
     with httpx.Client(timeout=_TIMEOUT) as client:
         r = client.post(
             f"{_CONTROL_BASE}/browser/start",
-            json={"session_id": session_id, "username": username, "callback_url": callback_url},
+            json={"session_id": session_id, "username": username,
+                  "callback_url": callback_url, "proxy": proxy},
         )
         r.raise_for_status()
         return r.json()
 
 
 def browser_status(session_id: str) -> dict:
-    """Poll the control server for status transitions. Returns {status, error?}."""
+    """Poll the control server. Returns {status, error?}; status is "missing"
+    when the control server no longer knows the session (e.g. it restarted)."""
     with httpx.Client(timeout=_TIMEOUT) as client:
         r = client.get(f"{_CONTROL_BASE}/browser/status/{session_id}")
+        if r.status_code == 404:
+            return {"status": "missing", "error": "the virtual browser session was lost"}
         r.raise_for_status()
         return r.json()
 

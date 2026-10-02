@@ -1,9 +1,8 @@
 # Multi-stage: Node builds the Vite bundle, nginx serves it.
 FROM node:20-alpine AS build
 WORKDIR /app
-COPY webapp/package.json webapp/package-lock.json* ./
-# package-lock.json may not exist on first build; ci falls back to install.
-RUN npm install
+COPY webapp/package.json webapp/package-lock.json ./
+RUN npm ci
 COPY webapp/ .
 RUN npm run build
 
