@@ -9,7 +9,7 @@ requests are welcome.
 ```bash
 git clone https://github.com/makiisthenes/TiktokAutoUploader.git
 cd TiktokAutoUploader
-python -m venv .venv && source .venv/bin/activate
+python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -e ".[youtube,shell,dev]"
 autotok install-browser
 pytest

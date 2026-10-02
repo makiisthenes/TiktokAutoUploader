@@ -65,6 +65,16 @@ autotok install-browser            # one-time download of the Chromium build aut
 
 On a fresh Linux server, use `autotok install-browser --with-deps` (as root) to also install Chromium's system libraries.
 
+If your shell says `autotok` is not recognized (common on Windows, where pip puts commands in a
+folder that isn't on PATH), use `python -m autotok` instead. It takes the same commands, e.g.
+`python -m autotok install-browser`. Installing into a virtual environment also avoids it:
+
+```bash
+python -m venv .venv
+.venv\Scripts\activate             # Windows (macOS/Linux: source .venv/bin/activate)
+pip install "autotok[youtube]"
+```
+
 ---
 
 ## Quick start
@@ -284,6 +294,7 @@ owner-only permissions; keep them private.
 
 | Problem | Fix |
 |---|---|
+| `'autotok' is not recognized` / `command not found` | Use `python -m autotok ...`, or install into a virtual environment (see [Install](#install)) |
 | `Chromium for Playwright is not installed` | `autotok install-browser` (Linux servers: add `--with-deps`) |
 | `TikTok rejected the session` / `session rejected` | `autotok login -n NAME --force` (check with `autotok accounts check NAME`) |
 | `Invalid parameters (status_code=5)` | TikTok changed its upload API. Please [open an issue](https://github.com/makiisthenes/TiktokAutoUploader/issues) with the full error. |

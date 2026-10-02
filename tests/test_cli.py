@@ -92,6 +92,14 @@ def test_show_lists_accounts_and_videos(saved_account, video_file, capsys):
     assert "alice" in out and "clip.mp4" in out
 
 
+def test_python_dash_m_entry_point():
+    import subprocess
+    import sys
+
+    out = subprocess.run([sys.executable, "-m", "autotok", "--version"], capture_output=True, text=True)
+    assert out.returncode == 0 and "autotok" in out.stdout
+
+
 def test_version(capsys):
     with pytest.raises(SystemExit):
         run("--version")
