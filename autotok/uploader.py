@@ -250,7 +250,7 @@ class Client:
 
             response = self._publish(session, payload)
 
-        log.info("Published%s", f", scheduled for {scheduled_for.isoformat()}" if scheduled_for else "")
+        log.debug("Published%s", f", scheduled for {scheduled_for.isoformat()}" if scheduled_for else "")
         return UploadResult(video_id=video_id, creation_id=creation_id,
                             scheduled_for=scheduled_for, response=response)
 
