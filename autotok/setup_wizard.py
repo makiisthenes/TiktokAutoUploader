@@ -83,7 +83,12 @@ def run_setup(store: AccountStore, ui: UI | None = None, *,
         ui.say(f'  autotok upload -u {name} -v clip.mp4 -t "My caption #fyp"')
     elif existing:
         ui.heading("Saved")
-        ui.say(f"'{name}' now connects{via}. Log in when you're ready:")
+        ui.say(f"'{name}' now connects{via}.")
+        if (proxy.url if proxy else None) != existing.proxy:
+            ui.say("Its saved session was logged in from a different IP. Log in again through the new")
+            ui.say("connection before uploading, so TikTok sees one IP for this account:")
+        else:
+            ui.say("Log in when you're ready:")
         ui.say(f"  autotok login -n {name} --force")
     else:
         ui.heading("Not saved yet")

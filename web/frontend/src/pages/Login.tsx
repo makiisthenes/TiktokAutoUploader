@@ -19,7 +19,7 @@ type FormValues = z.infer<typeof schema>;
 
 type Phase = "idle" | "starting" | "pending" | "active" | "completing" | "completed" | "failed" | "expired";
 
-// "own", "none", or a provider's key.
+// "own", "none", or "provider:<key>" (prefixed so a provider key can't clash with the others).
 type ProxyChoice = string;
 
 function ChoiceRow(props: {
@@ -78,11 +78,17 @@ export default function LoginPage() {
   const [proxyChoice, setProxyChoice] = useState<ProxyChoice>("own");
   const [proxyNote, setProxyNote] = useState<string | null>(null);
   const { data: providers = [] } = useQuery({ queryKey: ["proxy-providers"], queryFn: Proxies.providers });
-  const provider = providers.find(p => p.key === proxyChoice);
+  const provider = providers.find(p => proxyChoice === `provider:${p.key}`);
+  // Ignore a result if the proxy was edited while it was being tested.
+  const stillTested = (proxy: string) => form.getValues("proxy")?.trim() === proxy;
   const testProxy = useMutation({
     mutationFn: (proxy: string) => Proxies.test({ proxy }),
-    onSuccess: r => setProxyNote(r.ok ? `It works. TikTok will see ${r.ip}.` : r.error ?? "Proxy test failed."),
-    onError: e => setProxyNote(errorMessage(e)),
+    onSuccess: (r, proxy) => {
+      if (stillTested(proxy)) setProxyNote(r.ok ? `It works. TikTok will see ${r.ip}.` : r.error ?? "Proxy test failed.");
+    },
+    onError: (e, proxy) => {
+      if (stillTested(proxy)) setProxyNote(errorMessage(e));
+    },
   });
   const esRef = useRef<EventSource | null>(null);
   const activeRef = useRef<string | null>(null); // session to cancel if the page is left
@@ -109,7 +115,7 @@ export default function LoginPage() {
   const onSubmit = async ({ username, proxy }: FormValues) => {
     if (proxyChoice === "none") proxy = undefined;
     if (provider && !proxy?.trim()) {
-      form.setError("proxy", { message: `Paste the proxy from ${provider.name}, or pick No proxy.` });
+      form.setError("proxy", { message: `Paste the proxy from ${provider.name}, or pick No new proxy.` });
       return;
     }
     setError(null);
@@ -185,8 +191,8 @@ export default function LoginPage() {
             {providers.map(p => (
               <ChoiceRow
                 key={p.key}
-                checked={proxyChoice === p.key}
-                onSelect={() => setProxyChoice(p.key)}
+                checked={proxyChoice === `provider:${p.key}`}
+                onSelect={() => setProxyChoice(`provider:${p.key}`)}
                 title={`Get a proxy from ${p.name}`}
                 description={p.tagline}
                 badge={p.sponsor ? "Sponsor" : undefined}
@@ -195,8 +201,8 @@ export default function LoginPage() {
             <ChoiceRow
               checked={proxyChoice === "none"}
               onSelect={() => setProxyChoice("none")}
-              title="No proxy"
-              description="Connect directly. A proxy already saved for this account is kept."
+              title="No new proxy"
+              description="Uses the proxy already saved for this account, if any; otherwise connects directly."
             />
             {provider && <ProviderSteps provider={provider} />}
             {proxyChoice !== "none" && (

@@ -86,12 +86,14 @@ def test_existing_account_keeps_its_proxy(wizard, saved_account):
     assert ui.menus[1][1][0] == "Keep the current proxy (http://bob:****@proxy.example:8000)"
     assert AccountStore().load("alice").proxy == "http://bob:secret@proxy.example:8000"
     assert "autotok login -n alice --force" in ui.text
+    assert "different IP" not in ui.text
 
 
 def test_existing_account_switched_to_no_proxy(wizard, saved_account):
     ui = ScriptedUI("alice", "Yes", "No proxy", "Later")
     assert run_setup(AccountStore(), ui) == 0
     assert AccountStore().load("alice").proxy is None
+    assert "logged in from a different IP" in ui.text
 
 
 def test_existing_name_can_be_changed(wizard, saved_account):
