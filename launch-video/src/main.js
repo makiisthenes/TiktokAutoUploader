@@ -48,6 +48,8 @@ async function boot() {
   const pipeline = new Pipeline(renderer, W, H, { samples: +(q.get('msaa') ?? 4) });
   const hud = new Hud(W, H);
 
+  // ?grain=0 renders without film grain (the README's GIF compresses far better without it)
+  const noGrain = q.get('grain') === '0';
   const pick = (t) => {
     let s = sets[0];
     for (const x of sets) if (t >= x.start) s = x;
@@ -60,6 +62,7 @@ async function boot() {
     const fx = defaultFx();
     hud.begin();
     const camera = set.update(t, fx, hud);
+    if (noGrain) fx.grain = 0;
     if (fx.shake > 0) {
       const k = fx.shake;
       camera.rotateX(noise1(t * 37.1) * 0.012 * k);

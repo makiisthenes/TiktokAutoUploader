@@ -5,7 +5,7 @@
 //   node scripts/render.mjs --draft                 960x540 @30, quick look
 //   node scripts/render.mjs --master                1920x1080 @60
 //   node scripts/render.mjs --stills 4.2,9.0 [--w 1920 --h 1080]
-//   options: --from S --to S (video seconds), --workers N, --only depot,bay
+//   options: --from S --to S (video seconds), --workers N, --only depot,board, --grain 0
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -59,7 +59,7 @@ async function openPage(port) {
   const page = await browser.newPage({ viewport: { width: W, height: H } });
   page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') console.log(`[page ${m.type()}]`, m.text()); });
   page.on('pageerror', (e) => console.log('[pageerror]', e.message));
-  const qs = new URLSearchParams({ w: W, h: H, ...(only ? { only } : {}), ...(opt('msaa') ? { msaa: opt('msaa') } : {}) });
+  const qs = new URLSearchParams({ w: W, h: H, ...(only ? { only } : {}), ...(opt('msaa') ? { msaa: opt('msaa') } : {}), ...(opt('grain') ? { grain: opt('grain') } : {}) });
   await page.goto(`http://127.0.0.1:${port}/index.html?${qs}`);
   await page.waitForFunction('window.ready || window.bootError', null, { timeout: 600000 });
   const err = await page.evaluate('window.bootError');
@@ -169,7 +169,7 @@ try {
     const CH = Math.round(+opt('chunk', 4) * FPS);
     if (!Number.isFinite(CH) || CH < 1) throw new Error('--chunk must be a positive number of seconds (at least one frame)');
     // Chunks are only reused by a run with the same picture settings.
-    const config = { w: W, h: H, fps: FPS, chunkFrames: CH, msaa: +(opt('msaa') || 4), only: only || null, encoder: enc.join(' ') };
+    const config = { w: W, h: H, fps: FPS, chunkFrames: CH, msaa: +(opt('msaa') || 4), only: only || null, encoder: enc.join(' '), ...(opt('grain') ? { grain: opt('grain') } : {}) };
     const cfgFile = path.join(dir, 'config.json');
     const existing = fs.readdirSync(dir).filter((f) => /^c\d+\.mp4$/.test(f));
     if (existing.length) {
