@@ -190,7 +190,7 @@ export default function createBooth(ctx) {
     bx.save();
     bx.beginPath(); bx.rect(0, 160, BW, BH - 170); bx.clip();
     const speed = t < C.stamps[0] - 0.4 ? 60 : 220;
-    const off = ((t - 24) * speed) % (code.length * 40);
+    const off = ((t - C.booth) * speed) % (code.length * 40);
     bx.font = `500 28px ${FONT.mono}`;
     for (let i = 0; i < 28; i++) {
       const li = Math.floor((off / 40) + i) % code.length;
@@ -315,7 +315,7 @@ export default function createBooth(ctx) {
       pts.push(p); prev.push(p.clone());
     }
     const dt = 1 / 240;
-    const t0 = 23.5;
+    const t0 = C.booth - 0.5;
     const steps = Math.max(0, Math.floor((t - t0) / dt));
     const g = -9.8 * dt * dt;
     let released = false;

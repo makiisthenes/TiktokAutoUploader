@@ -553,7 +553,6 @@ def master(x, gain):
 
 os.makedirs(os.path.join(ROOT, 'build'), exist_ok=True)
 target = float(os.environ.get('LUFS', '-13'))
-gain = float(os.environ.get('GAIN', '0')) or None
 out_path = os.path.join(ROOT, 'build', 'score.wav')
 
 
@@ -565,7 +564,9 @@ def write(g):
 def lufs():
     import subprocess
     r = subprocess.run(['ffmpeg', '-hide_banner', '-nostats', '-i', out_path, '-af', 'ebur128=peak=true', '-f', 'null', '-'],
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, check=False)
+    if r.returncode != 0 or 'Summary:' not in r.stderr:
+        raise RuntimeError(f'ffmpeg loudness measurement failed:\n{r.stderr[-2000:]}')
     txt = r.stderr
     sec = txt[txt.rfind('Summary:'):]
     I = float(sec.split('I:')[1].split('LUFS')[0])
@@ -574,10 +575,16 @@ def lufs():
 
 
 g = 1.0 / max(1e-9, np.abs(mix).max()) * 0.6
+converged = False
 for _ in range(6):
     write(g)
-    I, peak = lufs()
-    if abs(I - target) < 0.3:
+    loud, peak = lufs()
+    if abs(loud - target) < 0.3:
+        converged = True
         break
-    g *= 10 ** ((target - I) / 20)
-print(f'wrote {out_path}  integrated {I:.1f} LUFS  true peak {peak:.1f} dBFS  gain {g:.3f}')
+    g_next = g * 10 ** ((target - loud) / 20)
+    if _ < 5:
+        g = g_next
+print(f'wrote {out_path}  integrated {loud:.1f} LUFS  true peak {peak:.1f} dBFS  gain {g:.3f}')
+if not converged:
+    sys.exit(f'loudness did not converge to {target} LUFS (got {loud:.1f}); the limiter is capping the level')

@@ -88,19 +88,25 @@ function ffmpeg(args) {
 const rawIn = ['-f', 'rawvideo', '-pix_fmt', 'rgba', '-s', `${W}x${H}`];
 
 async function renderStills(port) {
-  const { browser, page } = await openPage(port);
-  const dir = path.join(outDir, 'stills');
-  fs.mkdirSync(dir, { recursive: true });
-  for (const ts of String(stills).split(',')) {
-    const t = +ts;
-    const b64 = await page.evaluate(([t]) => window.__grab(t, Math.round(t * 60)), [t]);
-    const file = path.join(dir, `t${t.toFixed(2).padStart(6, '0')}.png`);
-    const { p, done } = ffmpeg([...rawIn, '-i', '-', '-vf', 'vflip', '-frames:v', '1', file]);
-    p.stdin.end(Buffer.from(b64, 'base64'));
-    await done;
-    console.log(file);
+  const times = String(stills).split(',').map(Number);
+  if (stills === true || times.some((t) => !Number.isFinite(t) || t < 0 || t > total)) {
+    throw new Error(`--stills needs video times in seconds between 0 and ${total}, e.g. --stills 0.1,12.1`);
   }
-  await browser.close();
+  const { browser, page } = await openPage(port);
+  try {
+    const dir = path.join(outDir, 'stills');
+    fs.mkdirSync(dir, { recursive: true });
+    for (const t of times) {
+      const b64 = await page.evaluate(([t]) => window.__grab(t, Math.round(t * 60)), [t]);
+      const file = path.join(dir, `t${t.toFixed(2).padStart(6, '0')}.png`);
+      const { p, done } = ffmpeg([...rawIn, '-i', '-', '-vf', 'vflip', '-frames:v', '1', file]);
+      p.stdin.end(Buffer.from(b64, 'base64'));
+      await done;
+      console.log(file);
+    }
+  } finally {
+    await browser.close();
+  }
 }
 
 const enc = master
@@ -110,24 +116,40 @@ const enc = master
 // One browser per worker; workers pull fixed-length chunks from a shared
 // queue. Finished chunks stay on disk, so a run can resume, and a fix only
 // needs its chunks re-rendered (--redo 3,4).
-async function worker(port, idx, queue) {
+async function worker(port, idx, queue, state) {
   const { browser, page } = await openPage(port);
-  while (queue.length) {
-    const { i, f0, f1, file } = queue.shift();
-    const tmp = file.replace(/\.mp4$/, '.part.mp4');
-    const { p, done } = ffmpeg([...rawIn, '-r', String(FPS), '-i', '-', '-vf', 'vflip', ...enc, '-r', String(FPS), '-f', 'mp4', tmp]);
-    const t0 = Date.now();
-    for (let f = f0; f < f1; f++) {
-      const b64 = await page.evaluate(([t, f]) => window.__grab(t, f), [f / FPS, f]);
-      if (!p.stdin.write(Buffer.from(b64, 'base64'))) await new Promise((r) => p.stdin.once('drain', r));
+  try {
+    while (queue.length && !state.failed) {
+      const { i, f0, f1, file } = queue.shift();
+      const tmp = file.replace(/\.mp4$/, '.part.mp4');
+      const { p, done } = ffmpeg([...rawIn, '-r', String(FPS), '-i', '-', '-vf', 'vflip', ...enc, '-r', String(FPS), '-f', 'mp4', tmp]);
+      const t0 = Date.now();
+      try {
+        for (let f = f0; f < f1 && !state.failed; f++) {
+          const b64 = await page.evaluate(([t, f]) => window.__grab(t, f), [f / FPS, f]);
+          if (!p.stdin.write(Buffer.from(b64, 'base64'))) await new Promise((r) => p.stdin.once('drain', r));
+        }
+        if (state.failed) throw new Error('aborted');
+        p.stdin.end();
+        await done;
+      } catch (e) {
+        // stop this chunk's encoder and drop its partial file
+        p.stdin.destroy();
+        p.kill('SIGKILL');
+        await done.catch(() => {});
+        fs.rmSync(tmp, { force: true });
+        throw e;
+      }
+      fs.renameSync(tmp, file);
+      const per = (Date.now() - t0) / 1000 / (f1 - f0);
+      console.log(`[w${idx}] chunk ${i} (${(f0 / FPS).toFixed(1)}-${(f1 / FPS).toFixed(1)}s) ${per.toFixed(2)}s/f, ${queue.length} chunks queued`);
     }
-    p.stdin.end();
-    await done;
-    fs.renameSync(tmp, file);
-    const per = (Date.now() - t0) / 1000 / (f1 - f0);
-    console.log(`[w${idx}] chunk ${i} (${(f0 / FPS).toFixed(1)}-${(f1 / FPS).toFixed(1)}s) ${per.toFixed(2)}s/f, ${queue.length} chunks queued`);
+  } catch (e) {
+    state.failed = true; // the other workers stop at their next frame
+    throw e;
+  } finally {
+    await browser.close();
   }
-  await browser.close();
 }
 
 const server = await serve();
@@ -141,6 +163,18 @@ try {
     if (opt('fresh', false)) fs.rmSync(dir, { recursive: true, force: true });
     fs.mkdirSync(dir, { recursive: true });
     const CH = Math.round(+opt('chunk', 4) * FPS);
+    if (!Number.isFinite(CH) || CH < 1) throw new Error('--chunk must be a positive number of seconds (at least one frame)');
+    // Chunks are only reused by a run with the same picture settings.
+    const config = { w: W, h: H, fps: FPS, chunkFrames: CH, msaa: +(opt('msaa') || 4), only: only || null, encoder: enc.join(' ') };
+    const cfgFile = path.join(dir, 'config.json');
+    const existing = fs.readdirSync(dir).filter((f) => /^c\d+\.mp4$/.test(f));
+    if (existing.length) {
+      const prev = fs.existsSync(cfgFile) ? fs.readFileSync(cfgFile, 'utf8') : null;
+      if (prev !== JSON.stringify(config)) {
+        throw new Error(`${dir} holds chunks rendered with different settings (${prev || 'unknown'}); rerun with --fresh`);
+      }
+    }
+    fs.writeFileSync(cfgFile, JSON.stringify(config));
     const F1 = Math.round(total * FPS);
     const chunks = [];
     for (let f = 0, i = 0; f < F1; f += CH, i++) chunks.push({ i, f0: f, f1: Math.min(F1, f + CH), file: path.join(dir, `c${String(i).padStart(3, '0')}.mp4`) });
@@ -149,7 +183,10 @@ try {
     const want = chunks.filter((c) => (redo ? String(redo).split(',').map(Number).includes(c.i) : !fs.existsSync(c.file)) && c.f1 > lo && c.f0 < hi);
     console.log(`${tag}: ${chunks.length} chunks of ${CH} frames, rendering ${want.length}`);
     const queue = [...want];
-    await Promise.all(Array.from({ length: Math.max(1, Math.min(workers, want.length)) }, (_, k) => worker(port, k, queue)));
+    const state = { failed: false };
+    const results = await Promise.allSettled(Array.from({ length: Math.max(1, Math.min(workers, want.length)) }, (_, k) => worker(port, k, queue, state)));
+    const failure = results.find((r) => r.status === 'rejected');
+    if (failure) throw failure.reason;
     if (chunks.every((c) => fs.existsSync(c.file))) {
       const list = path.join(dir, 'list.txt');
       fs.writeFileSync(list, chunks.map((c) => `file '${c.file}'`).join('\n'));

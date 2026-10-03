@@ -6,6 +6,15 @@
 import subprocess, sys, os, tempfile
 from PIL import Image, ImageDraw, ImageFont
 
+
+def load_font(size, bold=False):
+    for name in (('DejaVuSans-Bold.ttf', 'Arial Bold.ttf') if bold else ('DejaVuSans.ttf', 'Arial.ttf')):
+        try:
+            return ImageFont.truetype(name, size)
+        except OSError:
+            pass
+    return ImageFont.load_default()
+
 args = sys.argv[1:]
 out = args.pop(0)
 cols = 3
@@ -30,11 +39,11 @@ for f, lab in items:
     im = Image.open(f).convert('RGB')
     im = im.resize((W, int(im.height * W / im.width)))
     d = ImageDraw.Draw(im)
-    font = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', 20)
+    font = load_font(20, bold=True)
     d.rectangle([0, 0, 110, 28], fill=(0, 0, 0))
     d.text((6, 3), lab, fill=(255, 255, 0), font=font)
     ims.append(im)
-H = ims[0].height
+H = max(im.height for im in ims)  # every row as tall as the tallest still
 rows = (len(ims) + cols - 1) // cols
 sheet = Image.new('RGB', (cols * W + (cols - 1) * 4, rows * H + (rows - 1) * 4), (40, 40, 40))
 for i, im in enumerate(ims):

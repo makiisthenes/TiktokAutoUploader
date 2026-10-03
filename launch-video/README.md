@@ -11,10 +11,11 @@ The direction (story, sources, analogy, shot list) is in [DIRECTION.md](DIRECTIO
 ```bash
 cd launch-video
 npm install                      # three, esbuild, playwright-core, fonts
+npm run install-browser          # Chromium for playwright-core (or point CHROME_PATH at a Chromium/Chrome)
 pip install numpy scipy pillow   # score + verification
 
 npm run build                    # bundle src/ -> build/bundle.js
-node scripts/render.mjs --stills 9.3,27.4      # 1080p PNGs of chosen video times
+node scripts/render.mjs --stills 9.3,27.4      # 1080p PNGs of chosen video times (npm run preview: thumbnail + key art)
 node scripts/render.mjs --draft                # 960x540 @ 30 fps -> renders/draft_video.mp4
 node scripts/render.mjs --master --workers 3   # 1920x1080 @ 60 fps -> renders/master_video.mp4
 python3 audio/score.py                         # -> build/score.wav (normalised to -13 LUFS, <= -1.2 dBTP)

@@ -245,16 +245,18 @@ export default function createBoard(ctx) {
 
   // ---------------- update
   const T0 = C.board;
+  // when each cascade's last flap lands
+  const flipEnds = C.flips.map((f) => f.t + (f.cells - 1) * FL.stagger + FL.cycles * FL.flipDur);
   function update(t, fx, hud) {
     for (const f of Object.values(fields)) for (const c of f.cells) updateCell(c, t);
-    const boarding = t >= fields.status.flip.t + (fields.status.flip.cells - 1) * FL.stagger + FL.cycles * FL.flipDur;
+    const boarding = t >= flipEnds[C.flips.indexOf(fields.status.flip)];
     lamp.material.color.setRGB(boarding ? 0.5 : 0.08, boarding ? 4 : 0.08, boarding ? 1.8 : 0.08);
 
     // envelope: rides in, slides into the capsule
     const ex = lerp(-3.5, TUBE_X - 0.1, smooth(clamp((t - T0) / 4.45)));
-    envelope.visible = t < 36.85;
+    envelope.visible = t < C.tube - 0.15;
     envelope.position.set(ex, 0.8 + 0.006, 0.35);
-    if (t > 36.5) { const k = easeInCubic(clamp((t - 36.5) / 0.35)); envelope.position.x = lerp(ex, TUBE_X, k); envelope.position.y += k * 0.15; envelope.scale.setScalar(1 - k * 0.6); }
+    if (t > C.tube - 0.5) { const k = easeInCubic(clamp((t - (C.tube - 0.5)) / 0.35)); envelope.position.x = lerp(ex, TUBE_X, k); envelope.position.y += k * 0.15; envelope.scale.setScalar(1 - k * 0.6); }
     belt.setTravel(t * 1.2);
     belt.light((x) => 0.2 + 0.15 * Math.sin(x * 3 - t * 9));
 
@@ -274,7 +276,7 @@ export default function createBoard(ctx) {
     if (puff.points.visible) puff.update(la);
 
     // camera: whip in, push toward each row as it flips, tilt up with the capsule
-    const rows = [[T0, rowY.earliest], [33.75, rowY.latest], [35.25, rowY.status]];
+    const rows = [[T0, rowY[C.flips[0].field]], [C.flips[1].t - 0.25, rowY[C.flips[1].field]], [C.flips[2].t - 0.25, rowY[C.flips[2].field]]];
     let ly = rowY.earliest;
     for (let i = 0; i < rows.length; i++) {
       if (t >= rows[i][0]) {
@@ -286,13 +288,13 @@ export default function createBoard(ctx) {
     let p = v3(lerp(-2.5, -0.7, push), lerp(1.7, 2.05, push), lerp(7.4, 6.3, push));
     let l = v3(lerp(-1.1, 0.25, push), BOARD_Y + ly * 0.12 + 0.36, 0);
     let fov = 34;
-    const board = easeInOutCubic(clamp((t - 36.4) / 0.55));
+    const board = easeInOutCubic(clamp((t - (C.tube - 0.6)) / 0.55));
     if (board > 0) {
       const bp = v3(TUBE_X - 2.1, 1.55, 3.0);
       p = p.lerp(bp, board);
       l = l.lerp(v3(TUBE_X - 0.3, 1.0, 0.35), board);
     }
-    const up = easeInOutQuint(clamp((t - 36.95) / 0.75));
+    const up = easeInOutQuint(clamp((t - (C.tube - 0.05)) / 0.75));
     if (up > 0) {
       l = l.lerp(v3(TUBE_X, Math.min(capY, 4.5) + 0.6, 0.35), up);
       fov = lerp(34, 40, up);
@@ -309,13 +311,12 @@ export default function createBoard(ctx) {
 
     fx.bloom = { strength: 0.6, radius: 0.45, threshold: 0.85 };
     fx.dof = { focus: camera.position.distanceTo(v3(0.6, BOARD_Y + ly, 0)), aperture: 0.06, maxBlur: 10 };
-    const flipEnds = C.flips.map((f) => f.t + (f.cells - 1) * FL.stagger + FL.cycles * FL.flipDur);
     fx.ca = 1 + hits(t, flipEnds, 0.15) * 4 + hit(t, C.tube, 0.3) * 8;
     fx.shake = hit(t, C.tube, 0.35) * 1.0 + hits(t, flipEnds, 0.12) * 0.3;
     if (win > 0) fx.blur = [easeOutCubic(win) * 0.12, 0];
-    if (la > 0) fx.blur = [0, -easeInCubic(clamp((t - 37.3) / 0.7)) * 0.12];
-    if (t > 37.6) fx.blur = [0, -easeInCubic(clamp((t - 37.6) / 0.4)) * 0.18];
-    hud.header('Scheduled on TikTok’s side.', t, 33.0, 36.5);
+    if (la > 0) fx.blur = [0, -easeInCubic(clamp((t - (C.tube + 0.3)) / 0.7)) * 0.12];
+    if (t > C.drop - 0.4) fx.blur = [0, -easeInCubic(clamp((t - (C.drop - 0.4)) / 0.4)) * 0.18];
+    hud.header('Scheduled on TikTok’s side.', t, C.board + 1.0, C.tube - 0.5);
     return camera;
   }
   return { start: C.board, scene, update };

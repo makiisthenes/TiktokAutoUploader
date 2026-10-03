@@ -9,6 +9,15 @@ from scipy import signal
 from scipy.io import wavfile
 from PIL import Image, ImageDraw, ImageFont
 
+
+def load_font(size):
+    for name in ('DejaVuSans.ttf', 'Arial.ttf'):
+        try:
+            return ImageFont.truetype(name, size)
+        except OSError:
+            pass
+    return ImageFont.load_default()
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TL = json.load(open(os.path.join(ROOT, 'src', 'timeline.json')))
 C = TL['cues']
@@ -54,7 +63,7 @@ for i in range(256):
     lut[i] = [int(255 * min(1, v * 1.8)), int(255 * max(0, min(1, v * 1.8 - 0.6))), min(255, int(255 * max(0, min(1, (v - 0.75) * 4)) + 60 * v))]
 im = Image.fromarray(lut[np.array(im)])
 d = ImageDraw.Draw(im)
-font = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', 13)
+font = load_font(13)
 total = len(x) / sr
 for name, ts in hit_cues.items():
     for t in ts:

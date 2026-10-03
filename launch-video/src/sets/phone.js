@@ -1,6 +1,6 @@
 // Shot 7: delivered. The capsule drops into a phone dock, the screen ignites
-// with the post, #fyp is a live tag, and the CLI's own output line lands
-// beside it. Ends pushing into the screen (match cut into the grid).
+// with the post, and a fingertip taps #fyp, which lights as a link. Ends
+// pushing into the screen (match cut into the grid).
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { clamp, lerp, smooth, easeOutExpo, easeInOutCubic, easeOutCubic, easeInCubic, easeInOutQuint, easeInExpo, spring, hit, hits, fbm1, rng, camPath } from '../engine/util.js';
@@ -181,23 +181,6 @@ export default function createPhone(ctx) {
   const wave2 = wave.clone(); wave2.material = wave.material.clone(); wave2.material.color.setRGB(3, 0.3, 0.8);
   scene.add(wave2);
 
-  // CLI output card
-  const cc = makeCanvas(1400, 300); // CLI card
-  {
-    const x = cc.getContext('2d');
-    x.fillStyle = 'rgba(8,11,16,0.92)'; roundRect(x, 0, 0, 1400, 300, 30); x.fill();
-    x.strokeStyle = 'rgba(255,255,255,0.12)'; x.lineWidth = 3; roundRect(x, 2, 2, 1396, 296, 28); x.stroke();
-    x.font = `500 40px ${FONT.mono}`; x.fillStyle = '#5d6b82'; x.textBaseline = 'middle';
-    x.fillText('$ autotok upload -u alice -v clip.mp4 -t "Hello #fyp"', 50, 90);
-    x.font = `700 50px ${FONT.mono}`; x.fillStyle = '#3dff9a';
-    x.fillText('Published.', 50, 195);
-    const pw = x.measureText('Published. ').width;
-    x.fillStyle = '#e8edf5'; x.font = `500 50px ${FONT.mono}`;
-    x.fillText('Video id: 7429183650274961408', 50 + pw, 195);
-  }
-  const card = new THREE.Mesh(new THREE.PlaneGeometry(0.98, 0.21), new THREE.MeshBasicMaterial({ map: tex(cc), transparent: true, toneMapped: false, color: new THREE.Color(0.95, 0.95, 0.95) }));
-  scene.add(card);
-
   function update(t, fx, hud) {
     const ig = t < C.drop ? 0 : smooth(clamp((t - C.drop) / 0.12));
     drawPost(sx, t, TL, { tapAt: C.tap, ignite: ig });
@@ -220,13 +203,6 @@ export default function createPhone(ctx) {
       if (w.visible) { const r = 0.6 + easeOutCubic(a / 1.6) * 22; w.scale.setScalar(r); w.material.opacity = (1 - a / 1.6) * 0.9; }
     });
     rimC.intensity = 6 + flash * 20; rimM.intensity = 6 + flash * 20;
-
-    // card slides in on the output cue
-    const ck = easeOutExpo(clamp((t - C.outputLine) / 0.5));
-    card.visible = false;
-    card.position.set(lerp(-1.4, -0.66, ck), 0.98, 0.36);
-    card.rotation.set(0, 0.3, 0);
-    card.material.opacity = ck;
 
     // camera: low 3/4, orbit to front, then push into the screen
     const k1 = easeOutCubic(clamp((t - C.drop) / 2.2));
