@@ -56,50 +56,112 @@
 
 ---
 
-## Install
+## Getting started
 
-Requires Python 3.10+.
+Setup takes about five minutes. You need **Python 3.10 or newer**; check with `python --version`
+(Windows: `py --version`). Get Python from [python.org](https://www.python.org/downloads/) if needed.
 
-```bash
-pip install autotok                # add [youtube] for YouTube links: pip install "autotok[youtube]"
-autotok install-browser            # one-time download of the Chromium build autotok uses
-```
+### 1. Install autotok
 
-On a fresh Linux server, use `autotok install-browser --with-deps` (as root) to also install Chromium's system libraries.
+Install it into its own virtual environment, so its packages don't clash with anything else on your
+computer:
 
-If your shell says `autotok` is not recognized (common on Windows, where pip puts commands in a
-folder that isn't on PATH), use `python -m autotok` instead. It takes the same commands, e.g.
-`python -m autotok install-browser`. Installing into a virtual environment also avoids it:
+**Windows** (PowerShell or Command Prompt)
 
-```bash
-python -m venv .venv
-.venv\Scripts\activate             # Windows (macOS/Linux: source .venv/bin/activate)
+```bat
+py -m venv autotok-env
+autotok-env\Scripts\activate
 pip install "autotok[youtube]"
 ```
 
----
-
-## Quick start
+**macOS / Linux**
 
 ```bash
-# 1. Log in once. A browser window opens; log in to TikTok and it closes by itself.
+python3 -m venv autotok-env
+source autotok-env/bin/activate
+pip install "autotok[youtube]"
+```
+
+Check it worked with `autotok --version`. Next time you open a terminal, run the `activate` line
+again before using autotok.
+
+- `[youtube]` adds YouTube-link support. Leave it out (`pip install autotok`) if you don't need it.
+- To update later: `pip install -U "autotok[youtube]"`.
+- Latest development version straight from GitHub:
+  `pip install "autotok[youtube] @ git+https://github.com/makiisthenes/TiktokAutoUploader.git"`
+- `autotok` "not recognized" or "command not found"? Activate the environment again, or use
+  `python -m autotok ...` instead; it works the same way.
+
+### 2. Choose where the browser runs
+
+autotok uses a browser for the one-time login and to sign each upload. Pick one:
+
+| Option | Best for | Setup |
+|---|---|---|
+| **Local** (default) | Your own computer | `autotok install-browser`, a one-time download of about 300 MB |
+| **Cloud** ([Browserbase](https://www.browserbase.com) or [Steel](https://github.com/steel-dev/steel-browser)) | Servers, Docker, or keeping your computer free | Add an API key to a settings file. See [Cloud browsers](#cloud-browsers-browserbase-steel) |
+
+For the local browser on a fresh Linux server, run `autotok install-browser --with-deps` as root, which
+also installs Chromium's system libraries.
+
+### 3. Log in to TikTok (once per account)
+
+```bash
 autotok login -n my_account
+```
 
-#    ...or log in through a proxy (saved and reused for every upload from this account)
-autotok login -n my_account -p http://user:pass@proxy.example.com:8000
+A browser window opens on TikTok's login page. Log in however you like; the QR code with the TikTok
+app on your phone is quickest. The window closes by itself and the session is saved as `my_account`.
+With a cloud browser you get a link to open instead.
 
-# 2. Upload
-autotok upload -u my_account -v video.mp4 -t "My caption #fyp"
+```bash
+autotok accounts check my_account     # confirms TikTok accepts the saved session
+```
 
-# Schedule for one hour from now, with comments turned off
-autotok upload -u my_account -v video.mp4 -t "Later #fyp" -sc 3600 -ct 0
+- Going to use a proxy for this account? Pass it now, so the login and later uploads share one IP:
+  `autotok login -n my_account -p http://user:pass@host:port` (see [Proxies](#proxies)).
+- Repeat with a different `-n` name for each account.
+- Sessions are saved in `~/.autotok/accounts`. Treat them like passwords.
 
-# Upload a YouTube Short
+### 4. Upload
+
+```bash
+autotok upload -u my_account -v "C:\Videos\clip.mp4" -t "My caption #fyp"
+```
+
+That's it. More examples:
+
+```bash
+autotok upload -u my_account -v clip.mp4 -t "Just for me" -vi 1                 # private
+autotok upload -u my_account -v clip.mp4 -t "Later #fyp" -sc 3600               # publish in 1 hour
 autotok upload -u my_account -yt "https://www.youtube.com/shorts/xxxxxxxxxxx" -t "Caption"
 ```
 
-`-v` accepts a path, or just a file name inside your videos folder (`~/.autotok/videos`, or
-`VideosDirPath/` when you run from a TiktokAutoUploader checkout).
+`-v` takes a path to any video, or just a file name if the video is in `~/.autotok/videos`. See the
+[CLI reference](#cli-reference) for every option.
+
+### 5. Optional: save your settings in a file
+
+Settings such as a cloud browser or its API key go in a `.env` file. autotok looks in the folder you
+run it from, then in `~/.autotok/.env`; the second location suits a pip install. Copy
+[`.env.example`](.env.example) (from this repository) or start with just what you need:
+
+```bash
+# ~/.autotok/.env   (Windows: C:\Users\<you>\.autotok\.env)
+AUTOTOK_BROWSER=browserbase
+BROWSERBASE_API_KEY=bb_live_...
+```
+
+### Where next?
+
+| I want to... | See |
+|---|---|
+| Run several accounts, each with its own IP | [Proxies](#proxies) |
+| Avoid running a browser on my computer | [Cloud browsers](#cloud-browsers-browserbase-steel) |
+| Upload from Python code | [Python SDK](#python-sdk) |
+| Run on a server or in a container | [Docker](#docker) |
+| Use a web dashboard with a scheduler | [Web app](#web-app-self-hosted) |
+| Fix an error | [Troubleshooting](#troubleshooting) |
 
 ---
 
@@ -384,7 +446,7 @@ reads the same file. `.env` holds API keys, so never commit it (it's in `.gitign
 | `AUTOTOK_BROWSER` | Where login/signing browsers run: `local`, `browserbase`, `steel` | `local` |
 | `AUTOTOK_BROWSER_CHANNEL` | Use an installed browser, e.g. `chrome` | Playwright Chromium |
 | `AUTOTOK_BROWSER_PATH` | Full path to a Chrome/Chromium binary | Playwright Chromium |
-| `BROWSERBASE_API_KEY`, `BROWSERBASE_PROJECT_ID`, `BROWSERBASE_REGION` | Browserbase settings | — |
+| `BROWSERBASE_API_KEY`, `BROWSERBASE_PROJECT_ID`, `BROWSERBASE_REGION`, `BROWSERBASE_PROXY_COUNTRY` | Browserbase settings | — |
 | `STEEL_API_KEY`, `STEEL_BASE_URL`, `STEEL_CONNECT_URL` | Steel settings (`STEEL_BASE_URL` for self-hosted) | Steel Cloud |
 
 Account files contain your TikTok session (equivalent to your password). They are saved with
@@ -394,7 +456,7 @@ owner-only permissions; keep them private.
 
 ## Upgrading from TiktokAutoUploader 1.x
 
-- **Install:** `pip install autotok && autotok install-browser`. Node.js and `npm install` are no longer needed.
+- **Install:** follow [Getting started](#getting-started) (`pip install autotok`, then `autotok install-browser`). Node.js and `npm install` are no longer needed.
 - **Sessions:** saved sessions in `CookiesDir/` are migrated automatically the first time you use
   them from the repository folder. The flags are the same, and `python cli.py` still works.
 - **Scheduling:** `-sc` schedules on TikTok's side again (15 minutes to 10 days). The 1.x local
@@ -409,12 +471,15 @@ owner-only permissions; keep them private.
 
 | Problem | Fix |
 |---|---|
-| `'autotok' is not recognized` / `command not found` | Use `python -m autotok ...`, or install into a virtual environment (see [Install](#install)) |
+| `'autotok' is not recognized` / `command not found` | Activate your virtual environment again, or use `python -m autotok ...` (see [Getting started](#1-install-autotok)) |
 | `Chromium for Playwright is not installed` | `autotok install-browser` (Linux servers: add `--with-deps`) |
 | `TikTok rejected the session` / `session rejected` | `autotok login -n NAME --force` (check with `autotok accounts check NAME`) |
 | `Invalid parameters (status_code=5)` | TikTok changed its upload API. Please [open an issue](https://github.com/makiisthenes/TiktokAutoUploader/issues) with the full error. |
 | `potential violation of our Community Guidelines` | TikTok blocked that video's content; it isn't a tool error. |
-| Login page refuses to log in / shows a captcha loop | Try your installed Chrome: `AUTOTOK_BROWSER_CHANNEL=chrome autotok login -n NAME`, or copy the `sessionid` cookie from your browser and use `autotok login -n NAME --sessionid ...` |
+| Login page refuses to log in / shows a captcha loop | Try your installed Chrome: add `AUTOTOK_BROWSER_CHANNEL=chrome` to your `.env`, or copy the `sessionid` cookie from your browser and use `autotok login -n NAME --sessionid ...` |
+| "Verify it's really you" during a cloud login | TikTok doesn't recognise the cloud browser's IP. Complete it in the live view (choose Email), or avoid it with a proxy; see the notes under [Cloud browsers](#cloud-browsers-browserbase-steel) |
+| Cloud login live view is blank (self-hosted Steel) | Restart steel-browser with `DOMAIN=localhost:3000` (its address) |
+| `Browserbase ... (HTTP 402): Proxies are not included in the free plan` | Remove `BROWSERBASE_PROXY_COUNTRY`, or the account's proxy for cloud logins, or upgrade the Browserbase plan |
 | `No TikTok datacenter cookie saved` warning | Log in again with `autotok login`, or pass `--datacenter` with `--sessionid` |
 | `may or may not have been posted` | The connection dropped while publishing. Check the account before retrying, to avoid a duplicate. |
 
