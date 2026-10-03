@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">Upload and schedule TikTok videos from the command line or Python, with a proxy per account.</p>
-<p align="center"><code>pip install autotok</code> · one login · one command per upload</p>
+<p align="center"><code>uv tool install autotok</code> · one login · one command per upload</p>
 
 <p align="center">
   <a href="https://pypi.org/project/autotok/"><img alt="PyPI" src="https://img.shields.io/pypi/v/autotok"></a>
@@ -58,39 +58,28 @@
 
 ## Getting started
 
-Setup takes about five minutes. You need **Python 3.10 or newer**; check with `python --version`
-(Windows: `py --version`). Get Python from [python.org](https://www.python.org/downloads/) if needed.
+Setup takes about five minutes.
 
 ### 1. Install autotok
 
-Install it into its own virtual environment, so its packages don't clash with anything else on your
-computer:
-
-**Windows** (PowerShell or Command Prompt)
-
-```bat
-py -m venv autotok-env
-autotok-env\Scripts\activate
-pip install "autotok[youtube]"
-```
-
-**macOS / Linux**
-
 ```bash
-python3 -m venv autotok-env
-source autotok-env/bin/activate
-pip install "autotok[youtube]"
+uv tool install "autotok[youtube]"
 ```
 
-Check it worked with `autotok --version`. Next time you open a terminal, run the `activate` line
-again before using autotok.
+That's it: `autotok` is now a command you can run from any terminal (check with `autotok --version`).
+uv keeps autotok separate from your other Python packages, and downloads Python for you if you
+don't have it.
 
-- `[youtube]` adds YouTube-link support. Leave it out (`pip install autotok`) if you don't need it.
-- To update later: `pip install -U "autotok[youtube]"`.
-- Latest development version straight from GitHub:
-  `pip install "autotok[youtube] @ git+https://github.com/makiisthenes/TiktokAutoUploader.git"`
-- `autotok` "not recognized" or "command not found"? Activate the environment again, or use
-  `python -m autotok ...` instead; it works the same way.
+Don't have uv? Install it with one line from [docs.astral.sh/uv](https://docs.astral.sh/uv/getting-started/installation/),
+or use [pipx](https://pipx.pypa.io): `pipx install "autotok[youtube]"`.
+
+- Update later: `uv tool upgrade autotok`.
+- Try it without installing: `uvx --from "autotok[youtube]" autotok --version`.
+- Using autotok from Python code? Add it to your project: `uv add "autotok[youtube]"` or
+  `pip install "autotok[youtube]"`.
+- `[youtube]` adds YouTube-link support. Leave it out if you don't need it.
+- `autotok` "not recognized" or "command not found"? Run `uv tool update-shell` once and open a new
+  terminal.
 
 ### 2. Choose where the browser runs
 
@@ -143,7 +132,7 @@ autotok upload -u my_account -yt "https://www.youtube.com/shorts/xxxxxxxxxxx" -t
 ### 5. Optional: save your settings in a file
 
 Settings such as a cloud browser or its API key go in a `.env` file. autotok looks in the folder you
-run it from, then in `~/.autotok/.env`; the second location suits a pip install. Copy
+run it from, then in `~/.autotok/.env`; the second location works from any folder. Copy
 [`.env.example`](.env.example) (from this repository) or start with just what you need:
 
 ```bash
@@ -456,7 +445,7 @@ owner-only permissions; keep them private.
 
 ## Upgrading from TiktokAutoUploader 1.x
 
-- **Install:** follow [Getting started](#getting-started) (`pip install autotok`, then `autotok install-browser`). Node.js and `npm install` are no longer needed.
+- **Install:** follow [Getting started](#getting-started) (`uv tool install "autotok[youtube]"`, then `autotok install-browser`). Node.js and `npm install` are no longer needed.
 - **Sessions:** saved sessions in `CookiesDir/` are migrated automatically the first time you use
   them from the repository folder. The flags are the same, and `python cli.py` still works.
 - **Scheduling:** `-sc` schedules on TikTok's side again (15 minutes to 10 days). The 1.x local
@@ -471,7 +460,7 @@ owner-only permissions; keep them private.
 
 | Problem | Fix |
 |---|---|
-| `'autotok' is not recognized` / `command not found` | Activate your virtual environment again, or use `python -m autotok ...` (see [Getting started](#1-install-autotok)) |
+| `'autotok' is not recognized` / `command not found` | Run `uv tool update-shell` once and open a new terminal. If you installed with pip instead, use `python -m autotok ...` |
 | `Chromium for Playwright is not installed` | `autotok install-browser` (Linux servers: add `--with-deps`) |
 | `TikTok rejected the session` / `session rejected` | `autotok login -n NAME --force` (check with `autotok accounts check NAME`) |
 | `Invalid parameters (status_code=5)` | TikTok changed its upload API. Please [open an issue](https://github.com/makiisthenes/TiktokAutoUploader/issues) with the full error. |
