@@ -2,7 +2,7 @@
   "fps": 60,
   "bpm": 120,
   "preroll": 0.3,
-  "duration": 39.0,
+  "duration": 38.5,
   "width": 1920,
   "height": 1080,
 
@@ -34,9 +34,13 @@
 
     "board": 12.0,
     "flips": [
-      { "t": 12.5, "field": "earliest", "text": "15 MIN", "cells": 7 },
-      { "t": 14.0, "field": "latest", "text": "10 DAYS", "cells": 7 },
-      { "t": 15.5, "field": "status", "text": "SCHEDULED", "cells": 9 }
+      { "t": 12.5, "field": "departs", "text": "18:00" },
+      { "t": 13.25, "field": "status", "text": "SCHEDULED" },
+      { "t": 14.0, "field": "now", "text": "17:15" },
+      { "t": 14.375, "field": "now", "text": "17:30" },
+      { "t": 14.75, "field": "now", "text": "17:45" },
+      { "t": 15.125, "field": "now", "text": "18:00" },
+      { "t": 15.5, "field": "status", "text": "BOARDING" }
     ],
     "boarding": 16.0,
     "tube": 17.0,
@@ -48,16 +52,21 @@
     "drops": [23.0, 24.0],
 
     "grid": 26.0,
-    "wordForm": 29.0,
-    "title": 32.0,
-    "pip": 34.0,
-    "disclosure": 36.0,
-    "end": 39.0
+    "wordForm": 28.5,
+    "title": 30.5,
+    "pip": 32.0,
+    "disclosure": 33.0,
+    "end": 38.5
   },
 
   "flap": { "stagger": 0.045, "flipDur": 0.06, "cycles": 6 },
+  "boardFields": {
+    "now": { "cells": 5, "init": "17:00" },
+    "departs": { "cells": 5, "init": "" },
+    "status": { "cells": 9, "init": "" }
+  },
 
-  "pipTyping": { "text": "pip install autotok", "start": 34.0, "step": 0.0625 },
+  "pipTyping": { "text": "pip install autotok", "start": 32.0, "step": 0.0625 },
 
   "accounts": ["alice", "bob", "cara"],
 
@@ -66,9 +75,9 @@
     { "id": "command", "start": 4.0, "end": 8.0 },
     { "id": "delivery", "start": 8.0, "end": 12.0 },
     { "id": "schedule", "start": 12.0, "end": 18.0 },
-    { "id": "posted", "start": 18.0, "end": 21.0 },
-    { "id": "accounts", "start": 21.0, "end": 26.0 },
-    { "id": "grid", "start": 26.0, "end": 32.0 },
-    { "id": "title", "start": 32.0, "end": 39.0 }
+    { "id": "posted", "start": 18.0, "end": 20.5 },
+    { "id": "accounts", "start": 20.5, "end": 26.0 },
+    { "id": "grid", "start": 26.0, "end": 30.5 },
+    { "id": "title", "start": 30.5, "end": 38.5 }
   ]
 }

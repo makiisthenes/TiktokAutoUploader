@@ -85,12 +85,22 @@ export function typedCount(t, times) {
 
 // Split-flap schedule shared with the score: cell i of a cascade starts
 // `stagger` after cell i-1 and flips `cycles` times, `flipDur` each.
-export function flapFlipTimes(flip, flap) {
-  const out = [];
-  for (let i = 0; i < flip.cells; i++) {
-    for (let k = 0; k < flap.cycles; k++) out.push(flip.t + i * flap.stagger + (k + 1) * flap.flipDur);
-  }
-  return out;
+// The departures board's flips, resolved in order: for each change, the cells
+// whose character differs cycle through random glyphs (one clack per cycle);
+// unchanged cells stay put. Mirrored in audio/score.py.
+export function boardFlips(fields, flips, flap) {
+  const cur = {};
+  for (const [k, f] of Object.entries(fields)) cur[k] = (f.init || '').padEnd(f.cells, ' ').slice(0, f.cells);
+  return flips.map((fl) => {
+    const n = fields[fl.field].cells;
+    const prev = cur[fl.field];
+    const next = fl.text.padEnd(n, ' ').slice(0, n);
+    const changed = [];
+    for (let i = 0; i < n; i++) if (prev[i] !== next[i]) changed.push(i);
+    cur[fl.field] = next;
+    const last = changed.length ? changed[changed.length - 1] : 0;
+    return { ...fl, prev, next, changed, end: fl.t + last * flap.stagger + flap.cycles * flap.flipDur };
+  });
 }
 
 // Camera path through keyframes {t, p:[x,y,z], l:[x,y,z], fov} with a

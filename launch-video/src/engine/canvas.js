@@ -106,3 +106,64 @@ export function drawBarcode(x, X, Y, W, H, seed = 3, color = '#111') {
     cx += bw + (W / 200) * (1 + Math.floor(r() * 2));
   }
 }
+
+// The clip itself: a beach at sunset, someone dancing by a palm tree. Drawn
+// into the box (X, Y, W, H) at time t, so the phone plays it and the parcel
+// label shows a frame of it.
+export function drawClip(x, X, Y, W, H, t = 0) {
+  x.save();
+  x.beginPath(); x.rect(X, Y, W, H); x.clip();
+  x.translate(X, Y);
+  const hz = H * 0.6;
+  const sky = x.createLinearGradient(0, 0, 0, hz);
+  sky.addColorStop(0, '#2a0f4a'); sky.addColorStop(0.55, '#c23a78'); sky.addColorStop(1, '#ffa45c');
+  x.fillStyle = sky; x.fillRect(0, 0, W, hz);
+  // the sun, cut by retro bars
+  const sr = W * 0.24, sx = W * 0.52, sy = hz - sr * 0.35;
+  const sun = x.createLinearGradient(0, sy - sr, 0, sy + sr);
+  sun.addColorStop(0, '#ffe58a'); sun.addColorStop(1, '#ff5f8f');
+  x.fillStyle = sun; x.beginPath(); x.arc(sx, sy, sr, 0, Math.PI * 2); x.fill();
+  x.fillStyle = '#c23a78';
+  for (let i = 0; i < 5; i++) { const by = sy + sr * (0.05 + i * 0.2); x.fillRect(sx - sr, by, sr * 2, sr * (0.03 + i * 0.025)); }
+  // sea with drifting wave lines and the sun's reflection
+  const sea = x.createLinearGradient(0, hz, 0, H);
+  sea.addColorStop(0, '#2b1f63'); sea.addColorStop(1, '#0c0b26');
+  x.fillStyle = sea; x.fillRect(0, hz, W, H - hz);
+  for (let i = 0; i < 9; i++) {
+    const wy = hz + (H - hz) * (0.06 + i * 0.1);
+    const ww = W * (0.12 + 0.03 * i) * (1 + 0.15 * Math.sin(t * 2 + i));
+    x.fillStyle = `rgba(255,190,140,${0.55 - i * 0.05})`;
+    x.fillRect(sx - ww / 2 + Math.sin(t * 1.5 + i * 1.7) * W * 0.02, wy, ww, Math.max(1, H * 0.006));
+    x.fillStyle = 'rgba(37,244,238,0.22)';
+    x.fillRect(((i * 0.37 + t * 0.04) % 1) * W - W * 0.1, wy + H * 0.02, W * 0.2, Math.max(1, H * 0.004));
+  }
+  // sand
+  x.fillStyle = '#120a1c';
+  x.beginPath(); x.moveTo(0, H * 0.8);
+  x.quadraticCurveTo(W * 0.5, H * 0.74, W, H * 0.79); x.lineTo(W, H); x.lineTo(0, H); x.closePath(); x.fill();
+  // palm tree, swaying
+  const sway = Math.sin(t * 1.3) * 0.05;
+  x.strokeStyle = '#120a1c'; x.fillStyle = '#120a1c'; x.lineCap = 'round';
+  x.lineWidth = W * 0.035;
+  const tx = W * 0.2, ty = H * 0.79, top = [W * (0.13 + sway), H * 0.36];
+  x.beginPath(); x.moveTo(tx, ty); x.quadraticCurveTo(W * 0.24, H * 0.55, top[0], top[1]); x.stroke();
+  for (let k = 0; k < 6; k++) {
+    const a = -Math.PI * 0.95 + k * (Math.PI * 0.95 / 5) + sway * 2;
+    const L = W * 0.26;
+    x.beginPath(); x.moveTo(top[0], top[1]);
+    x.quadraticCurveTo(top[0] + Math.cos(a) * L * 0.6, top[1] + Math.sin(a) * L * 0.6 - H * 0.03, top[0] + Math.cos(a) * L, top[1] + Math.sin(a) * L * 0.5 + H * 0.05);
+    x.lineWidth = W * 0.022; x.stroke();
+  }
+  // someone dancing on the sand, on the beat
+  const b = Math.abs(Math.sin(t * Math.PI * 2));
+  const px = W * 0.68, py = H * 0.8, s = H * 0.0012;
+  x.lineWidth = W * 0.03;
+  x.beginPath(); x.arc(px, py - 150 * s - b * 6 * s, 14 * s * 1.6, 0, Math.PI * 2); x.fill();
+  x.beginPath(); x.moveTo(px, py - 128 * s - b * 6 * s); x.lineTo(px, py - 62 * s); x.stroke();
+  x.beginPath(); x.moveTo(px, py - 62 * s); x.lineTo(px - 22 * s, py); x.moveTo(px, py - 62 * s); x.lineTo(px + 22 * s, py); x.stroke();
+  x.beginPath();
+  x.moveTo(px, py - 115 * s); x.lineTo(px - 40 * s, py - (115 + 30 + b * 40) * s);
+  x.moveTo(px, py - 115 * s); x.lineTo(px + 40 * s, py - (115 + 30 + (1 - b) * 40) * s);
+  x.stroke();
+  x.restore();
+}

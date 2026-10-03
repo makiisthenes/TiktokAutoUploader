@@ -1,9 +1,11 @@
-// Shot 4: a split-flap departures board. Post now, or schedule it: TikTok-side
-// scheduling runs from 15 minutes to 10 days ahead. Each cascade's flips are
-// the score's clacks. The parcel rides in and boards the @alice capsule.
+// Shot 4: a split-flap departures board. Post now, or schedule it: the post
+// DEPARTS 18:00 and is SCHEDULED (TikTok-side scheduling runs from 15 minutes
+// to 10 days ahead); the NOW clock races forward to 18:00, the status flips to
+// BOARDING and only then does the @alice capsule launch. Each flap is a clack
+// in the score. The parcel rides in and boards the capsule.
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import { clamp, lerp, smooth, easeOutExpo, easeInOutCubic, easeOutCubic, easeInCubic, easeInOutQuint, spring, hit, hits, fbm1, rng, flapFlipTimes } from '../engine/util.js';
+import { clamp, lerp, smooth, easeOutExpo, easeInOutCubic, easeOutCubic, easeInCubic, easeInOutQuint, spring, hit, hits, fbm1, rng, boardFlips } from '../engine/util.js';
 import { makeCanvas, tex, FONT, COLOR, roundRect } from '../engine/canvas.js';
 import { PARCEL, LANE_COLORS, makeParcel, makeConveyor, makeFloor, makeCeiling, floorLine, metal, Burst, v3 } from '../engine/props.js';
 
@@ -85,7 +87,8 @@ export default function createBoard(ctx) {
   }
   const LABEL_X = -BW / 2 + 0.35;
   const CELLS_X = -BW / 2 + 2.85;
-  const rowY = { title: 1.12, file: 0.58, earliest: 0.0, latest: -0.56, status: -1.12 };
+  const NOW_X = BW / 2 - 0.35 - 5 * (CW + GAP) + GAP;
+  const rowY = { title: 1.12, file: 0.58, departs: 0.0, status: -0.56, note: -1.1 };
   function printed(text, w, h, x, y, { size = 120, color = '#9aa6bb', weight = 700, font = FONT.mono, align = 'left', letter = 6 } = {}) {
     const cw = 2048, chh = Math.round(2048 * h / w);
     const c = makeCanvas(cw, chh);
@@ -98,13 +101,12 @@ export default function createBoard(ctx) {
     scene.add(m);
     return m;
   }
-  printed('DEPARTURES', 3.4, 0.4, LABEL_X, rowY.title, { size: 128, color: '#ffb347', weight: 800, font: FONT.ui, letter: 10 });
-  printed('SCHEDULED ON TIKTOK', 2.0, 0.2, BW / 2 - 0.35, rowY.title, { size: 58, color: '#6c7690', align: 'right', letter: 6 });
+  printed('DEPARTURES', 3.0, 0.36, LABEL_X, rowY.title, { size: 128, color: '#ffb347', weight: 800, font: FONT.ui, letter: 10 });
+  printed('NOW', 1.0, 0.4, NOW_X - 0.08, rowY.title, { size: 200, color: '#9aa6bb', align: 'right' });
   printed('clip.mp4  ·  @alice  ·  "Hello #fyp"', 5.4, 0.26, LABEL_X, rowY.file, { size: 42, color: '#d8e2f0', weight: 600, letter: 1 });
-  printed('EARLIEST', 2.2, 0.3, LABEL_X, rowY.earliest, { size: 120 });
-  printed('LATEST', 2.2, 0.3, LABEL_X, rowY.latest, { size: 120 });
+  printed('DEPARTS', 2.2, 0.3, LABEL_X, rowY.departs, { size: 120 });
   printed('STATUS', 2.2, 0.3, LABEL_X, rowY.status, { size: 120 });
-  for (const r of ['earliest', 'latest']) printed('+', 0.2, 0.3, CELLS_X - 0.32, rowY[r], { size: 220, color: '#6c7690', align: 'left' });
+  printed('SCHEDULE ANY TIME 15 MIN TO 10 DAYS AHEAD', 5.6, 0.2, LABEL_X, rowY.note, { size: 35, color: '#8a96ab', weight: 600, letter: 2 });
   // divider rules
   for (const y of [0.86, 0.3, -0.28, -0.84]) {
     const m = new THREE.Mesh(new THREE.PlaneGeometry(BW - 0.5, 0.008), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.12, 0.13, 0.16) }));
@@ -145,31 +147,34 @@ export default function createBoard(ctx) {
     scene.add(g);
     return { g, top, bot, pivot, front, back };
   }
+  // Fields and their flips, resolved once (which cells change, when each change lands).
+  const FIELDS = TL.boardFields;
+  const flips = boardFlips(FIELDS, C.flips, FL);
   const fields = {};
-  for (const f of C.flips) {
-    const r = rng(f.t * 100);
-    const final = f.text.padEnd(f.cells, ' ').slice(0, f.cells);
-    const cells = [];
-    for (let i = 0; i < f.cells; i++) {
-      const seq = [' '];
-      for (let k = 1; k < FL.cycles; k++) seq.push(GLYPHS[1 + Math.floor(r() * (GLYPHS.length - 1))]);
-      seq.push(final[i]);
-      const cell = makeCell(CELLS_X + CW / 2 + i * (CW + GAP), rowY[f.field]);
-      cells.push({ ...cell, seq, start: f.t + i * FL.stagger });
-    }
-    fields[f.field] = { cells, flip: f };
+  for (const [name, f] of Object.entries(FIELDS)) {
+    const x0 = name === 'now' ? NOW_X : CELLS_X;
+    const init = (f.init || '').padEnd(f.cells, ' ');
+    fields[name] = Array.from({ length: f.cells }, (_, i) => ({ ...makeCell(x0 + CW / 2 + i * (CW + GAP), rowY[name === 'now' ? 'title' : name]), init: init[i], segs: [] }));
   }
-  function updateCell(cell, t) {
-    const n = cell.seq.length - 1;
-    const e = (t - cell.start) / FL.flipDur;
-    if (e < 0 || e >= n) {
-      const ch = e < 0 ? cell.seq[0] : cell.seq[n];
-      setUV(cell.top, topUV(ch)); setUV(cell.bot, botUV(ch));
-      cell.pivot.visible = false;
-      return;
+  for (const fl of flips) {
+    const r = rng(fl.t * 100);
+    for (const i of fl.changed) {
+      const seq = [fl.prev[i]];
+      for (let k = 1; k < FL.cycles; k++) seq.push(GLYPHS[1 + Math.floor(r() * (GLYPHS.length - 1))]);
+      seq.push(fl.next[i]);
+      fields[fl.field][i].segs.push({ start: fl.t + i * FL.stagger, seq });
     }
+  }
+  const showChar = (cell, ch) => { setUV(cell.top, topUV(ch)); setUV(cell.bot, botUV(ch)); cell.pivot.visible = false; };
+  function updateCell(cell, t) {
+    let seg = null;
+    for (const sg of cell.segs) if (t >= sg.start) seg = sg;
+    if (!seg) { showChar(cell, cell.init); return; }
+    const n = seg.seq.length - 1;
+    const e = (t - seg.start) / FL.flipDur;
+    if (e >= n) { showChar(cell, seg.seq[n]); return; }
     const k = Math.floor(e), ph = e - k;
-    const A = cell.seq[k], Bc = cell.seq[k + 1];
+    const A = seg.seq[k], Bc = seg.seq[k + 1];
     setUV(cell.top, topUV(Bc));
     setUV(cell.bot, botUV(A));
     setUV(cell.front, topUV(A));
@@ -177,10 +182,11 @@ export default function createBoard(ctx) {
     cell.pivot.visible = true;
     cell.pivot.rotation.x = -Math.PI * easeInCubic(ph) * 0.999;
   }
-  // status lamp
+  // status lamp: amber once scheduled, green once boarding
   const lamp = new THREE.Mesh(new THREE.CircleGeometry(0.07, 24), new THREE.MeshBasicMaterial({ toneMapped: false, color: new THREE.Color(0.1, 0.1, 0.1) }));
-  lamp.position.set(CELLS_X + fields.status.flip.cells * (CW + GAP) + 0.12, BOARD_Y + rowY.status, -0.03);
+  lamp.position.set(CELLS_X + FIELDS.status.cells * (CW + GAP) + 0.16, BOARD_Y + rowY.status, -0.03);
   scene.add(lamp);
+  const statusFlips = flips.filter((f) => f.field === 'status');
 
   // foreground pillar: parallax as the camera trucks
   const pillar = new THREE.Mesh(new RoundedBoxGeometry(0.5, 9, 0.5, 2, 0.04), metal(0x14171c, 0.45, 0.7));
@@ -205,7 +211,7 @@ export default function createBoard(ctx) {
   const capsule = new THREE.Group();
   const capBody = new THREE.Mesh(new THREE.CapsuleGeometry(0.15, 0.36, 8, 24), new THREE.MeshStandardMaterial({ color: 0x1c2733, roughness: 0.25, metalness: 0.8 }));
   capsule.add(capBody);
-  const capBand = new THREE.Mesh(new THREE.CylinderGeometry(0.152, 0.152, 0.08, 32), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.3, 3, 3), toneMapped: false }));
+  const capBand = new THREE.Mesh(new THREE.CylinderGeometry(0.152, 0.152, 0.08, 32), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.2, 1.6, 1.6), toneMapped: false }));
   capsule.add(capBand);
   {
     const c = makeCanvas(256, 128);
@@ -218,7 +224,7 @@ export default function createBoard(ctx) {
   }
   capsule.position.set(TUBE_X, 0.95, 0.35);
   scene.add(capsule);
-  const streak = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.02, 1, 16, 1, true), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.6, 3.5, 3.5), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
+  const streak = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.02, 1, 16, 1, true), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.35, 1.8, 1.8), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
   scene.add(streak);
   const puff = new Burst(80, {
     color: new THREE.Color(0.7, 0.75, 0.8), size: 0.1, gravity: 0.3, drag: 3, additive: false, seed: 404, opacity: 0.4,
@@ -238,11 +244,13 @@ export default function createBoard(ctx) {
   // ---------------- update
   const T0 = C.board;
   // when each cascade's last flap lands
-  const flipEnds = C.flips.map((f) => f.t + (f.cells - 1) * FL.stagger + FL.cycles * FL.flipDur);
+  const flipEnds = flips.filter((f) => f.changed.length).map((f) => f.end);
   function update(t, fx, hud) {
-    for (const f of Object.values(fields)) for (const c of f.cells) updateCell(c, t);
-    const boarding = t >= flipEnds[C.flips.indexOf(fields.status.flip)];
-    lamp.material.color.setRGB(boarding ? 0.5 : 0.08, boarding ? 4 : 0.08, boarding ? 1.8 : 0.08);
+    for (const f of Object.values(fields)) for (const c of f) updateCell(c, t);
+    const sched = t >= statusFlips[0].end, boarding = t >= statusFlips[statusFlips.length - 1].end;
+    if (boarding) lamp.material.color.setRGB(0.5, 4, 1.8);
+    else if (sched) lamp.material.color.setRGB(3.2, 1.8, 0.3);
+    else lamp.material.color.setRGB(0.08, 0.08, 0.08);
 
     // parcel: rides in, slides into the capsule
     const ex = lerp(-3.5, TUBE_X - 0.25, smooth(clamp((t - T0) / 4.45)));
@@ -257,7 +265,8 @@ export default function createBoard(ctx) {
     const la = t - C.tube;
     const capY = la < 0 ? 0.95 : 0.95 + 0.5 * 40 * la * la + 1.5 * la;
     capsule.position.y = capY;
-    capBand.material.color.setRGB(0.3 + hit(t, C.tube, 0.3) * 3, 3 + hit(t, C.tube, 0.3) * 4, 3 + hit(t, C.tube, 0.3) * 4);
+    const lh = hit(t, C.tube, 0.3);
+    capBand.material.color.setRGB(0.2 + lh * 1.2, 1.6 + lh * 1.6, 1.6 + lh * 1.6);
     streak.visible = la > 0 && la < 0.9;
     if (streak.visible) {
       const len = Math.min(capY - 0.7, 5);
@@ -269,11 +278,11 @@ export default function createBoard(ctx) {
     if (puff.points.visible) puff.update(la);
 
     // camera: whip in, push toward each row as it flips, tilt up with the capsule
-    const rows = [[T0, rowY[C.flips[0].field]], [C.flips[1].t - 0.25, rowY[C.flips[1].field]], [C.flips[2].t - 0.25, rowY[C.flips[2].field]]];
-    let ly = rowY.earliest;
+    const rows = [[T0, rowY.departs], ...flips.slice(1).map((f) => [f.t - 0.25, rowY[f.field === 'now' ? 'title' : f.field]])];
+    let ly = rowY.departs;
     for (let i = 0; i < rows.length; i++) {
       if (t >= rows[i][0]) {
-        const prev = i ? rows[i - 1][1] : rowY.earliest + 0.3;
+        const prev = i ? rows[i - 1][1] : rowY.departs + 0.3;
         ly = lerp(prev, rows[i][1], easeInOutCubic(clamp((t - rows[i][0]) / 0.6)));
       }
     }
@@ -281,7 +290,7 @@ export default function createBoard(ctx) {
     let p = v3(lerp(-2.5, -0.7, push), lerp(1.7, 2.05, push), lerp(7.4, 6.3, push));
     let l = v3(lerp(-1.1, 0.25, push), BOARD_Y + ly * 0.12 + 0.36, 0);
     let fov = 34;
-    const board = easeInOutCubic(clamp((t - (C.tube - 0.6)) / 0.55));
+    const board = easeInOutCubic(clamp((t - (C.tube - 0.45)) / 0.42));
     if (board > 0) {
       const bp = v3(TUBE_X - 2.1, 1.55, 3.0);
       p = p.lerp(bp, board);

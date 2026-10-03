@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import { makeCanvas, tex, noiseCanvas, FONT, COLOR, drawBarcode, roundRect } from './canvas.js';
+import { makeCanvas, tex, noiseCanvas, FONT, COLOR, drawBarcode, roundRect, drawClip } from './canvas.js';
 import { rng, clamp } from './util.js';
 
 export const PARCEL = { w: 0.9, h: 0.55, d: 0.62 };
@@ -46,23 +46,14 @@ function tape(x, X, Y, W, H) {
   x.globalAlpha = 1;
 }
 
-// A frame of the clip itself (the same colours the post lights up with on the
-// phone), so the parcel reads as "the video" without a word.
+// A frame of the clip itself (the same scene the phone plays), so the
+// parcel reads as "the video" without a word.
 function videoFrame(x, X, Y, W, H) {
   x.save();
   roundRect(x, X, Y, W, H, W * 0.1); x.clip();
-  const g = x.createLinearGradient(X, Y, X + W, Y + H);
-  g.addColorStop(0, '#1b0b2e'); g.addColorStop(1, '#03161c');
-  x.fillStyle = g; x.fillRect(X, Y, W, H);
-  x.globalCompositeOperation = 'lighter';
-  for (const [c, bx, by] of [[COLOR.magenta, 0.3, 0.3], [COLOR.cyan, 0.72, 0.58], ['#7b5cff', 0.42, 0.82]]) {
-    const rg = x.createRadialGradient(X + W * bx, Y + H * by, 0, X + W * bx, Y + H * by, W * 0.75);
-    rg.addColorStop(0, c + 'cc'); rg.addColorStop(1, c + '00');
-    x.fillStyle = rg; x.fillRect(X, Y, W, H);
-  }
-  x.globalCompositeOperation = 'source-over';
+  drawClip(x, X, Y, W, H, 0.4);
   x.fillStyle = 'rgba(255,255,255,0.92)';
-  const cx = X + W / 2, cy = Y + H / 2, r = W * 0.2;
+  const cx = X + W / 2, cy = Y + H * 0.42, r = W * 0.17;
   x.beginPath(); x.moveTo(cx - r * 0.6, cy - r); x.lineTo(cx + r, cy); x.lineTo(cx - r * 0.6, cy + r); x.closePath(); x.fill();
   x.restore();
 }

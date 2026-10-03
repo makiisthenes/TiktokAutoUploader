@@ -6,7 +6,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { clamp, lerp, smooth, easeOutExpo, easeInOutCubic, easeOutCubic, easeInCubic, easeInExpo, spring, hit, hits, fbm1, camPath } from '../engine/util.js';
-import { makeCanvas, tex, FONT, COLOR, roundRect } from '../engine/canvas.js';
+import { makeCanvas, tex, FONT, COLOR, roundRect, drawClip } from '../engine/canvas.js';
 import { LANE_COLORS, makeFloor, makeRacks, makeCeiling, makeShaft, metal, signMesh, v3 } from '../engine/props.js';
 
 export const PHONE = { w: 0.5, h: 1.04, d: 0.05, sw: 0.46, sh: 1.0 };
@@ -29,29 +29,8 @@ export function drawPost(x, t, TL, { tapAt = Infinity, ignite = 1, user = 'alice
   x.fillStyle = '#05060a'; x.fillRect(0, 0, W, H);
   if (ignite <= 0) { x.restore(); return; }
   x.globalAlpha = ignite;
-  // "clip.mp4": drifting colour fields and a beat-synced equaliser
-  const beat = t * 2;
-  const g = x.createLinearGradient(0, 0, W, H);
-  g.addColorStop(0, '#1b0b2e'); g.addColorStop(1, '#03161c');
-  x.fillStyle = g; x.fillRect(0, 0, W, H);
-  x.globalCompositeOperation = 'lighter';
-  const blobs = [[COLOR.magenta, 0.3, 0.32, 0.7], [COLOR.cyan, 0.72, 0.55, 0.9], ['#7b5cff', 0.45, 0.78, 1.1]];
-  for (const [c, bx, by, sp] of blobs) {
-    const cx = W * (bx + 0.15 * Math.sin(t * sp + bx * 9 + seed)), cy = H * (by + 0.08 * Math.cos(t * sp * 1.3 + by * 7 + seed));
-    const r = W * (0.55 + 0.08 * Math.sin(beat * Math.PI));
-    const rg = x.createRadialGradient(cx, cy, 0, cx, cy, r);
-    rg.addColorStop(0, c + 'aa'); rg.addColorStop(1, c + '00');
-    x.fillStyle = rg; x.fillRect(0, 0, W, H);
-  }
-  x.globalCompositeOperation = 'source-over';
-  // equaliser
-  const n = 14;
-  for (let i = 0; i < n; i++) {
-    const ph = (beat % 1);
-    const hgt = 60 + 180 * Math.abs(Math.sin(i * 1.7 + Math.floor(beat) * 2.3)) * (1 - ph * 0.6);
-    x.fillStyle = 'rgba(255,255,255,0.55)';
-    roundRect(x, 70 + i * 28, H * 0.45 - hgt / 2, 12, hgt, 6); x.fill();
-  }
+  // "clip.mp4" playing
+  drawClip(x, 0, 0, W, H, t + seed);
   // right rail icons
   x.fillStyle = 'rgba(255,255,255,0.95)';
   heart(x, W - 58, H * 0.56, 46);
@@ -205,7 +184,7 @@ export default function createPhone(ctx) {
   const cmdCanvas = makeCanvas(CMD_W, CMD_H);
   const cmdX = cmdCanvas.getContext('2d');
   const cmd = signMesh(cmdCanvas, 3.6, 3.6 * CMD_H / CMD_W, { glow: 1.0 });
-  cmd.position.set(0, 2.3, -0.1);
+  cmd.position.set(0, 2.2, -0.1);
   scene.add(cmd);
   const userAt = (t) => {
     // which name is showing and the roll progress into it
@@ -217,7 +196,8 @@ export default function createPhone(ctx) {
   function drawCommand(t) {
     const x = cmdX;
     x.clearRect(0, 0, CMD_W, CMD_H);
-    x.fillStyle = 'rgba(8,11,17,0.88)'; roundRect(x, 4, 4, CMD_W - 8, CMD_H - 8, 40); x.fill();
+    // opaque, so a capsule glowing in a tube behind it can't show through
+    x.fillStyle = '#080b11'; roundRect(x, 4, 4, CMD_W - 8, CMD_H - 8, 40); x.fill();
     x.strokeStyle = 'rgba(255,255,255,0.16)'; x.lineWidth = 4; roundRect(x, 4, 4, CMD_W - 8, CMD_H - 8, 40); x.stroke();
     x.textBaseline = 'middle';
     const F = 68;
@@ -266,8 +246,8 @@ export default function createPhone(ctx) {
       drawPost(s.cx, t, TL, { tapAt: s.big ? C.tap : Infinity, ignite: ig, user: s.user, seed: s.big ? 0 : s.x });
       s.tex.needsUpdate = true;
       const flash = hit(t, s.drop, 0.25);
-      s.screen.material.color.setScalar((s.big ? 0.82 : 0.78) + flash * 2.5);
-      s.glow.intensity = ig * (2.0 + flash * (s.big ? 15 : 8));
+      s.screen.material.color.setScalar((s.big ? 0.82 : 0.78) + flash * 1.1);
+      s.glow.intensity = ig * (2.0 + flash * (s.big ? 6 : 4));
       s.ring.material.color.setRGB(...ringRGB(s.color, flash));
       // capsule drop (arrives exactly on the drop)
       const ca = (s.drop - t) / 0.35;
@@ -292,13 +272,13 @@ export default function createPhone(ctx) {
       drawCommand(t);
       cmd.material.opacity = ck;
       cmd.material.color.setScalar(0.95 + 0.6 * hits(t, C.rolls, 0.3));
-      cmd.position.y = 2.3 + (1 - ck) * 0.15;
+      cmd.position.y = 2.2 + (1 - ck) * 0.15;
     }
 
     // camera: low 3/4, push onto the caption for the tap, pull back to all three, push into alice
     const k1 = easeOutCubic(clamp((t - D) / 2.2));
-    const wide = { p: [0.0, 1.6, 4.5], l: [0, 1.5, 0], fov: 38 };
-    const wide2 = { p: [0.05, 1.56, 4.2], l: [0, 1.48, 0], fov: 38 };
+    const wide = { p: [0.0, 1.55, 3.95], l: [0, 1.5, 0], fov: 40 };
+    const wide2 = { p: [0.05, 1.52, 3.7], l: [0, 1.48, 0], fov: 40 };
     const cp = camPath(t, [
       { t: D + 0.0, p: [-0.95, 0.6, 0.95], l: [0, 1.5, 0], fov: 42 },
       { t: D + 0.6, p: [-0.55, 0.92, 1.4], l: [-0.12, 1.22, 0], fov: 38 },
@@ -326,19 +306,19 @@ export default function createPhone(ctx) {
     hero.phone.rotation.y = (1 - k1) * 0.12;
 
     const flash = flashA;
-    fx.bloom = { strength: 0.8 + flash * 0.8, radius: 0.5, threshold: 0.8 };
+    fx.bloom = { strength: 0.8 + flash * 0.35, radius: 0.5, threshold: 0.8 };
     const wideK = smooth(clamp((t - C.accounts) / 1.3)) * (1 - push);
     const focusPt = v3(0, lerp(1.25, 1.5, wideK), 0);
     fx.dof = { focus: camera.position.distanceTo(focusPt), aperture: lerp(0.1, 0.05, wideK) * (1 - push), maxBlur: 12 };
-    fx.ca = 1 + flash * 16 + hit(t, C.tap, 0.2) * 3 + flashB * 7 + hits(t, C.rolls, 0.2) * 2;
+    fx.ca = 1 + flash * 10 + hit(t, C.tap, 0.2) * 3 + flashB * 6 + hits(t, C.rolls, 0.2) * 2;
     fx.shake = flash * 2.2 + flashB * 0.9;
     fx.zoom = push * 0.06;
-    fx.flash = [1, 1, 1, 0.5 * (1 - easeOutCubic(clamp((t - C.drop) / 0.16)))];
+    fx.flash = [1, 1, 1, 0.22 * (1 - easeOutCubic(clamp((t - C.drop) / 0.16)))];
     const vin = 1 - clamp((t - C.drop) / 0.2);
     if (vin > 0) fx.blur = [0, -easeOutCubic(vin) * 0.16];
-    fx.exposure = 1 + flash * 0.4 + flashB * 0.15;
+    fx.exposure = 1 + flash * 0.15 + flashB * 0.1;
     hud.header('Posted.', t, D + 0.3, C.accounts - 0.1);
-    hud.header('Any account, by name.', t, C.accounts + 1.1, pushStart + 0.05);
+    hud.header('Any of your accounts.', t, C.accounts + 1.1, pushStart + 0.05);
     return camera;
   }
   return { start: C.drop, scene, update };

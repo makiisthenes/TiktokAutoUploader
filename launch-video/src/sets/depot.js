@@ -150,9 +150,11 @@ export default function createDepot(ctx) {
     scene.add(l);
     return l;
   });
-  // the phone's own glow on its holder
+  // the phone's own glow on its holder, and a cyan rim so its edges read
   const phoneGlow = new THREE.PointLight(0x9ad8ff, 0, 2.2, 1.6);
   scene.add(phoneGlow);
+  const phoneRim = new THREE.PointLight(LANE_COLORS[0], 0, 2.5, 1.5);
+  scene.add(phoneRim);
 
   // ---------------- environment
   scene.add(makeFloor());
@@ -276,9 +278,36 @@ export default function createDepot(ctx) {
     const glow = hit(t, C.scan, 0.5);
     drawQR(x, (WIN.w - S) / 2, 220, S, qr, { reveal: easeOutCubic(clamp((t - C.loginEnter - 0.08) / 0.35)) * 1.05, glow });
     if (t >= C.scan) checkMark(x, WIN.w / 2, 220 + S / 2, 92, clamp((t - C.scan) / 0.3));
-    x.fillStyle = '#9aa6bb'; x.font = `500 38px ${FONT.ui}`;
-    x.fillText('Scan with your phone', WIN.w / 2, 790);
+    x.fillStyle = '#c3cbd9'; x.font = `600 52px ${FONT.ui}`;
+    x.fillText('Scan with your phone', WIN.w / 2, 800);
     x.restore();
+  }
+
+  // What each part of the command means, labelled as it is typed.
+  const LABELS = [
+    { token: 'alice', text: 'account', color: COLOR.cyan },
+    { token: 'clip.mp4', text: 'your video', color: '#f2f4f7' },
+    { token: '"Hello #fyp"', text: 'caption', color: COLOR.amber },
+  ].map((l) => {
+    const i0 = typing.text.indexOf(l.token, l.token === 'alice' ? typing.text.indexOf('-u') : 0);
+    const x0 = MX + promptW + screen.x.measureText(typing.text.slice(0, i0)).width;
+    const w = screen.x.measureText(l.token).width;
+    return { ...l, x0, w, done: times[i0 + l.token.length - 1] };
+  });
+  function drawLabels(x, t) {
+    const out = 1 - smooth(clamp((t - C.enter) / 0.15));
+    for (const l of LABELS) {
+      const a = smooth(clamp((t - l.done) / 0.15)) * out;
+      if (a <= 0) continue;
+      x.save();
+      x.globalAlpha = a;
+      x.strokeStyle = l.color; x.lineWidth = 4; x.lineCap = 'round';
+      const by = lineY[2] + 22;
+      x.beginPath(); x.moveTo(l.x0 + 4, by); x.lineTo(l.x0 + 4, by + 12); x.lineTo(l.x0 + l.w - 4, by + 12); x.lineTo(l.x0 + l.w - 4, by); x.stroke();
+      x.fillStyle = l.color; x.font = `600 40px ${FONT.ui}`; x.textAlign = 'center'; x.textBaseline = 'alphabetic';
+      x.fillText(l.text, l.x0 + l.w / 2, by + 62 + (1 - a) * 10);
+      x.restore();
+    }
   }
 
   let screenKey = null;
@@ -352,6 +381,7 @@ export default function createDepot(ctx) {
         const n = typedCount(t, times);
         const end = drawSpans(x, spans, MX + promptW, lineY[2], n, t >= C.enter ? 'clip.mp4' : null);
         if (t < C.enter && (blink || n < times.length)) cursor(x, end, lineY[2]);
+        drawLabels(x, t);
       }
       x.restore();
       drawLoginWindow(x, t);
@@ -546,8 +576,10 @@ export default function createDepot(ctx) {
       phone.position.set(PH_REST.x - (1 - pin) * 0.25, PH_REST.y - (1 - pin) * 1.3 - pout * 1.5 + jolt, PH_REST.z);
       phone.rotation.set(-0.06 + (1 - pin) * 0.35, 0.22 - (1 - pin) * 0.2, 0.05 * (1 - pin) - pout * 0.15);
       phoneGlow.position.set(phone.position.x, phone.position.y, phone.position.z + 0.4);
+      phoneRim.position.set(phone.position.x - 0.55, phone.position.y + 0.5, phone.position.z - 0.35);
     }
     phoneGlow.intensity = phone.visible ? 1.5 + hit(t, C.scan, 0.4) * 3 : 0;
+    phoneRim.intensity = phone.visible ? 5 : 0;
     vScreen.material.color.setScalar(0.85 + hit(t, C.scan, 0.25) * 0.3);
 
     // The parcel: hidden in the screen, then flight, then the belt.

@@ -47,6 +47,19 @@ export class Hud {
     const total = widths.reduce((a, b) => a + b, 0) + space * (words.length - 1);
     let cx = align === 'center' ? x - total / 2 : x;
     const exit = easeInCubic(clamp((t - (tOut - 0.3)) / 0.3));
+    // a soft dark scrim, so the header reads over bright frames too
+    const sa = 0.5 * easeOutCubic(clamp((t - tIn) / 0.4)) * (1 - exit);
+    if (sa > 0.01) {
+      const mx = cx + total / 2, my = y - size * 0.32;
+      ctx.save();
+      ctx.translate(mx, my);
+      ctx.scale(1, (size * 1.25) / (total / 2 + 150));
+      const g = ctx.createRadialGradient(0, 0, 0, 0, 0, total / 2 + 150);
+      g.addColorStop(0, `rgba(0,0,0,${sa})`); g.addColorStop(0.6, `rgba(0,0,0,${sa * 0.7})`); g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(-(total / 2 + 150), -(total / 2 + 150), total + 300, total + 300);
+      ctx.restore();
+    }
     words.forEach((w, i) => {
       const k = easeOutExpo(clamp((t - tIn - i * 0.07) / 0.55));
       const ke = clamp(exit * 1.4 - i * 0.12);

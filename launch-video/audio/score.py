@@ -402,7 +402,7 @@ for b in np.arange(2.0, 4.0, BEAT / 2):
 add(sfx, riser(0.8, 600, 5000, 0.25, tone=False), C['scan'] - 0.9, pan=-0.3)
 add(sfx, mix2(blip(1800, 2400, 0.08, 0.55), np.pad(blip(2400, 3300, 0.12, 0.5), (int(0.08 * SR), 0))), C['scan'], pan=-0.3, send=0.35)
 add(sfx, impact(0.7), C['scan'], 0.75, send=0.3)
-add(sfx, mix2(blip(900, 1350, 0.16, 0.6), click(2200, 0.04, 0.7)), C['saved'], pan=-0.2, send=0.3)
+add(sfx, mix2(blip(900, 1350, 0.16, 0.9), click(2200, 0.04, 0.9), kick(0.4)), C['saved'], pan=-0.2, send=0.2)
 
 # 4-8: one command. The kick comes in under the typing; a riser into the ENTER.
 drums(4.0, 8.0, clap_on=False)
@@ -417,7 +417,7 @@ add(sfx, keystroke(999) * 1.4, C['enter'] - 0.004, 0.8)
 add(sfx, impact(1.0), C['enter'], 0.9, send=0.35)
 add(sfx, glass(1.0), C['enter'], 0.7, pan=0.1, send=0.3)
 add(sfx, whoosh(1.0, 3000, 300, 0.7), C['enter'] + 0.02)
-add(sfx, stamp(0.9), C['land'], 0.9, send=0.2)
+add(sfx, mix2(stamp(1.1), kick(0.6)), C['land'], 1.0, send=0.2)
 add(sfx, filt(noise(0.6), 900) * env_exp(0.6, 0.15), C['land'], 0.6)
 drums(8.0, 12.0, clap_on=True)
 arps(8.0, 12.0, 0.2)
@@ -430,11 +430,19 @@ bassline(C['board'], C['drop'] - 0.25)
 pads(C['board'], C['drop'] - 0.25, 0.22, 2600)
 arps(C['board'], C['drop'] - 0.25, 0.15, 24, 7000)
 flap = TL['flap']
+fields = TL['boardFields']
+cur = {k: (f.get('init') or '').ljust(f['cells'])[:f['cells']] for k, f in fields.items()}
 for f in C['flips']:
-    for i in range(f['cells']):
+    # same rule as boardFlips() in src/engine/util.js: only cells whose character changes flip
+    n = fields[f['field']]['cells']
+    nxt = f['text'].ljust(n)[:n]
+    for i in range(n):
+        if cur[f['field']][i] == nxt[i]:
+            continue
         for k in range(flap['cycles']):
             t = f['t'] + i * flap['stagger'] + (k + 1) * flap['flipDur']
-            add(sfx, flap_clack(int(t * 1000)), t, 0.55, pan=-0.4 + 0.8 * i / max(1, f['cells'] - 1))
+            add(sfx, flap_clack(int(t * 1000)), t, 0.55, pan=-0.4 + 0.8 * i / max(1, n - 1))
+    cur[f['field']] = nxt
 # snare roll accelerating into the drop
 t = C['boarding']
 step = BEAT / 2
@@ -481,9 +489,9 @@ add(sfx, reverse_cymbal(1.0), C['title'] - 1.0, 0.6)
 add(sfx, impact(1.6), C['title'], 1.0, send=0.6)
 add(music, supersaw([45, 57, 64, 69, 72, 76], 7.0, cutoff=lambda tm: 5000 * math.exp(-tm / 2.5) + 400, attack=0.005, release=3.5, voices=7, gain=0.55), C['title'], send=0.7)
 add(music, filt(sine(mtof(33), 6.5) * env_exp(6.5, 2.5), 150) * 0.6, C['title'])
-pip = TL['pipTyping']
-for i, ch in enumerate(pip['text']):
-    add(sfx, keystroke(500 + i), pip['start'] + i * pip['step'], 0.4, pan=(rng.random() - 0.5) * 0.3, send=0.15)
+# the install pill slides in: a soft pop, and the plain-language line before it
+add(sfx, mix2(blip(600, 900, 0.12, 0.45), whoosh(0.3, 1200, 3000, 0.25)), C['title'] + 1.0, pan=0.1, send=0.3)
+add(sfx, mix2(blip(900, 1300, 0.12, 0.5), click(2400, 0.04, 0.5)), C['pip'] - 0.25, pan=-0.1, send=0.3)
 
 # ---------------------------------------------------------------------- mix
 # Sidechain: everything melodic ducks under the kick.

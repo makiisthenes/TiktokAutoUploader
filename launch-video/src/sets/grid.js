@@ -121,7 +121,6 @@ export default function createGrid(ctx) {
   for (let b = C.grid + 0.5; b < C.grid + 2.6; b += 0.5) pulses.push(b);
   const shimmer = [0.5, 1, 1.5, 2, 2.5].map((d) => C.wordForm + d);
   const pip = TL.pipTyping;
-  const pipTimes = typingTimes({ ...pip, wordGap: 0 });
 
   function update(t, fx, hud) {
     drawPost(hx, t, TL, { ignite: 1, tapAt: C.tap });
@@ -132,15 +131,16 @@ export default function createGrid(ctx) {
     for (let i = 0; i < N; i++) {
       const c = cells[i];
       let v = 0.03;
-      if (t >= c.lightAt) v = 0.55 + 0.9 * Math.exp(-(t - c.lightAt) / 0.25);
+      if (t >= c.lightAt) v = 0.42 + 0.6 * Math.exp(-(t - c.lightAt) / 0.25);
       for (const tp of pulses) {
         if (t < tp) break;
         const rr = c.d - (t - tp) * 16;
-        v += 1.4 * Math.exp(-rr * rr * 0.6) * Math.exp(-(t - tp) * 0.8);
+        v += 0.85 * Math.exp(-rr * rr * 0.6) * Math.exp(-(t - tp) * 0.8);
       }
       if (c.word) v = lerp(v, 1.9 + 0.8 * hit(t, C.wordForm, 0.4) + 0.4 * hits(t, shimmer, 0.2), wordK);
       else v = lerp(v, 0.018, wordK);
-      if (t >= C.title) v *= c.word ? lerp(1, 0.55, smooth(clamp((t - C.title) / 0.6))) : 1;
+      // the dot-matrix word hands over to the wordmark and fades out behind it
+      if (t >= C.title) v *= c.word ? lerp(1, 0.05, smooth(clamp((t - C.title - 0.1) / 0.9))) : 1;
       col.setRGB(v, v, v);
       screens.setColorAt(i, col);
     }
@@ -187,7 +187,7 @@ export default function createGrid(ctx) {
     const mk = easeInOutCubic(clamp(a / 1.0));
     const scale = lerp(1.8, 1, mk) * (1 + 0.035 * smooth(clamp((a - 1) / 6)));
     x.save();
-    x.translate(960, lerp(505, 450, mk));
+    x.translate(960, lerp(470, 405, mk));
     x.scale(scale, scale);
     x.font = `700 250px ${FONT.display}`;
     x.textAlign = 'center'; x.textBaseline = 'alphabetic';
@@ -211,12 +211,14 @@ export default function createGrid(ctx) {
     }
     x.restore();
 
-    // install command, typed on 32nd notes
-    const pa = t - (pip.start - 0.35);
+    // what it is, in plain words
+    const la = smooth(clamp((t - (C.title + 1.0)) / 0.5));
+    if (la > 0) hud.text('Upload and schedule TikTok videos from your computer.', 960, 578 + (1 - la) * 16, { size: 46, color: '#e8edf5', alpha: la, align: 'center', font: FONT.ui, weight: 600 });
+    // the install command: one pill that slides in (no typing; the film has typed enough)
+    const pa = t - (pip.start - 0.25);
     if (pa > 0) {
-      const ek = easeOutExpo(clamp(pa / 0.4));
-      const n = typedCount(t, pipTimes);
-      const W = 640, H = 92, X = 960 - W / 2, Y = 600 + (1 - ek) * 30;
+      const ek = easeOutExpo(clamp(pa / 0.45));
+      const W = 640, H = 92, X = 960 - W / 2, Y = 630 + (1 - ek) * 30;
       x.save();
       x.globalAlpha = ek;
       x.fillStyle = 'rgba(10,13,19,0.92)'; roundRect(x, X, Y, W, H, 46); x.fill();
@@ -224,22 +226,23 @@ export default function createGrid(ctx) {
       x.font = `500 40px ${FONT.mono}`; x.textBaseline = 'middle';
       x.fillStyle = COLOR.green; x.fillText('$', X + 44, Y + H / 2 + 2);
       x.fillStyle = '#e8edf5';
-      const s = pip.text.slice(0, n);
-      x.fillText(s, X + 84, Y + H / 2 + 2);
-      const cw = x.measureText(s).width;
-      if (n < pip.text.length || Math.floor(t * 4) % 2 === 0) { x.fillStyle = 'rgba(232,237,245,0.85)'; x.fillRect(X + 88 + cw, Y + 24, 22, 44); }
+      x.fillText(pip.text, X + 84, Y + H / 2 + 2);
+      const cw = x.measureText(pip.text).width;
+      if (Math.floor(t * 4) % 2 === 0) { x.fillStyle = 'rgba(232,237,245,0.85)'; x.fillRect(X + 88 + cw, Y + 24, 22, 44); }
       x.restore();
     }
     // where to get it
-    const ua = smooth(clamp((t - (pip.start + 1.4)) / 0.5));
-    if (ua > 0) hud.text('github.com/makiisthenes/TiktokAutoUploader', 960, 770, { size: 32, color: '#b7c0d3', alpha: ua, align: 'center', font: FONT.mono, weight: 500 });
-    // disclosure
+    const ua = smooth(clamp((t - (pip.start + 0.6)) / 0.5));
+    if (ua > 0) hud.text('github.com/makiisthenes/TiktokAutoUploader', 960, 790, { size: 32, color: '#b7c0d3', alpha: ua, align: 'center', font: FONT.mono, weight: 500 });
+    // disclosure: large enough to read, held for the last few seconds
     const da = smooth(clamp((t - C.disclosure) / 0.6));
     if (da > 0) {
-      hud.text('Not affiliated with TikTok. Automated uploading may break TikTok\u2019s terms of service and can get accounts restricted or banned.',
-        960, 958, { size: 27, color: '#9aa6bb', alpha: da, align: 'center', font: FONT.ui, weight: 500 });
-      hud.text('Use at your own risk.  \u00b7  AGPL-3.0  \u00b7  The video id shown is illustrative.',
-        960, 1000, { size: 25, color: '#7a859b', alpha: da, align: 'center', font: FONT.ui, weight: 500 });
+      hud.text('Not affiliated with TikTok. Automated uploading may break TikTok\u2019s terms of service',
+        960, 898, { size: 33, color: '#b4bfd2', alpha: da, align: 'center', font: FONT.ui, weight: 500 });
+      hud.text('and can get accounts restricted or banned. Use at your own risk.  \u00b7  AGPL-3.0',
+        960, 942, { size: 33, color: '#b4bfd2', alpha: da, align: 'center', font: FONT.ui, weight: 500 });
+      hud.text('The video id shown is illustrative.',
+        960, 984, { size: 27, color: '#8a96ab', alpha: da, align: 'center', font: FONT.ui, weight: 500 });
     }
   }
 
