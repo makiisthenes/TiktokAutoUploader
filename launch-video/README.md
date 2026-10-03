@@ -20,7 +20,7 @@ node scripts/render.mjs --draft                # 960x540 @ 30 fps -> renders/dra
 node scripts/render.mjs --master --workers 3   # 1920x1080 @ 60 fps -> renders/master_video.mp4
 python3 audio/score.py                         # -> build/score.wav (normalised to -13 LUFS, <= -1.2 dBTP)
 python3 audio/verify.py build/score.wav renders/spectrogram.png
-scripts/mux.sh renders/master_video.mp4 build/score.wav renders/autotok-launch.mp4
+scripts/mux.sh renders/master_video.mp4 build/score.wav renders/autotok-launch.mp4   # AAC 320k, <= -1 dBTP
 python3 scripts/sheet.py renders/sheet.jpg --video renders/autotok-launch.mp4 --from 8 --to 16 --n 12
 ```
 
@@ -60,7 +60,9 @@ fixed start each frame), so frames can be rendered in any order and in parallel.
 
 The mix was checked by measurement, not by ear: `audio/verify.py` reports integrated loudness and
 true peak (ffmpeg `ebur128`), the energy jump at every hit cue, and draws a spectrogram with the cues
-marked.
+marked. AAC encoding overshoots the score's true peak by up to about a decibel on the hardest hits,
+so `scripts/mux.sh` measures the encoded file and trims the audio gain until it is under -1 dBTP
+(the delivered film measures -13.7 LUFS integrated, -1.6 dBTP).
 
 ## Claims disclosure (keep this when editing)
 
