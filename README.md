@@ -32,7 +32,7 @@
 
 <p align="center">
   <a href="https://termius.com/">
-    <img src="https://raw.githubusercontent.com/makiisthenes/TiktokAutoUploader/main/termius-logo-1084-black.png" alt="Termius" width="240">
+    <img src="https://raw.githubusercontent.com/makiisthenes/TiktokAutoUploader/main/docs/images/termius-logo.png" alt="Termius" width="240">
   </a>
 </p>
 
@@ -483,7 +483,7 @@ owner-only permissions; keep them private.
 | `No TikTok datacenter cookie saved` warning | Log in again with `autotok login`, or pass `--datacenter` with `--sessionid` |
 | `may or may not have been posted` | The connection dropped while publishing. Check the account before retrying, to avoid a duplicate. |
 
-See also [Common Problems](Common%20Problems%20Help%20Readme.md).
+See also [Common problems](docs/common-problems.md).
 
 ---
 

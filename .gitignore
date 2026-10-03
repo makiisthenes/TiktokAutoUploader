@@ -134,7 +134,6 @@ VideosDirPath/
 *.cookie
 output/
 *.mp4
-youtube_downloader.py
 
 # Local SQLite database (api/scheduler) — contains usernames, login session
 # history, and cookie paths. Never commit.

@@ -19,14 +19,14 @@ services:
     image: tiktok-base:latest
     build:
       context: .
-      dockerfile: docker/base.Dockerfile
+      dockerfile: web/base.Dockerfile
     command: ["true"]  # never runs; exists to build the image
 
   api:
     image: tiktok-api:latest
     build:
       context: .
-      dockerfile: api/Dockerfile
+      dockerfile: web/api/Dockerfile
       additional_contexts:
         base: service:tiktok-base
     depends_on:
@@ -56,7 +56,7 @@ services:
     image: tiktok-scheduler:latest
     build:
       context: .
-      dockerfile: scheduler/Dockerfile
+      dockerfile: web/scheduler/Dockerfile
       additional_contexts:
         base: service:tiktok-base
     depends_on:
@@ -83,7 +83,7 @@ services:
     image: tiktok-novnc:latest
     build:
       context: .
-      dockerfile: novnc/Dockerfile
+      dockerfile: web/novnc/Dockerfile
       additional_contexts:
         base: service:tiktok-base
     depends_on:
@@ -101,7 +101,7 @@ services:
     image: tiktok-webapp:latest
     build:
       context: .
-      dockerfile: webapp/Dockerfile
+      dockerfile: web/frontend/Dockerfile
     depends_on:
       - api
       - novnc

@@ -18,9 +18,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-COPY novnc/__init__.py /app/novnc/__init__.py
-COPY novnc/control_server.py /app/novnc/control_server.py
-COPY novnc/entrypoint.sh /app/novnc/entrypoint.sh
+COPY web/novnc/__init__.py /app/novnc/__init__.py
+COPY web/novnc/control_server.py /app/novnc/control_server.py
+COPY web/novnc/entrypoint.sh /app/novnc/entrypoint.sh
 RUN chmod +x /app/novnc/entrypoint.sh
 
 # Symlink noVNC's vnc.html as the index so /novnc/ serves the client directly.

@@ -1,6 +1,6 @@
 """Scheduler service entrypoint.
 
-Runs inside its own container (see scheduler/Dockerfile). Reads the same
+Runs inside its own container (see web/scheduler/Dockerfile). Reads the same
 SQLite DB as the API, picks up due ScheduledUpload rows, and executes uploads
 through the autotok package. Serial by design (SCHEDULER_CONCURRENCY=1 in env).
 """
