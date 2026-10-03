@@ -134,6 +134,8 @@ VideosDirPath/
 *.cookie
 output/
 *.mp4
+# ...except the launch film the README links to
+!docs/media/*.mp4
 
 # Local SQLite database (api/scheduler) — contains usernames, login session
 # history, and cookie paths. Never commit.

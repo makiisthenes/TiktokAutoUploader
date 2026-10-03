@@ -17,3 +17,4 @@ tests/
 .env.*
 !.env.example
 launch-video/
+docs/media/

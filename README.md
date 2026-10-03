@@ -16,6 +16,32 @@
   <img alt="Forks" src="https://img.shields.io/github/forks/makiisthenes/TiktokAutoUploader">
 </p>
 
+<p align="center">
+  <a href="https://github.com/makiisthenes/TiktokAutoUploader/blob/main/docs/media/autotok-launch.mp4">
+    <img src="https://raw.githubusercontent.com/makiisthenes/TiktokAutoUploader/main/docs/media/autotok-launch.webp" width="100%" alt="autotok in 38 seconds: log in once, then one command uploads your video to TikTok, now or scheduled, on any of your accounts">
+  </a>
+</p>
+<p align="center"><sub>Click the video to watch it with sound.</sub></p>
+
+---
+
+## Install
+
+```bash
+uv tool install "autotok[youtube]"
+autotok install-browser                                   # one-time browser download, about 300 MB
+```
+
+Then log in once per account, and upload with one command:
+
+```bash
+autotok login -n my_account                               # log in on the page that opens; the QR code is quickest
+autotok upload -u my_account -v clip.mp4 -t "Hello #fyp"
+```
+
+No uv? `pipx install "autotok[youtube]"` or `pip install "autotok[youtube]"` work too.
+[Getting started](#getting-started) goes through each step, including proxies and cloud browsers.
+
 ---
 
 ## Sponsors
@@ -44,23 +70,6 @@
 [**Termius**](https://termius.com/) provides a secure, reliable, and collaborative SSH client.
 
 > [Get Termius →](https://termius.com/)
-
----
-
-## Features
-
-- **One-command uploads** through TikTok's web upload API. No clicking through the TikTok website.
-- **Proxy per account**: login, request signing and every upload go through the same proxy, so each account always appears from one IP. HTTP(S) and SOCKS5 are supported.
-- **Multiple accounts**: log in once per account and upload by name.
-- **Scheduling**: TikTok-side scheduling from 15 minutes to 10 days ahead. The self-hosted web app adds a scheduler with no time limit.
-- **Post settings**: public or private, and comments, duets, stitches and the AI-generated label on or off.
-- **Clickable hashtags and @mentions**, emoji-safe.
-- **YouTube links** download automatically with [yt-dlp](https://github.com/yt-dlp/yt-dlp).
-- **Python SDK, CLI, and an optional web app** (Docker) with a browser-based login.
-- **MCP server** so AI agents (Claude, Cursor, VS Code...) can upload and schedule for you.
-- **Cloud browsers**: run the login and signing browser on [Browserbase](https://www.browserbase.com) or [Steel](https://github.com/steel-dev/steel-browser) (cloud or self-hosted) instead of your computer.
-- **Docker image** for running the CLI on servers.
-- **No Node.js**: TikTok's request signatures are computed in headless Chromium.
 
 ---
 
@@ -160,6 +169,23 @@ BROWSERBASE_API_KEY=bb_live_...
 | Run on a server or in a container | [Docker](#docker) |
 | Use a web dashboard with a scheduler | [Web app](#web-app-self-hosted) |
 | Fix an error | [Troubleshooting](#troubleshooting) |
+
+---
+
+## Features
+
+- **One-command uploads** through TikTok's web upload API. No clicking through the TikTok website.
+- **Proxy per account**: login, request signing and every upload go through the same proxy, so each account always appears from one IP. HTTP(S) and SOCKS5 are supported.
+- **Multiple accounts**: log in once per account and upload by name.
+- **Scheduling**: TikTok-side scheduling from 15 minutes to 10 days ahead. The self-hosted web app adds a scheduler with no time limit.
+- **Post settings**: public or private, and comments, duets, stitches and the AI-generated label on or off.
+- **Clickable hashtags and @mentions**, emoji-safe.
+- **YouTube links** download automatically with [yt-dlp](https://github.com/yt-dlp/yt-dlp).
+- **Python SDK, CLI, and an optional web app** (Docker) with a browser-based login.
+- **MCP server** so AI agents (Claude, Cursor, VS Code...) can upload and schedule for you.
+- **Cloud browsers**: run the login and signing browser on [Browserbase](https://www.browserbase.com) or [Steel](https://github.com/steel-dev/steel-browser) (cloud or self-hosted) instead of your computer.
+- **Docker image** for running the CLI on servers.
+- **No Node.js**: TikTok's request signatures are computed in headless Chromium.
 
 ---
 
