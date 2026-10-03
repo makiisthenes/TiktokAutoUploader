@@ -287,12 +287,19 @@ class _LocalCdpProvider(CloudProvider):
                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         port_file = Path(user_dir) / "DevToolsActivePort"
         deadline = time.monotonic() + 30
-        while not (port_file.exists() and port_file.read_text().strip()):
-            if time.monotonic() > deadline or proc.poll() is not None:
-                proc.kill()
-                pytest.skip("could not start Chromium with remote debugging")
-            time.sleep(0.1)
-        port = port_file.read_text().splitlines()[0].strip()
+        port = ""
+        while not port:
+            try:
+                port = port_file.read_text().splitlines()[0].strip()
+            except (OSError, IndexError):
+                # Not written yet, or Chrome still has it open (Windows locks it while writing).
+                pass
+            if not port:
+                if time.monotonic() > deadline or proc.poll() is not None:
+                    proc.kill()
+                    # Chromium is installed (checked by the fixture), so not starting is a real failure.
+                    pytest.fail("Chromium did not start with remote debugging")
+                time.sleep(0.1)
         session = _LocalCdpSession(f"http://127.0.0.1:{port}", proc, user_dir)
         self.sessions.append(session)
         return session
