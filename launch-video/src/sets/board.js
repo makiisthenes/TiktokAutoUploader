@@ -81,7 +81,7 @@ export default function createBoard(ctx) {
   housing.castShadow = housing.receiveShadow = true;
   scene.add(housing);
   for (const sx of [-1, 1]) {
-    const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 7.5 - BOARD_Y - BH / 2, 8), metal(0x8a8f98, 0.3, 0.9));
+    const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 7.5 - BOARD_Y - BH / 2, 8), metal(0x2c3038, 0.5, 0.8));
     rod.position.set(sx * (BW / 2 - 0.4), (7.5 + BOARD_Y + BH / 2) / 2, -0.2);
     scene.add(rod);
   }
@@ -272,7 +272,7 @@ export default function createBoard(ctx) {
       const len = Math.min(capY - 0.7, 5);
       streak.scale.set(1, len, 1);
       streak.position.set(TUBE_X, capY - len / 2 - 0.2, 0.35);
-      streak.material.opacity = 1 - clamp(la / 0.9);
+      streak.material.opacity = 0.55 * (1 - clamp(la / 0.9));
     }
     puff.points.visible = la >= 0 && la < 1.5;
     if (puff.points.visible) puff.update(la);
@@ -317,7 +317,7 @@ export default function createBoard(ctx) {
     fx.shake = hit(t, C.tube, 0.35) * 1.0 + hits(t, flipEnds, 0.12) * 0.3;
     if (win > 0) fx.blur = [easeOutCubic(win) * 0.12, 0];
     if (la > 0) fx.blur = [0, -easeInCubic(clamp((t - (C.tube + 0.3)) / 0.7)) * 0.12];
-    if (t > C.drop - 0.4) fx.blur = [0, -easeInCubic(clamp((t - (C.drop - 0.4)) / 0.4)) * 0.18];
+    if (t > C.drop - 0.4) { const w = easeInCubic(clamp((t - (C.drop - 0.4)) / 0.4)); fx.blur = [0, -w * 0.12]; fx.exposure = 1 - 0.3 * w; }
     hud.header('Post now, or schedule it.', t, C.board + 0.9, C.tube - 0.5);
     return camera;
   }

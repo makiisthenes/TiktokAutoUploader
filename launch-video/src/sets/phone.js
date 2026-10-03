@@ -127,7 +127,7 @@ export default function createPhone(ctx) {
   scene.add(makeRacks({ x0: -20, x1: 20, z: -8, seed: 31 }));
   scene.add(makeRacks({ x0: -20, x1: 20, z: 9, seed: 32, facing: -1 }));
   scene.add(makeCeiling({ x0: -20, x1: 20, zs: [-3, 5], y: 7.5, spacing: 5 }));
-  { const s = makeShaft(0.3, 1.6, 7.4, 0xbcd0ff, 0.06); s.position.set(-0.2, 3.75, 0.2); scene.add(s); }
+  { const s = makeShaft(0.3, 1.6, 7.4, 0xbcd0ff, 0.035); s.position.set(-0.2, 3.75, 0.2); scene.add(s); }
 
   // ---------------- three docks: alice (centre), bob (left), cara (right)
   const ACC = TL.accounts;
@@ -137,7 +137,7 @@ export default function createPhone(ctx) {
     { x: -1.35, z: -0.3, ry: 0.28, drop: C.drops[0], user: ACC[1], color: LANE_COLORS[1] },
     { x: 1.35, z: -0.3, ry: -0.28, drop: C.drops[1], user: ACC[2], color: LANE_COLORS[2] },
   ];
-  const ringRGB = (c, k) => [c.r * (2.5 + k * 5), c.g * (2.5 + k * 5), c.b * (2.5 + k * 5)];
+  const ringRGB = (c, k) => [c.r * (2.2 + k * 1.6), c.g * (2.2 + k * 1.6), c.b * (2.2 + k * 1.6)];
   for (const [i, s] of slots.entries()) {
     const root = new THREE.Group();
     root.position.set(s.x, 0, s.z);
@@ -160,17 +160,17 @@ export default function createPhone(ctx) {
     s.screen.position.z = PHONE.d / 2 + 0.0035;
     s.phone.add(s.screen);
     // tube from above into the dock, behind the phone
-    const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 7, 24, 1, true), new THREE.MeshStandardMaterial({ color: 0xbfe6ff, transparent: true, opacity: 0.14, roughness: 0.05, side: THREE.DoubleSide, depthWrite: false }));
+    const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 7, 24, 1, true), new THREE.MeshStandardMaterial({ color: 0x6f8fa6, transparent: true, opacity: 0.08, roughness: 0.2, side: THREE.DoubleSide, depthWrite: false }));
     tube.position.set(0, 0.7 + 3.5, -0.32);
     root.add(tube);
-    s.capsule = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.2, 8, 16), new THREE.MeshBasicMaterial({ toneMapped: false, color: s.color.clone().multiplyScalar(3).addScalar(0.4) }));
+    s.capsule = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.2, 8, 16), new THREE.MeshBasicMaterial({ toneMapped: false, color: s.color.clone().multiplyScalar(1.6).addScalar(0.2) }));
     root.add(s.capsule);
     s.glow = new THREE.PointLight(0x9ad8ff, 0, 4, 1.6);
     s.glow.position.set(0, 1.25, 0.6);
     root.add(s.glow);
     // floor light rings
     s.waves = [0, 1].map((k) => {
-      const w = new THREE.Mesh(new THREE.RingGeometry(0.9, 1.0, 128), new THREE.MeshBasicMaterial({ color: k ? new THREE.Color(3, 0.3, 0.8) : new THREE.Color(0.4, 3, 3), transparent: true, toneMapped: false, depthWrite: false, blending: THREE.AdditiveBlending }));
+      const w = new THREE.Mesh(new THREE.RingGeometry(0.9, 1.0, 128), new THREE.MeshBasicMaterial({ color: k ? new THREE.Color(2, 0.25, 0.55) : new THREE.Color(0.3, 2, 2), transparent: true, toneMapped: false, depthWrite: false, blending: THREE.AdditiveBlending }));
       w.rotation.x = -Math.PI / 2; w.position.y = 0.01 + k * 0.001;
       root.add(w);
       return w;
@@ -257,7 +257,8 @@ export default function createPhone(ctx) {
       s.waves.forEach((w, i) => {
         const a = wa - i * 0.12;
         w.visible = a > 0 && a < 1.6;
-        if (w.visible) { const r = 0.6 + easeOutCubic(a / 1.6) * (s.big ? 22 : 9); w.scale.setScalar(r); w.material.opacity = (1 - a / 1.6) * (s.big ? 0.9 : 0.7); }
+        // fade in, so the ring doesn't start at full strength under an out-of-focus lens
+        if (w.visible) { const r = 0.6 + easeOutCubic(a / 1.6) * (s.big ? 22 : 9); w.scale.setScalar(r); w.material.opacity = (1 - a / 1.6) * (s.big ? 0.75 : 0.6) * smooth(clamp(a / 0.25)); }
       });
     }
     const flashA = hit(t, C.drop, 0.25);
@@ -280,7 +281,7 @@ export default function createPhone(ctx) {
     const wide = { p: [0.0, 1.55, 3.95], l: [0, 1.5, 0], fov: 40 };
     const wide2 = { p: [0.05, 1.52, 3.7], l: [0, 1.48, 0], fov: 40 };
     const cp = camPath(t, [
-      { t: D + 0.0, p: [-0.95, 0.6, 0.95], l: [0, 1.5, 0], fov: 42 },
+      { t: D + 0.0, p: [-0.95, 0.78, 1.0], l: [0, 1.25, 0], fov: 42 },
       { t: D + 0.6, p: [-0.55, 0.92, 1.4], l: [-0.12, 1.22, 0], fov: 38 },
       { t: D + 1.15, p: [-0.3, 0.9, 0.98], l: [-0.08, 0.93, 0], fov: 34 },
       { t: D + 2.0, p: [0.12, 1.12, 1.45], l: [-0.02, 1.08, 0], fov: 34 },
@@ -309,14 +310,17 @@ export default function createPhone(ctx) {
     fx.bloom = { strength: 0.8 + flash * 0.35, radius: 0.5, threshold: 0.8 };
     const wideK = smooth(clamp((t - C.accounts) / 1.3)) * (1 - push);
     const focusPt = v3(0, lerp(1.25, 1.5, wideK), 0);
-    fx.dof = { focus: camera.position.distanceTo(focusPt), aperture: lerp(0.1, 0.05, wideK) * (1 - push), maxBlur: 12 };
+    // a shallower lens for the first beat after the drop, so the ceiling lamps don't bloom into the frame
+    const settle = smooth(clamp((t - D) / 0.5));
+    fx.dof = { focus: camera.position.distanceTo(focusPt), aperture: lerp(0.1, 0.05, wideK) * (1 - push) * lerp(0.4, 1, settle), maxBlur: 12 };
     fx.ca = 1 + flash * 10 + hit(t, C.tap, 0.2) * 3 + flashB * 6 + hits(t, C.rolls, 0.2) * 2;
     fx.shake = flash * 2.2 + flashB * 0.9;
     fx.zoom = push * 0.06;
-    fx.flash = [1, 1, 1, 0.22 * (1 - easeOutCubic(clamp((t - C.drop) / 0.16)))];
+    fx.flash = [1, 1, 1, 0.1 * (1 - easeOutCubic(clamp((t - C.drop) / 0.16)))];
     const vin = 1 - clamp((t - C.drop) / 0.2);
-    if (vin > 0) fx.blur = [0, -easeOutCubic(vin) * 0.16];
-    fx.exposure = 1 + flash * 0.15 + flashB * 0.1;
+    if (vin > 0) fx.blur = [0, -easeOutCubic(vin) * 0.08];
+    // the whip lands: hold exposure down while the blur smears the ceiling lamps
+    fx.exposure = (1 + flash * 0.15 + flashB * 0.1) * (1 - 0.35 * easeOutCubic(Math.max(0, vin)));
     hud.header('Posted.', t, D + 0.3, C.accounts - 0.1);
     hud.header('Any of your accounts.', t, C.accounts + 1.1, pushStart + 0.05);
     return camera;

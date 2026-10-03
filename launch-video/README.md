@@ -1,6 +1,6 @@
 # autotok launch video
 
-A 39-second motion-graphics film that explains autotok to people who post TikTok videos: log in
+A 38.5-second motion-graphics film that explains autotok to people who post TikTok videos: log in
 once, then one command uploads a video to TikTok, now or scheduled, on any of your accounts. It is
 rendered frame by frame from three.js in headless Chromium, with a score synthesized in numpy.
 Nothing is hand-keyed in an editor: every frame and every sound is generated from the code and
@@ -30,8 +30,8 @@ Thumbnail and key art are rendered stills (lossless, 1080p); `npm run preview` r
 
 ```bash
 node scripts/render.mjs --stills 0.1     # thumbnail: the pre-roll frame (name, tagline, command and output)
-node scripts/render.mjs --stills 24.9    # key art: three phones, one command, the -u name on cara
-node scripts/render.mjs --stills 30.5    # key art: the field of phones spelling autotok from above
+node scripts/render.mjs --stills 25.35   # key art: three phones, one command, the -u name on cara
+node scripts/render.mjs --stills 29.9    # key art: the field of phones spelling autotok from above
 ```
 
 `render.mjs` uses the Chromium that Playwright installs (set `CHROME_PATH` to use another) with

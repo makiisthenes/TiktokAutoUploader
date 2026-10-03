@@ -38,7 +38,7 @@ locks, the parcel punches out, the capsule drops) with a flash, a camera kick an
 | one-time login | registering at the counter | a QR code on screen, a phone that scans it, "saved" |
 | one upload command | handing it over | the command typed in a terminal; the file tears out of the screen |
 | upload in progress | on the belt, on its way | a depot conveyor |
-| now or scheduled | the departures board | split-flap display: earliest 15 MIN, latest 10 DAYS |
+| now or scheduled | the departures board | split-flap display: DEPARTS NOW, then 18:00; a NOW clock that flips forward; STATUS SCHEDULED, then BOARDING; a printed line for the 15 min to 10 days range |
 | posted | delivered | pneumatic capsule into a phone dock; the post lights up; a tap on the tag |
 | any account | another address on the label | the command's `-u` name rolls to bob, then cara; each phone receives |
 
@@ -47,14 +47,14 @@ locks, the parcel punches out, the capsule drops) with a flash, a camera kick an
 | # | Time | Shot · header | Camera | Proud moment |
 |---|---|---|---|---|
 | 0 | −0.3–0 | Pre-roll thumbnail: wordmark, tagline, the completed command and its output | locked | scrolls away like a terminal into the opening |
-| 1 | 0–4 | **"Log in once."** `autotok login -n alice` types; a login window with a QR code pops; a phone rises into the foreground and scans it | eases back to let the phone in, rack focus phone ↔ screen | on 3.0 the scan brackets snap onto the code, the window closes itself and `Account 'alice' saved.` prints |
-| 2 | 4–8 | **"One command."** `autotok upload -u alice -v clip.mp4 -t "Hello #fyp"` types on 32nd notes | slow push into the command line | ENTER on 8.0: `clip.mp4` tears off the line and extrudes into a parcel that punches through the glass |
+| 1 | 0–4 | **"Log in once."** `autotok login -n alice` types; a login window with a QR code pops; a phone rises into the foreground and scans it | eases back to let the phone in, rack focus phone ↔ screen | on 3.0 the scan brackets snap onto the code, the window closes itself, and on 3.5 `Account 'alice' saved.` prints |
+| 2 | 4–8 | **"One command."** `autotok upload -u alice -v clip.mp4 -t "Hello #fyp"` types on 32nd notes; *account*, *your video* and *caption* label the parts as they land | slow push into the command line | ENTER on 8.0: `clip.mp4` tears off the line and extrudes into a parcel that punches through the glass |
 | 3 | 8–12 | **"On its way to TikTok."** Pull back into the depot; the parcel lands on alice's belt and rides | speed-ramped dolly back, swing low behind the parcel, whip pan | the landing on 9.0: squash, dust, the belt LEDs chase out from the impact |
-| 4 | 12–18 | **"Post now, or schedule it."** Split-flap DEPARTURES: EARLIEST +15 MIN, LATEST +10 DAYS, STATUS SCHEDULED; the parcel boards an @alice capsule | whip in, truck past a foreground pillar, tilt down to the capsule, tilt up with the launch | every flap has its own clack in the score |
-| 5 | 18–21 | **"Posted."** The capsule drops into a phone dock; the post lights up with the caption; a fingertip taps `#fyp` and it lights as a link | low 3/4, push onto the caption for the tap | the drop: the screen ignites and two light rings wash across the floor |
-| 6 | 21–26 | **"Any account, by name."** Pull back: two more docks, and the command floating above them; its `-u alice` rolls to `bob`, then `cara`, and each phone receives its own post | dolly back and up, then push into alice's screen | each roll lands and a capsule drops on the next downbeat |
-| 7 | 26–32 | **"One login. One command per upload."** Out of the screen into a field of phones lighting in waves | crane straight up, unwinding | seen from above, the lit phones spell `autotok` |
-| 8 | 32–39 | Title: the dot-matrix word becomes the wordmark; `pip install autotok`; repo URL; disclosure | slow push, light sweep | the chromatic split snaps together on the hit |
+| 4 | 12–18 | **"Post now, or schedule it."** Split-flap DEPARTURES: DEPARTS flips to NOW, then to 18:00; STATUS SCHEDULED; the NOW clock flips 17:00 → 18:00; STATUS BOARDING; the parcel boards an @alice capsule and launches | whip in, truck past a foreground pillar, tilt down to the capsule, tilt up with the launch | every flap that changes has its own clack in the score; the launch waits for the clock |
+| 5 | 18–20.5 | **"Posted."** The capsule drops into a phone dock; the clip (a beach at sunset, someone dancing) plays with the caption; a fingertip taps `#fyp` and it lights as a link | low 3/4, push onto the caption for the tap | the drop: the screen ignites and two light rings wash across the floor |
+| 6 | 20.5–26 | **"Any of your accounts."** Pull back: two more docks, and the command floating above them; its `-u alice` rolls to `bob`, then `cara`, and each phone receives its own post | dolly back and up, then push into alice's screen | each roll lands and a capsule drops on the next downbeat |
+| 7 | 26–30.5 | **"One login. One command per upload."** Out of the screen into a field of phones lighting in waves | crane straight up, unwinding | seen from above, the lit phones spell `autotok` |
+| 8 | 30.5–38.5 | Title: the dot-matrix word becomes the wordmark and fades out behind it; "Upload and schedule TikTok videos from your computer."; `pip install autotok`; repo URL; the disclosure, held about 4.5 s | slow push, light sweep | the chromatic split snaps together on the hit |
 
 Transitions carry the object: screen → depot (the parcel punches through), depot → board (whip
 pan), tube up → tube down into the phone, phone screen → field of phones (push in, pull out),

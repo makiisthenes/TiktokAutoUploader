@@ -8,7 +8,7 @@
     "score": "python3 audio/score.py",
     "draft": "npm run build && node scripts/render.mjs --draft",
     "master": "npm run build && node scripts/render.mjs --master",
-    "preview": "npm run build && node scripts/render.mjs --stills 0.1,24.9,30.5",
+    "preview": "npm run build && node scripts/render.mjs --stills 0.1,25.35,29.9",
     "install-browser": "playwright-core install chromium"
   },
   "devDependencies": {

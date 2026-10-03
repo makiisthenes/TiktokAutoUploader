@@ -327,12 +327,11 @@ export default function createDepot(ctx) {
     x.fillStyle = rg; x.fillRect(0, 0, SW, SH);
     // title bar
     x.fillStyle = '#121826'; x.fillRect(0, 0, SW, 86);
-    [['#ff5f57', 60], ['#febc2e', 110], ['#28c840', 160]].forEach(([c, cx]) => { x.fillStyle = c; x.beginPath(); x.arc(cx, 43, 15, 0, Math.PI * 2); x.fill(); });
     x.font = `500 30px ${FONT.mono}`; x.fillStyle = '#6c7690'; x.textAlign = 'center'; x.textBaseline = 'middle';
     x.fillText('alice@laptop: ~', SW / 2, 44);
     x.textAlign = 'left'; x.textBaseline = 'alphabetic';
 
-    const scroll = easeInOutCubic(clamp(t / 0.3)); // thumbnail -> opening
+    const scroll = easeInOutCubic(clamp(t / 0.5)); // thumbnail -> opening, a deliberate scroll
     if (scroll < 1) {
       // Thumbnail: name, tagline, the completed command and its output.
       x.save();
