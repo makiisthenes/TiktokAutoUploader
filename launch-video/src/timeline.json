@@ -1,0 +1,84 @@
+{
+  "fps": 60,
+  "bpm": 120,
+  "preroll": 0.3,
+  "duration": 38.5,
+  "width": 1920,
+  "height": 1080,
+
+  "loginTyping": {
+    "prompt": "$ ",
+    "text": "autotok login -n alice",
+    "start": 0.55,
+    "step": 0.0625,
+    "wordGap": 0
+  },
+  "loginOutput": "Account 'alice' saved.",
+  "typing": {
+    "prompt": "$ ",
+    "text": "autotok upload -u alice -v clip.mp4 -t \"Hello #fyp\"",
+    "start": 4.5,
+    "step": 0.0625,
+    "wordGap": 0
+  },
+  "output": "Published. Video id: 7429183650274961408",
+
+  "cues": {
+    "loginEnter": 2.0,
+    "scan": 3.0,
+    "saved": 3.5,
+
+    "enter": 8.0,
+    "land": 9.0,
+    "whipToBoard": 11.5,
+
+    "board": 12.0,
+    "flips": [
+      { "t": 12.2, "field": "departs", "text": "NOW" },
+      { "t": 13.25, "field": "departs", "text": "18:00" },
+      { "t": 13.85, "field": "status", "text": "SCHEDULED" },
+      { "t": 14.4, "field": "now", "text": "17:15" },
+      { "t": 14.75, "field": "now", "text": "17:30" },
+      { "t": 15.1, "field": "now", "text": "17:45" },
+      { "t": 15.45, "field": "now", "text": "18:00" },
+      { "t": 15.8, "field": "status", "text": "BOARDING" }
+    ],
+    "boarding": 16.0,
+    "tube": 17.0,
+
+    "drop": 18.0,
+    "tap": 19.0,
+    "accounts": 20.5,
+    "rolls": [22.5, 23.5],
+    "drops": [23.0, 24.0],
+
+    "grid": 26.0,
+    "wordForm": 28.5,
+    "title": 30.5,
+    "pip": 32.0,
+    "disclosure": 33.0,
+    "end": 38.5
+  },
+
+  "flap": { "stagger": 0.045, "flipDur": 0.06, "cycles": 6 },
+  "boardFields": {
+    "now": { "cells": 5, "init": "17:00" },
+    "departs": { "cells": 5, "init": "" },
+    "status": { "cells": 9, "init": "" }
+  },
+
+  "pipTyping": { "text": "pip install autotok", "start": 32.0, "step": 0.0625 },
+
+  "accounts": ["alice", "bob", "cara"],
+
+  "shots": [
+    { "id": "login", "start": -0.3, "end": 4.0 },
+    { "id": "command", "start": 4.0, "end": 8.0 },
+    { "id": "delivery", "start": 8.0, "end": 12.0 },
+    { "id": "schedule", "start": 12.0, "end": 18.0 },
+    { "id": "posted", "start": 18.0, "end": 20.5 },
+    { "id": "accounts", "start": 20.5, "end": 26.0 },
+    { "id": "grid", "start": 26.0, "end": 30.5 },
+    { "id": "title", "start": 30.5, "end": 38.5 }
+  ]
+}
