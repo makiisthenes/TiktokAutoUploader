@@ -72,9 +72,21 @@ export const Accounts = {
     api.post<{ valid: boolean }>(`/accounts/${id}/check`).then(r => r.data),
 };
 
+/** A proxy provider the login page suggests (autotok/proxy_providers.py). */
+export interface ProxyProvider {
+  key: string;
+  name: string;
+  tagline: string;
+  signup_url: string;
+  proxy_format: string;
+  steps: string[];
+  sponsor: boolean;
+}
+
 export const Proxies = {
   test: (payload: { proxy?: string; account_id?: number }) =>
     api.post<ProxyTestResult>("/proxy/test", payload).then(r => r.data),
+  providers: () => api.get<ProxyProvider[]>("/proxy/providers").then(r => r.data),
 };
 
 export const Schedules = {

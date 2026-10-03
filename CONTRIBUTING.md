@@ -27,6 +27,11 @@ pytest
 | `docker-compose.yml` | Runs the web app: `docker compose up --build` |
 | `cli.py` | Kept so `python cli.py ...` from 1.x still works |
 
+## Adding a proxy provider
+
+Add a `ProxyProvider` to `PROVIDERS` in `autotok/proxy_providers.py` (the module docstring has an
+example). `autotok setup` and the web app's login page pick it up; nothing else needs to change.
+
 ## Licensing of contributions
 
 autotok is dual-licensed: the public code is released under the GNU AGPL v3.0,

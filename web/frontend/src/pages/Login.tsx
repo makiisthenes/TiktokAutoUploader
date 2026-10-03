@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link, useSearchParams } from "react-router-dom";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Login, errorMessage } from "../api/client";
+import { ExternalLink, Globe } from "lucide-react";
+import { Login, Proxies, ProxyProvider, errorMessage } from "../api/client";
 
 const schema = z.object({
   username: z
@@ -17,6 +19,52 @@ type FormValues = z.infer<typeof schema>;
 
 type Phase = "idle" | "starting" | "pending" | "active" | "completing" | "completed" | "failed" | "expired";
 
+// "own", "none", or a provider's key.
+type ProxyChoice = string;
+
+function ChoiceRow(props: {
+  checked: boolean;
+  onSelect: () => void;
+  title: string;
+  description?: string;
+  badge?: string;
+}) {
+  return (
+    <label
+      className={`flex items-start gap-3 rounded-md border p-3 cursor-pointer ${
+        props.checked ? "border-brand-500 bg-brand-50" : "border-slate-200 hover:bg-slate-50"
+      }`}
+    >
+      <input type="radio" className="mt-1" checked={props.checked} onChange={props.onSelect} />
+      <span className="text-sm">
+        <span className="font-medium">{props.title}</span>
+        {props.badge && <span className="chip bg-amber-100 text-amber-800 ml-2">{props.badge}</span>}
+        {props.description && <span className="block text-xs text-slate-500 mt-0.5">{props.description}</span>}
+      </span>
+    </label>
+  );
+}
+
+function ProviderSteps({ provider }: { provider: ProxyProvider }) {
+  return (
+    <div className="rounded-md bg-slate-50 p-3 space-y-2 text-xs text-slate-600">
+      <a href={provider.signup_url} target="_blank" rel="noopener noreferrer" className="btn-secondary">
+        Open {provider.name} <ExternalLink size={14} />
+      </a>
+      {provider.steps.length > 0 && (
+        <ol className="list-decimal pl-4 space-y-0.5">
+          {provider.steps.map(step => (
+            <li key={step}>{step}</li>
+          ))}
+        </ol>
+      )}
+      <p>
+        Then paste the proxy below (<span className="font-mono">{provider.proxy_format}</span>).
+      </p>
+    </div>
+  );
+}
+
 export default function LoginPage() {
   const [params] = useSearchParams();
   const form = useForm<FormValues>({
@@ -27,6 +75,15 @@ export default function LoginPage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [vncUrl, setVncUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [proxyChoice, setProxyChoice] = useState<ProxyChoice>("own");
+  const [proxyNote, setProxyNote] = useState<string | null>(null);
+  const { data: providers = [] } = useQuery({ queryKey: ["proxy-providers"], queryFn: Proxies.providers });
+  const provider = providers.find(p => p.key === proxyChoice);
+  const testProxy = useMutation({
+    mutationFn: (proxy: string) => Proxies.test({ proxy }),
+    onSuccess: r => setProxyNote(r.ok ? `It works. TikTok will see ${r.ip}.` : r.error ?? "Proxy test failed."),
+    onError: e => setProxyNote(errorMessage(e)),
+  });
   const esRef = useRef<EventSource | null>(null);
   const activeRef = useRef<string | null>(null); // session to cancel if the page is left
 
@@ -50,6 +107,11 @@ export default function LoginPage() {
   }, []);
 
   const onSubmit = async ({ username, proxy }: FormValues) => {
+    if (proxyChoice === "none") proxy = undefined;
+    if (provider && !proxy?.trim()) {
+      form.setError("proxy", { message: `Paste the proxy from ${provider.name}, or pick No proxy.` });
+      return;
+    }
     setError(null);
     setPhase("starting");
     try {
@@ -110,13 +172,64 @@ export default function LoginPage() {
               <p className="text-xs text-red-600 mt-1">{form.formState.errors.username.message}</p>
             )}
           </div>
-          <div>
-            <label className="label">Proxy (optional)</label>
-            <input className="input font-mono" placeholder="http://user:pass@host:port" {...form.register("proxy")} />
-            <p className="text-xs text-slate-500 mt-1">
-              Used for this login and saved for every upload from this account. Leave empty to keep the
-              account's current proxy.
+          <div className="space-y-2">
+            <label className="label">Proxy</label>
+            <p className="text-xs text-slate-500">
+              Gives this account its own IP. Running several accounts? Use one residential proxy per account.
             </p>
+            <ChoiceRow
+              checked={proxyChoice === "own"}
+              onSelect={() => setProxyChoice("own")}
+              title="I have a proxy"
+            />
+            {providers.map(p => (
+              <ChoiceRow
+                key={p.key}
+                checked={proxyChoice === p.key}
+                onSelect={() => setProxyChoice(p.key)}
+                title={`Get a proxy from ${p.name}`}
+                description={p.tagline}
+                badge={p.sponsor ? "Sponsor" : undefined}
+              />
+            ))}
+            <ChoiceRow
+              checked={proxyChoice === "none"}
+              onSelect={() => setProxyChoice("none")}
+              title="No proxy"
+              description="Connect directly. A proxy already saved for this account is kept."
+            />
+            {provider && <ProviderSteps provider={provider} />}
+            {proxyChoice !== "none" && (
+              <div>
+                <div className="flex gap-2">
+                  <input
+                    className="input font-mono"
+                    placeholder={provider ? provider.proxy_format : "http://user:pass@host:port"}
+                    {...form.register("proxy", { onChange: () => setProxyNote(null) })}
+                  />
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    disabled={testProxy.isPending}
+                    onClick={() => {
+                      const value = form.getValues("proxy")?.trim();
+                      if (value) testProxy.mutate(value);
+                      else setProxyNote("Paste a proxy to test it.");
+                    }}
+                  >
+                    <Globe size={14} /> {testProxy.isPending ? "Testing…" : "Test"}
+                  </button>
+                </div>
+                {form.formState.errors.proxy && (
+                  <p className="text-xs text-red-600 mt-1">{form.formState.errors.proxy.message}</p>
+                )}
+                {proxyNote && <p className="text-xs text-slate-600 mt-1">{proxyNote}</p>}
+                <p className="text-xs text-slate-500 mt-1">
+                  Used for this login and saved for every upload from this account.
+                  {proxyChoice === "own" && " Leave empty to keep the account's current proxy."}
+                </p>
+              </div>
+            )}
           </div>
           <button className="btn-primary">Open virtual browser</button>
         </form>

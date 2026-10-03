@@ -10,7 +10,13 @@ def run(*argv):
 
 def test_help_without_command(capsys):
     assert run() == 1
-    assert "upload" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "upload" in out and "autotok setup" in out
+
+
+def test_setup_needs_a_terminal(capsys):
+    assert run("setup") == 2
+    assert "autotok login -n <name> -p <proxy>" in capsys.readouterr().err
 
 
 def test_login_with_sessionid_and_proxy(capsys):
