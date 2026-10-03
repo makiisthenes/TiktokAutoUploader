@@ -16,3 +16,4 @@ tests/
 .env
 .env.*
 !.env.example
+launch-video/

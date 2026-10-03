@@ -1,0 +1,22 @@
+{
+  "name": "autotok-launch-video",
+  "private": true,
+  "type": "module",
+  "description": "Motion-graphics launch video for autotok, rendered frame-by-frame from three.js with a code-synthesized score.",
+  "scripts": {
+    "build": "esbuild src/main.js --bundle --format=iife --outfile=build/bundle.js --loader:.json=json --log-level=warning",
+    "score": "python3 audio/score.py",
+    "draft": "npm run build && node scripts/render.mjs --draft",
+    "master": "npm run build && node scripts/render.mjs --master",
+    "preview": "npm run build && node scripts/render.mjs --stills"
+  },
+  "devDependencies": {
+    "@fontsource/big-shoulders-stencil-display": "^5.3.0",
+    "@fontsource/inter-tight": "^5.3.0",
+    "@fontsource/jetbrains-mono": "^5.3.0",
+    "@fontsource/space-grotesk": "^5.3.0",
+    "esbuild": "^0.28.2",
+    "playwright-core": "^1.63.0",
+    "three": "^0.186.1"
+  }
+}
