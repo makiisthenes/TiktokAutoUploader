@@ -35,7 +35,9 @@ log = logging.getLogger("autotok")
 
 MAX_CAPTION_LENGTH = 2200
 MIN_SCHEDULE = timedelta(minutes=15)
-MAX_SCHEDULE = timedelta(days=10)
+MAX_SCHEDULE = timedelta(days=30)
+# TikTok gives some accounts 30 days to schedule and others only 10, depending on account and region.
+SHORT_SCHEDULE_WINDOW = timedelta(days=10)
 CHUNK_SIZE = 5 * 1024 * 1024
 DEFAULT_DATACENTER = "useast2a"
 AID = 1988
@@ -85,7 +87,7 @@ def schedule_delay(schedule: Schedule, now: datetime | None = None) -> timedelta
     else:
         raise ValidationError(f"unsupported schedule value: {schedule!r}")
     if not MIN_SCHEDULE <= delay <= MAX_SCHEDULE:
-        raise ValidationError("TikTok only accepts schedules between 15 minutes and 10 days ahead")
+        raise ValidationError("TikTok only accepts schedules between 15 minutes and 30 days ahead")
     return delay
 
 
@@ -201,8 +203,9 @@ class Client:
         """Upload ``video`` and publish it with ``caption``.
 
         ``schedule`` is seconds from now, a ``timedelta`` or an aware
-        ``datetime`` between 15 minutes and 10 days ahead (TikTok-side
-        scheduling). Raises a subclass of :class:`AutotokError` on failure.
+        ``datetime`` between 15 minutes and 30 days ahead (TikTok-side
+        scheduling; some accounts only get 10 days). Raises a subclass of
+        :class:`AutotokError` on failure.
         """
         if not isinstance(caption, str) or not caption.strip():
             raise ValidationError("caption is required")
@@ -248,7 +251,16 @@ class Client:
                 payload["feature_common_info_list"][0]["schedule_time"] = ts
                 scheduled_for = datetime.fromtimestamp(ts, tz=timezone.utc)
 
-            response = self._publish(session, payload)
+            try:
+                response = self._publish(session, payload)
+            except PublishError as exc:
+                if delay is not None and delay > SHORT_SCHEDULE_WINDOW:
+                    raise PublishError(
+                        f"{exc}. This post was scheduled more than 10 days ahead, and some accounts "
+                        "can only schedule up to 10 days; try an earlier time.",
+                        status_code=exc.status_code, status_msg=exc.status_msg, response=exc.response,
+                    ) from exc
+                raise
 
         log.debug("Published%s", f", scheduled for {scheduled_for.isoformat()}" if scheduled_for else "")
         return UploadResult(video_id=video_id, creation_id=creation_id,
