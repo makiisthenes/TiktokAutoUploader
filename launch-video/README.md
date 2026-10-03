@@ -30,7 +30,7 @@ Thumbnail and key art are rendered stills (lossless, 1080p); `npm run preview` r
 
 ```bash
 node scripts/render.mjs --stills 0.1     # thumbnail: the pre-roll frame (name, tagline, command and output)
-node scripts/render.mjs --stills 25.35   # key art: three phones, one command, the -u name on cara
+node scripts/render.mjs --stills 25.45   # key art: three phones, one command, the -u name on cara
 node scripts/render.mjs --stills 29.9    # key art: the field of phones spelling autotok from above
 ```
 
