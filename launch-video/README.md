@@ -20,7 +20,7 @@ npm run build                    # bundle src/ -> build/bundle.js
 node scripts/render.mjs --stills 9.9,19.4      # 1080p PNGs of any video times (renders/stills/)
 node scripts/render.mjs --draft                # 960x540 @ 30 fps -> renders/draft_video.mp4
 node scripts/render.mjs --master --workers 3   # 1920x1080 @ 60 fps -> renders/master_video.mp4
-python3 audio/score.py                         # -> build/score.wav (normalised to -13 LUFS, <= -1.2 dBTP)
+python3 audio/score.py                         # -> build/score.wav (normalised to -13 LUFS, -1.2 dBTP peak guard)
 python3 audio/verify.py build/score.wav renders/spectrogram.png
 scripts/mux.sh renders/master_video.mp4 build/score.wav renders/autotok-launch.mp4   # AAC 320k, <= -1 dBTP
 python3 scripts/sheet.py renders/sheet.jpg --video renders/autotok-launch.mp4 --from 0 --to 8 --n 12
@@ -40,6 +40,15 @@ render (`scripts/preview.py` explains why WebP, and why every frame is a keyfram
 ```bash
 node scripts/render.mjs --w 960 --h 540 --fps 15 --grain 0 --fresh --out gif_source.mp4
 python3 scripts/preview.py renders/gif_source.mp4 ../docs/media/autotok-launch.webp   # 800x450 @ 12 fps, under 5 MiB
+```
+
+The preview links to `docs/media/autotok-launch.mp4`, a 720p30 copy of the delivered film (two-pass
+H.264 at 2 Mbps, AAC 128 kbps, about 10 MB):
+
+```bash
+V="-vf fps=30,scale=1280:720:flags=lanczos -c:v libx264 -preset slow -b:v 2000k -maxrate 3500k -bufsize 5000k -pix_fmt yuv420p -g 60"
+ffmpeg -y -i renders/autotok-launch.mp4 $V -pass 1 -an -f mp4 /dev/null
+ffmpeg -y -i renders/autotok-launch.mp4 $V -pass 2 -c:a aac -b:a 128k -movflags +faststart ../docs/media/autotok-launch.mp4
 ```
 
 `render.mjs` uses the Chromium that Playwright installs (set `CHROME_PATH` to use another) with
@@ -72,8 +81,11 @@ frames can be rendered in any order and in parallel.
 The mix was checked by measurement, not by ear: `audio/verify.py` reports integrated loudness and
 true peak (ffmpeg `ebur128`), the energy jump at every hit cue, and draws a spectrogram with the cues
 marked. AAC encoding overshoots the score's true peak by up to about a decibel on the hardest hits,
-so `scripts/mux.sh` measures the encoded file and trims the audio gain until it is under -1 dBTP
-(the delivered film measures -13.7 LUFS integrated, -1.6 dBTP).
+so `scripts/mux.sh` measures the encoded file and trims the audio gain until it is under -1 dBTP.
+The score itself measures -13.2 LUFS integrated and -1.1 dBTP. AAC at full gain pushes one moment
+half a second after the drop to +0.3 dBTP, so the mux trims 1.9 dB, and the delivered film
+measures -15.1 LUFS integrated and -2.5 dBTP. Every hit cue still jumps 3 to 22 dB in the
+delivered audio.
 
 ## Claims disclosure (keep this when editing)
 
