@@ -6,8 +6,6 @@ import { Hud } from './engine/hud.js';
 import { noise1 } from './engine/util.js';
 import { FONT } from './engine/canvas.js';
 import createDepot from './sets/depot.js';
-import createBay from './sets/bay.js';
-import createBooth from './sets/booth.js';
 import createBoard from './sets/board.js';
 import createPhone from './sets/phone.js';
 import createGrid from './sets/grid.js';
@@ -37,7 +35,7 @@ async function boot() {
 
   const ctx = { renderer, TL, W, H, aspect: W / H, envTex };
   const only = q.get('only');
-  const makers = { depot: createDepot, bay: createBay, booth: createBooth, board: createBoard, phone: createPhone, grid: createGrid };
+  const makers = { depot: createDepot, board: createBoard, phone: createPhone, grid: createGrid };
   const sets = [];
   for (const [name, make] of Object.entries(makers)) {
     if (only && !only.split(',').includes(name)) continue;

@@ -31,11 +31,10 @@ sr, x = wavfile.read(wav)
 x = x.astype(np.float64).mean(axis=1) / 32768
 pre = TL['preroll']
 
-hit_cues = {'enter': [C['enter']], 'land': [C['land']], 'postmarks': C['postmarks'], 'lasers': C['lasers'],
-            'seals': C['seals'], 'lifts': C['lifts'], 'commit': [C['commit']], 'doorClose': [C['doorClose']],
-            'cableYank': [C['cableYank']], 'stamps': C['stamps'], 'tube': [C['tube']], 'drop': [C['drop']],
-            'tap': [C['tap']], 'wordForm': [C['wordForm']], 'title': [C['title']]}
-print('\nonset check (dB jump, 60 ms after vs 60 ms before, 2-8 kHz band and full band):')
+hit_cues = {'loginEnter': [C['loginEnter']], 'scan': [C['scan']], 'saved': [C['saved']], 'enter': [C['enter']],
+            'land': [C['land']], 'tube': [C['tube']], 'drop': [C['drop']], 'tap': [C['tap']], 'rolls': C['rolls'],
+            'drops': C['drops'], 'wordForm': [C['wordForm']], 'title': [C['title']]}
+print('\nonset check (dB jump, 60 ms after vs 60 ms before; full band / 2-8 kHz band):')
 hp = signal.butter(4, [2000, 8000], btype='band', fs=sr, output='sos')
 xb = signal.sosfilt(hp, x)
 def rms(a):

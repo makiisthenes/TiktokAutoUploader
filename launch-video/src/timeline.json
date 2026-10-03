@@ -2,85 +2,73 @@
   "fps": 60,
   "bpm": 120,
   "preroll": 0.3,
-  "duration": 55.0,
+  "duration": 39.0,
   "width": 1920,
   "height": 1080,
 
+  "loginTyping": {
+    "prompt": "$ ",
+    "text": "autotok login -n alice",
+    "start": 0.5,
+    "step": 0.0625,
+    "wordGap": 0
+  },
+  "loginOutput": "Account 'alice' saved.",
   "typing": {
     "prompt": "$ ",
     "text": "autotok upload -u alice -v clip.mp4 -t \"Hello #fyp\"",
-    "start": 0.25,
+    "start": 4.5,
     "step": 0.0625,
     "wordGap": 0
   },
   "output": "Published. Video id: 7429183650274961408",
 
   "cues": {
-    "enter": 4.0,
-    "land": 5.0,
-    "craneUp": 8.0,
-    "postmarks": [9.0, 9.5, 10.0],
-    "header_proxy": 10.0,
-    "fuse": 10.0,
-    "tunnelDive": 12.0,
-    "rings": [13.0, 14.0, 15.0],
+    "loginEnter": 2.0,
+    "scan": 3.0,
+    "saved": 3.5,
 
-    "bay": 16.0,
-    "lasers": [17.0, 17.5],
-    "separate": 18.0,
-    "header_parts": 18.0,
-    "seals": [18.5, 19.0, 19.5],
-    "lifts": [20.5, 21.0, 21.5],
-    "manifest": [22.0, 22.5, 23.0],
-    "commit": 23.5,
+    "enter": 8.0,
+    "land": 9.0,
+    "whipToBoard": 11.5,
 
-    "booth": 24.0,
-    "doorClose": 25.0,
-    "cableYank": 25.5,
-    "header_sign": 26.0,
-    "stamps": [27.0, 28.0],
-    "doorOpen": 29.0,
-    "whipToBoard": 31.5,
-
-    "board": 32.0,
+    "board": 12.0,
     "flips": [
-      { "t": 32.5, "field": "earliest", "text": "15 MIN", "cells": 7 },
-      { "t": 34.0, "field": "latest", "text": "10 DAYS", "cells": 7 },
-      { "t": 35.5, "field": "status", "text": "SCHEDULED", "cells": 9 }
+      { "t": 12.5, "field": "earliest", "text": "15 MIN", "cells": 7 },
+      { "t": 14.0, "field": "latest", "text": "10 DAYS", "cells": 7 },
+      { "t": 15.5, "field": "status", "text": "SCHEDULED", "cells": 9 }
     ],
-    "boarding": 36.0,
-    "tube": 37.0,
+    "boarding": 16.0,
+    "tube": 17.0,
 
-    "drop": 38.0,
-    "tap": 39.0,
-    "outputLine": 40.0,
+    "drop": 18.0,
+    "tap": 19.0,
+    "accounts": 21.0,
+    "rolls": [22.5, 23.5],
+    "drops": [23.0, 24.0],
 
-    "grid": 42.0,
-    "wordForm": 45.0,
-    "title": 48.0,
-    "pip": 50.0,
-    "disclosure": 52.0,
-    "end": 55.0
+    "grid": 26.0,
+    "wordForm": 29.0,
+    "title": 32.0,
+    "pip": 34.0,
+    "disclosure": 36.0,
+    "end": 39.0
   },
 
   "flap": { "stagger": 0.045, "flipDur": 0.06, "cycles": 6 },
 
-  "pipTyping": { "text": "pip install autotok", "start": 50.0, "step": 0.0625 },
+  "pipTyping": { "text": "pip install autotok", "start": 34.0, "step": 0.0625 },
 
-  "postmarkIPs": ["203.0.113.7", "198.51.100.23", "192.0.2.41"],
   "accounts": ["alice", "bob", "cara"],
-  "crc": ["de4af391", "6370e8d6", "90235cbe"],
-  "partsMB": [5, 5, 4],
 
   "shots": [
-    { "id": "terminal", "start": -0.3, "end": 4.0 },
-    { "id": "reveal", "start": 4.0, "end": 8.0 },
-    { "id": "proxy", "start": 8.0, "end": 16.0 },
-    { "id": "bay", "start": 16.0, "end": 24.0 },
-    { "id": "booth", "start": 24.0, "end": 32.0 },
-    { "id": "board", "start": 32.0, "end": 38.0 },
-    { "id": "phone", "start": 38.0, "end": 42.0 },
-    { "id": "grid", "start": 42.0, "end": 48.0 },
-    { "id": "title", "start": 48.0, "end": 55.0 }
+    { "id": "login", "start": -0.3, "end": 4.0 },
+    { "id": "command", "start": 4.0, "end": 8.0 },
+    { "id": "delivery", "start": 8.0, "end": 12.0 },
+    { "id": "schedule", "start": 12.0, "end": 18.0 },
+    { "id": "posted", "start": 18.0, "end": 21.0 },
+    { "id": "accounts", "start": 21.0, "end": 26.0 },
+    { "id": "grid", "start": 26.0, "end": 32.0 },
+    { "id": "title", "start": 32.0, "end": 39.0 }
   ]
 }

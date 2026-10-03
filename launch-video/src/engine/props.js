@@ -46,20 +46,28 @@ function tape(x, X, Y, W, H) {
   x.globalAlpha = 1;
 }
 
-function filmIcon(x, X, Y, S, color) {
+// A frame of the clip itself (the same colours the post lights up with on the
+// phone), so the parcel reads as "the video" without a word.
+function videoFrame(x, X, Y, W, H) {
   x.save();
-  x.fillStyle = color;
-  roundRect(x, X, Y, S, S * 0.72, S * 0.08); x.fill();
-  x.fillStyle = '#f3efe6';
-  for (let i = 0; i < 5; i++) {
-    x.fillRect(X + S * 0.08 + i * S * 0.18, Y + S * 0.06, S * 0.09, S * 0.08);
-    x.fillRect(X + S * 0.08 + i * S * 0.18, Y + S * 0.58, S * 0.09, S * 0.08);
+  roundRect(x, X, Y, W, H, W * 0.1); x.clip();
+  const g = x.createLinearGradient(X, Y, X + W, Y + H);
+  g.addColorStop(0, '#1b0b2e'); g.addColorStop(1, '#03161c');
+  x.fillStyle = g; x.fillRect(X, Y, W, H);
+  x.globalCompositeOperation = 'lighter';
+  for (const [c, bx, by] of [[COLOR.magenta, 0.3, 0.3], [COLOR.cyan, 0.72, 0.58], ['#7b5cff', 0.42, 0.82]]) {
+    const rg = x.createRadialGradient(X + W * bx, Y + H * by, 0, X + W * bx, Y + H * by, W * 0.75);
+    rg.addColorStop(0, c + 'cc'); rg.addColorStop(1, c + '00');
+    x.fillStyle = rg; x.fillRect(X, Y, W, H);
   }
-  x.beginPath(); x.moveTo(X + S * 0.4, Y + S * 0.22); x.lineTo(X + S * 0.64, Y + S * 0.36); x.lineTo(X + S * 0.4, Y + S * 0.5); x.closePath(); x.fill();
+  x.globalCompositeOperation = 'source-over';
+  x.fillStyle = 'rgba(255,255,255,0.92)';
+  const cx = X + W / 2, cy = Y + H / 2, r = W * 0.2;
+  x.beginPath(); x.moveTo(cx - r * 0.6, cy - r); x.lineTo(cx + r, cy); x.lineTo(cx - r * 0.6, cy + r); x.closePath(); x.fill();
   x.restore();
 }
 
-// Side (front, +z) face: shipping label with the file name and sender.
+// Side (front, +z) face: shipping label with a frame of the clip, its file name and the account.
 export function parcelFrontCanvas(account = 'alice', seed = 11) {
   const W = 1024, H = Math.round(1024 * PARCEL.h / PARCEL.w);
   const c = kraftCanvas(W, H, seed);
@@ -75,11 +83,11 @@ export function parcelFrontCanvas(account = 'alice', seed = 11) {
   x.fillText('POST', lx + 24, ly + 37);
   x.font = `500 26px ${FONT.mono}`; x.fillStyle = COLOR.cyan; x.textAlign = 'right';
   x.fillText('PRIORITY', lx + lw - 22, ly + 37); x.textAlign = 'left';
-  filmIcon(x, lx + 26, ly + 100, 92, '#111');
+  videoFrame(x, lx + 26, ly + 88, 92, 150);
   x.fillStyle = '#111'; x.font = `800 64px ${FONT.mono}`;
   x.fillText('clip.mp4', lx + 140, ly + 136);
   x.font = `500 30px ${FONT.mono}`; x.fillStyle = '#444';
-  x.fillText(`from  @${account}`, lx + 140, ly + 196);
+  x.fillText(`to  @${account}`, lx + 140, ly + 196);
   drawBarcode(x, lx + 26, ly + 250, lw - 52, 70, seed + 5, '#111');
   // fragile arrows
   x.strokeStyle = '#2a1a0a'; x.globalAlpha = 0.55; x.lineWidth = 7;

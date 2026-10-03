@@ -1,4 +1,4 @@
-// Shots 8-9: pull up out of the phone into a field of phones that light in
+// Shots 7-8: pull up out of the phone into a field of phones that light in
 // waves until, seen from above, the lit screens spell the name. Then the
 // title card: wordmark, install command, disclosure.
 import * as THREE from 'three';
@@ -71,7 +71,7 @@ export default function createGrid(ctx) {
   // The crowd's screens: the post, softened and pulled toward cyan-white, so
   // the field reads as clean light from 40 m up rather than colour noise.
   const full = makeCanvas(540, 1174);
-  drawPost(full.getContext('2d'), 40.3, TL, { ignite: 1, tapAt: 39 });
+  drawPost(full.getContext('2d'), C.tap + 1.3, TL, { ignite: 1, tapAt: C.tap });
   const still = makeCanvas(48, 104);
   {
     const x = still.getContext('2d');
@@ -103,7 +103,7 @@ export default function createGrid(ctx) {
       screens.setMatrixAt(i, m);
       screens.setColorAt(i, new THREE.Color(0.03, 0.03, 0.03));
       if (col === heroC && row === heroR) heroIndex = i;
-      cells.push({ x, z, word: on[i], lightAt: 42.5 + r() * 2.1, d: Math.hypot(x - (heroC - (COLS - 1) / 2) * SX, z - (heroR - (ROWS - 1) / 2) * SZ) });
+      cells.push({ x, z, word: on[i], lightAt: C.grid + 0.5 + r() * 2.1, d: Math.hypot(x - (heroC - (COLS - 1) / 2) * SX, z - (heroR - (ROWS - 1) / 2) * SZ) });
     }
   }
   scene.add(bodies, screens);
@@ -118,7 +118,8 @@ export default function createGrid(ctx) {
 
   const col = new THREE.Color();
   const pulses = [];
-  for (let b = 42.5; b < 44.6; b += 0.5) pulses.push(b);
+  for (let b = C.grid + 0.5; b < C.grid + 2.6; b += 0.5) pulses.push(b);
+  const shimmer = [0.5, 1, 1.5, 2, 2.5].map((d) => C.wordForm + d);
   const pip = TL.pipTyping;
   const pipTimes = typingTimes({ ...pip, wordGap: 0 });
 
@@ -137,7 +138,7 @@ export default function createGrid(ctx) {
         const rr = c.d - (t - tp) * 16;
         v += 1.4 * Math.exp(-rr * rr * 0.6) * Math.exp(-(t - tp) * 0.8);
       }
-      if (c.word) v = lerp(v, 1.9 + 0.8 * hit(t, C.wordForm, 0.4) + 0.4 * hits(t, [45.5, 46, 46.5, 47, 47.5], 0.2), wordK);
+      if (c.word) v = lerp(v, 1.9 + 0.8 * hit(t, C.wordForm, 0.4) + 0.4 * hits(t, shimmer, 0.2), wordK);
       else v = lerp(v, 0.018, wordK);
       if (t >= C.title) v *= c.word ? lerp(1, 0.55, smooth(clamp((t - C.title) / 0.6))) : 1;
       col.setRGB(v, v, v);
@@ -153,7 +154,7 @@ export default function createGrid(ctx) {
     const cz = lerp(hero.z, 0, smooth(clamp((t - C.grid - 0.6) / 2.8)));
     let yaw = lerp(0.5, 0, easeInOutCubic(clamp((t - C.grid) / 3.4)));
     let height = h;
-    if (t > 44.6) height = lerp(40, 35.5, smooth(clamp((t - 44.6) / 3.4)));
+    if (t > C.grid + 2.6) height = lerp(40, 35.5, smooth(clamp((t - (C.grid + 2.6)) / 3.4)));
     if (t > C.title) height = lerp(35.5, 33, smooth(clamp((t - C.title) / 7)));
     camera.position.set(cx, height, cz + 0.001);
     camera.up.set(Math.sin(yaw), 0, -Math.cos(yaw));
@@ -169,8 +170,8 @@ export default function createGrid(ctx) {
     fx.exposure = t < C.title ? 1 : lerp(1, 0.45, smooth(clamp((t - C.title) / 0.8)));
     fx.flash = [1, 1, 1, 0.12 * hit(t, C.title, 0.15)];
     fx.vignette = 0.7;
-    fx.fade = smooth(clamp((t - 54.2) / 0.8));
-    hud.header('One login. One command per upload.', t, 42.7, 44.85);
+    fx.fade = smooth(clamp((t - (C.end - 0.8)) / 0.8));
+    hud.header('One login. One command per upload.', t, C.grid + 0.7, C.wordForm - 0.15);
 
     if (t >= C.title) drawTitle(hud, t);
     return camera;
@@ -237,7 +238,7 @@ export default function createGrid(ctx) {
     if (da > 0) {
       hud.text('Not affiliated with TikTok. Automated uploading may break TikTok\u2019s terms of service and can get accounts restricted or banned.',
         960, 958, { size: 27, color: '#9aa6bb', alpha: da, align: 'center', font: FONT.ui, weight: 500 });
-      hud.text('Use at your own risk.  \u00b7  AGPL-3.0  \u00b7  IPs shown are RFC 5737 examples; the video id is illustrative.',
+      hud.text('Use at your own risk.  \u00b7  AGPL-3.0  \u00b7  The video id shown is illustrative.',
         960, 1000, { size: 25, color: '#7a859b', alpha: da, align: 'center', font: FONT.ui, weight: 500 });
     }
   }

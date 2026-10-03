@@ -1,10 +1,11 @@
-// Shot 6: a split-flap departures board. TikTok-side scheduling runs from
-// 15 minutes to 10 days ahead; each cascade's flips are the score's clacks.
+// Shot 4: a split-flap departures board. Post now, or schedule it: TikTok-side
+// scheduling runs from 15 minutes to 10 days ahead. Each cascade's flips are
+// the score's clacks. The parcel rides in and boards the @alice capsule.
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { clamp, lerp, smooth, easeOutExpo, easeInOutCubic, easeOutCubic, easeInCubic, easeInOutQuint, spring, hit, hits, fbm1, rng, flapFlipTimes } from '../engine/util.js';
 import { makeCanvas, tex, FONT, COLOR, roundRect } from '../engine/canvas.js';
-import { LANE_COLORS, makeConveyor, makeFloor, makeRacks, makeCeiling, makeShaft, floorLine, metal, Burst, v3 } from '../engine/props.js';
+import { PARCEL, LANE_COLORS, makeParcel, makeConveyor, makeFloor, makeCeiling, floorLine, metal, Burst, v3 } from '../engine/props.js';
 
 const GLYPHS = ' ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.:+-@';
 const GW = 160, GH = 224, GCOLS = 8;
@@ -225,23 +226,14 @@ export default function createBoard(ctx) {
   });
   scene.add(puff.points);
 
-  // envelope riding in on a belt and into the capsule
+  // the parcel riding in on a belt and into the capsule
   const belt = makeConveyor(-9, TUBE_X - 0.3, 0.35, LANE_COLORS[0], { width: 0.6 });
   belt.group.position.y = -0.1;
   scene.add(belt.group);
-  const envC = makeCanvas(512, 340);
-  {
-    const x = envC.getContext('2d');
-    x.fillStyle = '#e9e5dd'; x.fillRect(0, 0, 512, 340);
-    for (let i = -340; i < 852; i += 40) { x.fillStyle = (Math.floor(i / 40) % 2) ? COLOR.cyan : COLOR.magenta; x.beginPath(); x.moveTo(i, 0); x.lineTo(i + 20, 0); x.lineTo(i + 20 - 340, 340); x.lineTo(i - 340, 340); x.closePath(); x.fill(); }
-    x.fillStyle = '#e9e5dd'; x.fillRect(16, 16, 480, 308);
-    x.fillStyle = '#111'; x.font = `800 60px ${FONT.mono}`; x.fillText('POST', 40, 90);
-    x.strokeStyle = '#06a19c'; x.lineWidth = 6; roundRect(x, 300, 40, 170, 90, 10); x.stroke();
-    x.strokeStyle = '#d40f3c'; roundRect(x, 300, 160, 170, 90, 10); x.stroke();
-  }
-  const envelope = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.012, 0.33), [0, 0, 1, 0, 0, 0].map((i) => (i ? new THREE.MeshStandardMaterial({ map: tex(envC), roughness: 0.7, color: 0xcfcfcf }) : new THREE.MeshStandardMaterial({ color: 0xd8d4cc, roughness: 0.7 }))));
-  envelope.castShadow = true;
-  scene.add(envelope);
+  const MINI = 0.42;
+  const parcel = makeParcel(TL.accounts[0], 11);
+  parcel.scale.setScalar(MINI);
+  scene.add(parcel);
 
   // ---------------- update
   const T0 = C.board;
@@ -252,11 +244,12 @@ export default function createBoard(ctx) {
     const boarding = t >= flipEnds[C.flips.indexOf(fields.status.flip)];
     lamp.material.color.setRGB(boarding ? 0.5 : 0.08, boarding ? 4 : 0.08, boarding ? 1.8 : 0.08);
 
-    // envelope: rides in, slides into the capsule
-    const ex = lerp(-3.5, TUBE_X - 0.1, smooth(clamp((t - T0) / 4.45)));
-    envelope.visible = t < C.tube - 0.15;
-    envelope.position.set(ex, 0.8 + 0.006, 0.35);
-    if (t > C.tube - 0.5) { const k = easeInCubic(clamp((t - (C.tube - 0.5)) / 0.35)); envelope.position.x = lerp(ex, TUBE_X, k); envelope.position.y += k * 0.15; envelope.scale.setScalar(1 - k * 0.6); }
+    // parcel: rides in, slides into the capsule
+    const ex = lerp(-3.5, TUBE_X - 0.25, smooth(clamp((t - T0) / 4.45)));
+    parcel.visible = t < C.tube - 0.15;
+    parcel.position.set(ex, 0.8 + PARCEL.h * MINI / 2, 0.35);
+    parcel.scale.setScalar(MINI);
+    if (t > C.tube - 0.5) { const k = easeInCubic(clamp((t - (C.tube - 0.5)) / 0.35)); parcel.position.x = lerp(ex, TUBE_X, k); parcel.position.y += k * 0.15; parcel.scale.setScalar(MINI * (1 - k * 0.6)); }
     belt.setTravel(t * 1.2);
     belt.light((x) => 0.2 + 0.15 * Math.sin(x * 3 - t * 9));
 
@@ -316,7 +309,7 @@ export default function createBoard(ctx) {
     if (win > 0) fx.blur = [easeOutCubic(win) * 0.12, 0];
     if (la > 0) fx.blur = [0, -easeInCubic(clamp((t - (C.tube + 0.3)) / 0.7)) * 0.12];
     if (t > C.drop - 0.4) fx.blur = [0, -easeInCubic(clamp((t - (C.drop - 0.4)) / 0.4)) * 0.18];
-    hud.header('Scheduled on TikTok’s side.', t, C.board + 1.0, C.tube - 0.5);
+    hud.header('Post now, or schedule it.', t, C.board + 0.9, C.tube - 0.5);
     return camera;
   }
   return { start: C.board, scene, update };

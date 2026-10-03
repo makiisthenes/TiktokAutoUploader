@@ -1,55 +1,61 @@
 # autotok launch video: direction
 
+## Audience and the one idea
+
+The film is for people who post TikTok videos, not for engineers. It explains the main concept
+only: **you make a video, autotok uploads it to TikTok for you.** Log in once, then one command per
+upload, now or scheduled, on any of your accounts. How it works inside (proxies, chunked transfer,
+request signing) stays out of the picture.
+
 ## The story (each line has a source)
 
 | | Claim | Source |
 |---|---|---|
-| What it is | Upload and schedule TikTok videos from the command line or Python, with a proxy per account. `pip install autotok`. | `README.md` header |
-| How it works | The file is read in **5 MB parts**, each sent with its **CRC32**; a finish call lists `part:crc` pairs; then a commit. | `autotok/uploader.py` `_transfer`, `CHUNK_SIZE` |
-| | The publish URL is signed (`_signature`, `X-Bogus`) by TikTok's own JS in a **headless Chromium page that never touches the network**: the page fetch goes through `requests` (the account's proxy), every other request is blocked. | `autotok/signer.py` docstring, `_route` |
-| | **One proxy per account**, used for login, the signature page fetch and every upload request. | README "Proxies" table, CHANGELOG 2.0.0 |
-| | TikTok-side scheduling **15 minutes to 10 days** ahead. | `uploader.py` `MIN_SCHEDULE`/`MAX_SCHEDULE`, README |
-| | CLI prints `Published. Video id: …` | `autotok/cli.py` `cmd_upload` |
+| What it is | Upload and schedule TikTok videos with one command. `pip install autotok`. | `README.md` header ("one login · one command per upload"), `autotok/cli.py` description |
+| Log in once | `autotok login -n <name>` opens a login page; scanning the QR code with the TikTok app on your phone is quickest; the window closes by itself and prints `Account '<name>' saved.` | README "Log in to TikTok (once per account)", `cli.py` `cmd_login` |
+| One command | `autotok upload -u <name> -v clip.mp4 -t "caption"` uploads and prints `Published. Video id: …` | README "Upload", `cli.py` `cmd_upload` |
+| Now or later | TikTok-side scheduling 15 minutes to 10 days ahead (`-sc`). | README "Features", `cli.py` `--schedule` help (900 to 864000 s) |
+| Posted | Hashtags and @mentions in the caption are clickable. | README "Features" |
+| Any account | Log in once per account and upload by name. | README "Features" |
 
-Claims the repo cannot back, and so the video does not make: star or user counts, "undetectable",
-"ban-proof", account limits (the 1000+ accounts line is the paid Pro product, not this repo).
-The README says automating uploads may break TikTok's terms and get accounts banned, so the end
-card carries that disclosure. TikTok's logo is never shown; the project is not affiliated.
-The IPs on screen are RFC 5737 documentation addresses. The video id is illustrative.
+Claims the repo cannot back, and so the video does not make: views, reach or growth, star or user
+counts, "undetectable", "ban-proof", account limits (the 1000+ accounts line is the paid Pro
+product). The README says automating uploads may break TikTok's terms and get accounts banned, so
+the end card carries that disclosure. TikTok's logo and UI are never shown; the login page, the
+phone app and the post are generic rebuilds. The video id is illustrative.
 
-## Concept: the night depot
+## Concept: posting a parcel
 
-Uploading is **posting**, so the world is a night-time parcel depot lit by two neon colours
-(cyan `#25F4EE`, magenta `#FE2C55`). The video file is a cardboard parcel; the camera rides
-the line with it from the terminal to a phone. Signature move: **the stamp**. Every station
-ends in an object being physically marked on a beat (postmark, seal, signature), with an ink
-burst, a camera kick and chromatic aberration.
+Uploading a video is *posting* it, so the video is a cardboard parcel that leaves your computer and
+is delivered to a phone, lit by two neon colours (cyan `#25F4EE`, magenta `#FE2C55`). Everyone knows
+how a parcel gets sent: you write the address once, hand it over, pick a departure, and it arrives.
+Signature move: **the delivery hit**. Every step lands on a beat with a physical arrival (the scan
+locks, the parcel punches out, the capsule drops) with a flash, a camera kick and a chromatic split.
 
-| Mechanism | Depot analogy | Props |
+| What autotok does | Parcel analogy | Props |
 |---|---|---|
-| the video file | a parcel | cardboard, tape, shipping label |
-| the account's proxy | a sealed tunnel with a postmark | postmark ring with the IP, glass tunnel, gate signs |
-| 5 MB parts + CRC32 | cut into crates, each with a checksum seal | laser gantry, stencilled crates, seal stickers, magnet crane, manifest |
-| finish + commit | manifest checked, hatch shut | clipboard hologram, hatch, green lamp |
-| signing in a browser that makes no requests | a glass booth with its network cable pulled | glass booth, NETWORK port, two rubber stamps |
-| TikTok-side schedule | departures board | split-flap display |
-| published | delivered | pneumatic capsule, phone, a tap on the tag |
+| your video file | a parcel | cardboard, tape, a label with a frame of the clip |
+| one-time login | registering at the counter | a QR code on screen, a phone that scans it, "saved" |
+| one upload command | handing it over | the command typed in a terminal; the file tears out of the screen |
+| upload in progress | on the belt, on its way | a depot conveyor |
+| now or scheduled | the departures board | split-flap display: earliest 15 MIN, latest 10 DAYS |
+| posted | delivered | pneumatic capsule into a phone dock; the post lights up; a tap on the tag |
+| any account | another address on the label | the command's `-u` name rolls to bob, then cara; each phone receives |
 
 ## Shot list (music time; 120 BPM, 1 beat = 0.5 s; all cues in `src/timeline.json`)
 
 | # | Time | Shot · header | Camera | Proud moment |
 |---|---|---|---|---|
-| 0 | −0.3–0 | Pre-roll thumbnail: wordmark, tagline, the completed command and its output | locked | the frame feeds pick; it scrolls away like a terminal |
-| 1 | 0–4 | **Command.** History shows the one-time `autotok login`; `autotok upload …` types on 32nd notes | push in on the glass toward the command line | ENTER on 4.0: `clip.mp4` tears off the line and extrudes into a parcel that punches through the screen |
-| 2 | 4–8 | **Reveal.** Pull back into the depot; the parcel tumbles onto alice's belt | speed-ramped dolly back + crane, then swings low over the lanes behind the parcel | the landing on 5.0: squash, dust, the belt LEDs chase out from the impact |
-| 3 | 8–16 | **"One account. One IP."** Three lanes, three postmark heads, three tunnels | crane up and over to top-down, sweep across to the tunnel mouths, dive into alice's tunnel | postmarks slam on 9, 9.5, 10 with each account's IP; tunnels ignite like fuses; gates LOGIN / SIGNING / UPLOAD all show the same IP |
-| 4 | 16–24 | **"5 MB parts. Each checksummed."** Out of the tunnel mouth (match cut); laser gantry cuts 5/5/4 MB crates; CRC32 seal stickers; magnet crane into storage; the real `part:crc` manifest checks; lid slams (commit) | Catmull-Rom path: low arrival, push into the lasers, orbit to read the seals, crane up, settle on the manifest | two laser sheets slice exactly at the part boundaries; the label splits across the crates |
-| 5 | 24–32 | **"Signed in a browser with no network."** The publish envelope enters a glass HEADLESS CHROMIUM booth; the door seals; the NETWORK cable is yanked (insert close-up); two stamps: `_signature`, `X-Bogus` | orbit, insert on the port, low close-up over the table with the browser behind, rack focus to the browser's readout after each stamp, dolly with the exit, whip | the plug rips out in sparks, the LED goes red and **the music goes muffled** until the door opens |
-| 6 | 32–38 | **"Scheduled on TikTok's side."** Split-flap DEPARTURES: EARLIEST +15 MIN, LATEST +10 DAYS, STATUS SCHEDULED; the envelope boards an @alice capsule | whip in, truck past a foreground pillar, tilt down to the capsule, tilt up with the launch | every flap flip has its own clack in the score |
-| 7 | 38–42 | **"Posted. Tags clickable."** The capsule drops into a phone dock; the post ignites; a fingertip taps `#fyp` and it lights as a link | low 3/4, push onto the caption for the tap, ease out, push into the screen | the drop: the screen ignites and two light rings wash across the floor |
-| 8 | 42–48 | **"One login. One command per upload."** Out of the screen into a field of 2,268 phones lighting in waves | crane straight up, unwinding | seen from above, the lit phones spell `autotok` |
-| 9 | 48–55 | Title: the dot-matrix word becomes the wordmark; `pip install autotok`; repo URL; disclosure | slow push, light sweep | the chromatic split snaps together on the hit |
+| 0 | −0.3–0 | Pre-roll thumbnail: wordmark, tagline, the completed command and its output | locked | scrolls away like a terminal into the opening |
+| 1 | 0–4 | **"Log in once."** `autotok login -n alice` types; a login window with a QR code pops; a phone rises into the foreground and scans it | eases back to let the phone in, rack focus phone ↔ screen | on 3.0 the scan brackets snap onto the code, the window closes itself and `Account 'alice' saved.` prints |
+| 2 | 4–8 | **"One command."** `autotok upload -u alice -v clip.mp4 -t "Hello #fyp"` types on 32nd notes | slow push into the command line | ENTER on 8.0: `clip.mp4` tears off the line and extrudes into a parcel that punches through the glass |
+| 3 | 8–12 | **"On its way to TikTok."** Pull back into the depot; the parcel lands on alice's belt and rides | speed-ramped dolly back, swing low behind the parcel, whip pan | the landing on 9.0: squash, dust, the belt LEDs chase out from the impact |
+| 4 | 12–18 | **"Post now, or schedule it."** Split-flap DEPARTURES: EARLIEST +15 MIN, LATEST +10 DAYS, STATUS SCHEDULED; the parcel boards an @alice capsule | whip in, truck past a foreground pillar, tilt down to the capsule, tilt up with the launch | every flap has its own clack in the score |
+| 5 | 18–21 | **"Posted."** The capsule drops into a phone dock; the post lights up with the caption; a fingertip taps `#fyp` and it lights as a link | low 3/4, push onto the caption for the tap | the drop: the screen ignites and two light rings wash across the floor |
+| 6 | 21–26 | **"Any account, by name."** Pull back: two more docks, and the command floating above them; its `-u alice` rolls to `bob`, then `cara`, and each phone receives its own post | dolly back and up, then push into alice's screen | each roll lands and a capsule drops on the next downbeat |
+| 7 | 26–32 | **"One login. One command per upload."** Out of the screen into a field of phones lighting in waves | crane straight up, unwinding | seen from above, the lit phones spell `autotok` |
+| 8 | 32–39 | Title: the dot-matrix word becomes the wordmark; `pip install autotok`; repo URL; disclosure | slow push, light sweep | the chromatic split snaps together on the hit |
 
-Transitions carry the object: screen → depot (the parcel punches through), tunnel → bay (cut on the
-tunnel mouth), bay → booth and booth → board (whip pans), tube up → tube down into the phone,
-phone screen → field of phones (push in, pull out), dot-matrix word → wordmark.
+Transitions carry the object: screen → depot (the parcel punches through), depot → board (whip
+pan), tube up → tube down into the phone, phone screen → field of phones (push in, pull out),
+dot-matrix word → wordmark.

@@ -11,7 +11,9 @@ out=${3:-renders/autotok-launch.mp4}
 ceiling=-1.0
 
 true_peak() {
-  ffmpeg -hide_banner -nostats -i "$1" -map 0:a -af ebur128=peak=true -f null - 2>&1 | awk '$1 == "Peak:" { p = $2 } END { print p }'
+  # fails (and so stops the script) when no numeric Peak: value was measured; -inf (silence) is a number
+  ffmpeg -hide_banner -nostats -i "$1" -map 0:a -af ebur128=peak=true -f null - 2>&1 |
+    awk '$1 == "Peak:" { p = $2 } END { if (p !~ /^-?([0-9.]+|inf)$/) exit 1; print p }'
 }
 
 gain=0

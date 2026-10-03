@@ -3,7 +3,7 @@
   python3 audio/score.py            -> build/score.wav (48 kHz stereo, includes the pre-roll)
 
 Everything is generated here: drums, bass, pads, arps, and the foley that the
-picture cues for (typing, stamps, lasers, flap clacks, the cable yank...).
+picture cues for (typing, the scan lock, the punch-out, flap clacks, the drops...).
 """
 import json
 import math
@@ -328,30 +328,16 @@ def chord_at(t):
 
 kicks = []
 
-# Intro (0-4): pad, typing, soft hats, riser into the enter.
-add(music, supersaw([57, 64, 72], 4.4, cutoff=lambda tm: 400 + 900 * tm / 4.4, attack=1.5, release=0.6, gain=0.35), -0.2, send=0.4)
-add(music, filt(sine(mtof(33), 4.2) * 0.25, 120), 0.0)
-from math import floor
-ty = TL['typing']
-slot = 0
-for i, ch in enumerate(ty['text']):
-    tk = ty['start'] + slot * ty['step']
-    slot += 1
-    if ch == ' ' and ty.get('wordGap'):
-        slot += ty['wordGap']
-    add(sfx, keystroke(i), tk, 0.42 if ch != ' ' else 0.55, pan=(rng.random() - 0.5) * 0.3, send=0.08)
-for b in np.arange(2.0, 4.0, BEAT / 2):
-    add(music, hat(), b, 0.35, pan=0.3)
-add(music, riser(1.5, 300, 7000, 0.55), C['enter'] - 1.5)
-add(sfx, reverse_cymbal(1.0), C['enter'] - 1.0, 0.6)
-add(sfx, keystroke(999) * 1.4, C['enter'] - 0.004, 0.8)
 
-# Hits on the enter, the landing.
-add(sfx, impact(1.0), C['enter'], 0.9, send=0.35)
-add(sfx, glass(1.0), C['enter'], 0.7, pan=0.1, send=0.3)
-add(sfx, whoosh(1.0, 3000, 300, 0.7), C['enter'] + 0.02)
-add(sfx, stamp(0.9), C['land'], 0.9, send=0.2)
-add(sfx, filt(noise(0.6), 900) * env_exp(0.6, 0.15), C['land'], 0.6)
+def type_keys(spec, seed0, gain=0.42):
+    """One keystroke per glyph, on the same schedule the terminal types it."""
+    slot = 0
+    for i, ch in enumerate(spec['text']):
+        tk = spec['start'] + slot * spec['step']
+        slot += 1
+        if ch == ' ' and spec.get('wordGap'):
+            slot += spec['wordGap']
+        add(sfx, keystroke(seed0 + i), tk, gain if ch != ' ' else gain + 0.13, pan=(rng.random() - 0.5) * 0.3, send=0.08)
 
 
 def drums(t0, t1, clap_on=True, hats='off', heavy=False, kick_gain=1.0):
@@ -400,61 +386,49 @@ def arps(t0, t1, gain=0.22, octave=12, bright=5000):
         k += 1
 
 
-# 4-16: groove; the proxy section adds clap and arp.
+# 0-4: log in once. Pad, the login typed, the window pops, the phone rises,
+# the scan locks on 3.0, "saved" confirms.
+add(music, supersaw([57, 64, 72], 4.4, cutoff=lambda tm: 400 + 900 * tm / 4.4, attack=1.5, release=0.6, gain=0.35), -0.2, send=0.4)
+add(music, filt(sine(mtof(33), 4.2) * 0.25, 120), 0.0)
+type_keys(TL['loginTyping'], 0)
+add(sfx, keystroke(998) * 1.3, C['loginEnter'] - 0.004, 0.7)
+add(sfx, kick(0.6), C['loginEnter'], 0.55)
+add(sfx, impact(0.4), C['loginEnter'], 0.45, pan=0.3, send=0.3)
+add(sfx, whoosh(0.35, 800, 3200, 0.45), C['loginEnter'] + 0.02, pan=0.35)
+add(sfx, blip(700, 1100, 0.1, 0.5), C['loginEnter'] + 0.02, pan=0.35, send=0.3)
+add(sfx, whoosh(0.55, 250, 1600, 0.4), C['loginEnter'] + 0.15, pan=-0.45)
+for b in np.arange(2.0, 4.0, BEAT / 2):
+    add(music, hat(), b, 0.3, pan=0.3)
+add(sfx, riser(0.8, 600, 5000, 0.25, tone=False), C['scan'] - 0.9, pan=-0.3)
+add(sfx, mix2(blip(1800, 2400, 0.08, 0.55), np.pad(blip(2400, 3300, 0.12, 0.5), (int(0.08 * SR), 0))), C['scan'], pan=-0.3, send=0.35)
+add(sfx, impact(0.7), C['scan'], 0.75, send=0.3)
+add(sfx, mix2(blip(900, 1350, 0.16, 0.6), click(2200, 0.04, 0.7)), C['saved'], pan=-0.2, send=0.3)
+
+# 4-8: one command. The kick comes in under the typing; a riser into the ENTER.
 drums(4.0, 8.0, clap_on=False)
-bassline(4.0, 16.0)
-pads(4.0, 16.0, 0.22, 1800)
-drums(8.0, 16.0, clap_on=True)
-arps(8.0, 16.0, 0.2)
-for i, t in enumerate(C['postmarks']):
-    add(sfx, stamp(1.0), t, 1.0, pan=[-0.2, 0, 0.2][i], send=0.25)
-add(sfx, riser(1.4, 1500, 9000, 0.35, tone=False), C['fuse'] - 0.05)
-add(sfx, whoosh(1.1, 300, 2500, 0.6), C['tunnelDive'])
-for i, t in enumerate(C['rings']):
-    add(sfx, blip(mtof(81 + [0, 3, 7][i]), mtof(81 + [0, 3, 7][i]) * 1.01, 0.5, 0.35), t, pan=0.1, send=0.6)
-add(music, riser(1.5, 400, 8000, 0.5), 16.0 - 1.5)
-add(sfx, reverse_cymbal(0.8), 16.0 - 0.8, 0.5)
+bassline(4.0, 12.0)
+pads(4.0, 12.0, 0.22, 1800)
+type_keys(TL['typing'], 100)
+add(music, riser(1.5, 300, 7000, 0.55), C['enter'] - 1.5)
+add(sfx, reverse_cymbal(1.0), C['enter'] - 1.0, 0.6)
+add(sfx, keystroke(999) * 1.4, C['enter'] - 0.004, 0.8)
 
-# 16-24: the bay.
-add(sfx, impact(0.8), C['bay'], 0.7, send=0.4)
-drums(16.0, 24.0, clap_on=True, hats='16')
-bassline(16.0, 24.0)
-pads(16.0, 24.0, 0.22, 2200)
-arps(20.0, 24.0, 0.16)
-for t in C['lasers']:
-    add(sfx, laser(1.0), t - 0.02, 0.8, send=0.2)
-add(sfx, whoosh(0.4, 600, 2000, 0.35), C['separate'])
-for i, t in enumerate(C['seals']):
-    add(sfx, mix2(stamp(0.55), click(3000, 0.5, 0.4)), t, 0.7, pan=[-0.25, 0, 0.25][i])
-# crane whirr
-d = C['lifts'][-1] - 19.7 + 0.4
-wh = filt(saw(70 + 30 * tt(d) / d, d) * 0.4 + filt(noise(d), [200, 1200], 'band') * 0.3, 1500) * np.sin(np.pi * tt(d) / d)
-add(sfx, wh, 19.7, 0.35, pan=0.2)
-for i, t in enumerate(C['lifts']):
-    add(sfx, metal_clank(160 + i * 25, 0.8, 0.8), t, pan=[-0.3, 0, 0.3][i], send=0.25)
-for i, t in enumerate(C['manifest']):
-    add(sfx, blip(1300, 1900, 0.14, 0.4), t, pan=0.3, send=0.2)
-add(sfx, mix2(metal_clank(90, 1.4, 1.2), impact(0.5)), C['commit'], 0.9, send=0.35)
-add(sfx, whoosh(0.5, 500, 4000, 0.6), 23.65)
-
-# 24-32: the booth. Sealed (cable yank -> door open): the music goes muffled.
-drums(24.0, 32.0, clap_on=True)
-bassline(24.0, 32.0)
-pads(24.0, 32.0, 0.24, 2000)
-arps(24.0, 25.5, 0.16)
-add(sfx, mix2(metal_clank(120, 0.5, 0.6), hiss(0.5, 0.5)), C['doorClose'], 0.7, send=0.2)
-add(sfx, crackle(0.9, 0.9), C['cableYank'], 0.8, pan=0.3, send=0.2)
-add(sfx, stamp(0.7), C['cableYank'], 0.5, pan=0.3)
-for i, t in enumerate(C['stamps']):
-    add(sfx, stamp(1.15), t, 1.0, pan=[-0.1, 0.1][i], send=0.3)
-add(sfx, hiss(0.7, 0.5), C['doorOpen'], 0.7)
+# 8-12: the punch-out, the landing, the ride; a whip into the board.
+add(sfx, impact(1.0), C['enter'], 0.9, send=0.35)
+add(sfx, glass(1.0), C['enter'], 0.7, pan=0.1, send=0.3)
+add(sfx, whoosh(1.0, 3000, 300, 0.7), C['enter'] + 0.02)
+add(sfx, stamp(0.9), C['land'], 0.9, send=0.2)
+add(sfx, filt(noise(0.6), 900) * env_exp(0.6, 0.15), C['land'], 0.6)
+drums(8.0, 12.0, clap_on=True)
+arps(8.0, 12.0, 0.2)
+add(sfx, riser(1.0, 800, 7000, 0.35, tone=False), C['whipToBoard'] - 0.6)
 add(sfx, whoosh(0.55, 500, 4500, 0.7), C['whipToBoard'])
 
-# 32-38: departures. Flap clacks follow the board's flip schedule exactly.
-drums(32.0, 36.0, clap_on=True, hats='16')
-bassline(32.0, 37.75)
-pads(32.0, 37.75, 0.22, 2600)
-arps(32.0, 37.75, 0.15, 24, 7000)
+# 12-18: departures. Flap clacks follow the board's flip schedule exactly.
+drums(C['board'], C['boarding'], clap_on=True, hats='16')
+bassline(C['board'], C['drop'] - 0.25)
+pads(C['board'], C['drop'] - 0.25, 0.22, 2600)
+arps(C['board'], C['drop'] - 0.25, 0.15, 24, 7000)
 flap = TL['flap']
 for f in C['flips']:
     for i in range(f['cells']):
@@ -462,37 +436,48 @@ for f in C['flips']:
             t = f['t'] + i * flap['stagger'] + (k + 1) * flap['flipDur']
             add(sfx, flap_clack(int(t * 1000)), t, 0.55, pan=-0.4 + 0.8 * i / max(1, f['cells'] - 1))
 # snare roll accelerating into the drop
-t = 36.0
+t = C['boarding']
 step = BEAT / 2
-while t < 37.75:
-    add(music, snare(), t, 0.3 + 0.5 * (t - 36) / 1.75, pan=0.05)
+while t < C['drop'] - 0.25:
+    add(music, snare(), t, 0.3 + 0.5 * (t - C['boarding']) / (C['drop'] - 0.25 - C['boarding']), pan=0.05)
     t += step
     step = max(BEAT / 8, step * 0.82)
-add(music, kick(1.0), 36.0, 0.9); add(music, kick(1.0), 36.5, 0.9); add(music, kick(1.0), 37.0, 0.9)
-kicks += [36.0, 36.5, 37.0]
-add(music, riser(2.0, 300, 9000, 0.7), 36.0)
+for k in (0.0, 0.5, 1.0):
+    add(music, kick(1.0), C['boarding'] + k, 0.9)
+    kicks.append(C['boarding'] + k)
+add(music, riser(2.0, 300, 9000, 0.7), C['boarding'])
 add(sfx, mix2(metal_clank(70, 0.6, 0.9), stamp(1.0), whoosh(0.6, 200, 3000, 0.8)), C['tube'], 1.0, send=0.2)
 add(sfx, whoosh(0.9, 400, 6000, 0.6), C['tube'] + 0.1)
 
-# 38: the drop.
+# 18: the drop. Posted; the tap; then the other accounts on the downbeats.
 add(sfx, impact(1.4), C['drop'], 1.0, send=0.45)
 add(sfx, filt(noise(2.5), 6000, 'high') * env_exp(2.5, 0.7), C['drop'], 0.25, send=0.5)
-drums(38.0, 48.0, clap_on=True, hats='off', heavy=True, kick_gain=1.05)
-bassline(38.0, 48.0, 0.7, 1300)
-for b in np.arange(38.0, 48.0, BEAT * 4):
+drums(C['drop'], C['title'], clap_on=True, hats='off', heavy=True, kick_gain=1.05)
+bassline(C['drop'], C['title'], 0.7, 1300)
+for b in np.arange(C['drop'], C['title'], BEAT * 4):
     ch = PROG[chord_at(b)]
     add(music, supersaw(ch + [ch[0] + 12], BEAT * 4 + 0.3, cutoff=4200, attack=0.01, release=0.3, voices=7, gain=0.4), b, send=0.35)
-arps(42.0, 48.0, 0.18, 24, 8000)
+arps(C['accounts'], C['title'], 0.18, 24, 8000)
 add(sfx, click(2600, 0.06, 0.9), C['tap'], 0.7, pan=-0.1)
-add(sfx, blip(900, 1350, 0.16, 0.45), C['outputLine'], pan=-0.3, send=0.3)
-add(sfx, riser(0.9, 500, 7000, 0.45), 41.1)
+add(sfx, mix2(blip(1500, 2300, 0.14, 0.7), np.pad(blip(2300, 3000, 0.12, 0.5), (int(0.07 * SR), 0))), C['tap'], 0.9, pan=-0.1, send=0.35)
+add(sfx, whoosh(0.8, 300, 2500, 0.45), C['accounts'])
+for i, t in enumerate(C['rolls']):
+    # the name rolls: a fast ratchet, then a lock
+    for k in range(6):
+        add(sfx, click(3200 - k * 200, 0.02, 0.5), t + k * 0.04, 0.5, pan=-0.2)
+    add(sfx, blip(1200 + 300 * i, 1800 + 300 * i, 0.1, 0.4), t + 0.26, pan=-0.2, send=0.3)
+for i, t in enumerate(C['drops']):
+    add(sfx, mix2(impact(0.7), stamp(0.6)), t, 0.8, pan=[-0.45, 0.45][i], send=0.35)
+add(sfx, riser(0.9, 500, 7000, 0.45), C['grid'] - 0.9)
 add(sfx, whoosh(0.8, 300, 5000, 0.5), C['grid'])
+
+# 26-32: the field of phones; the word forms on 29.
 add(sfx, impact(0.7), C['wordForm'], 0.6, send=0.5)
 add(music, supersaw([69, 72, 76, 81], 1.8, cutoff=6000, attack=0.005, release=1.2, voices=7, gain=0.35), C['wordForm'], send=0.6)
 add(music, riser(1.5, 400, 9000, 0.6), C['title'] - 1.5)
 add(sfx, reverse_cymbal(1.0), C['title'] - 1.0, 0.6)
 
-# 48: title. Everything stops but a ringing chord.
+# 32: title. Everything stops but a ringing chord.
 add(sfx, impact(1.6), C['title'], 1.0, send=0.6)
 add(music, supersaw([45, 57, 64, 69, 72, 76], 7.0, cutoff=lambda tm: 5000 * math.exp(-tm / 2.5) + 400, attack=0.005, release=3.5, voices=7, gain=0.55), C['title'], send=0.7)
 add(music, filt(sine(mtof(33), 6.5) * env_exp(6.5, 2.5), 150) * 0.6, C['title'])
@@ -512,11 +497,7 @@ for k in kicks:
         duck[i0:i0 + n] = np.minimum(duck[i0:i0 + n], shape[:n])
 music *= duck
 
-# Sealed booth: crossfade the music bus into a muffled copy.
-muffled = filt(music, 380, 'low', 4) * 1.6
 t_axis = np.arange(N) / SR - PRE
-seal = np.clip((t_axis - C['cableYank']) / 0.15, 0, 1) * (1 - np.clip((t_axis - C['doorOpen']) / 0.6, 0, 1))
-music = music * (1 - seal) + muffled * seal
 
 # Reverb: synthetic stereo IR.
 ir_d = 2.2
@@ -527,7 +508,7 @@ wet = np.vstack([signal.fftconvolve(verb[c] + music[c] * 0.12, ir[c])[:N] for c 
 
 mix = music * 0.9 + sfx * 0.85 + wet
 # a breath before the drop: everything but the tail of the launch drops out
-gap = 1 - 0.85 * np.clip((t_axis - 37.80) / 0.03, 0, 1) * (1 - np.clip((t_axis - C['drop'] + 0.004) / 0.004, 0, 1))
+gap = 1 - 0.85 * np.clip((t_axis - (C['drop'] - 0.2)) / 0.03, 0, 1) * (1 - np.clip((t_axis - C['drop'] + 0.004) / 0.004, 0, 1))
 mix *= gap
 mix = filt(mix, 28, 'high', 2)
 
