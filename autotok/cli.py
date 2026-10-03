@@ -34,6 +34,8 @@ def build_parser() -> argparse.ArgumentParser:
                         help="where the login/signing browser runs (default: $AUTOTOK_BROWSER or local)")
     sub = parser.add_subparsers(dest="command", metavar="<command>")
 
+    sub.add_parser("setup", help="connect a TikTok account step by step: browser, proxy and login")
+
     lp = sub.add_parser("login", help="log in to TikTok and save the session")
     lp.add_argument("-n", "--name", required=True, help="name to save this account under")
     lp.add_argument("-p", "--proxy", help="proxy for this account (used for login and every upload)")
@@ -104,6 +106,16 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 # -- commands -------------------------------------------------------------------
+
+
+def cmd_setup(args, store: AccountStore) -> int:
+    from .setup_wizard import run_setup
+
+    if not (sys.stdin.isatty() and sys.stdout.isatty()):
+        print("autotok setup is interactive; run it in a terminal. Without one, use:\n"
+              "  autotok login -n <name> -p <proxy>", file=sys.stderr)
+        return 2
+    return run_setup(store, on_live_url=_show_live_url)
 
 
 def cmd_login(args, store: AccountStore) -> int:
@@ -335,6 +347,7 @@ def cmd_mcp(args, store: AccountStore) -> int:
 
 
 COMMANDS = {
+    "setup": cmd_setup,
     "login": cmd_login,
     "upload": cmd_upload,
     "show": cmd_show,
@@ -365,6 +378,7 @@ def main(argv: "list[str] | None" = None, *, _store: AccountStore | None = None)
     args = parser.parse_args(argv)
     if args.command is None:
         parser.print_help()
+        print("\nNew here? Run: autotok setup")
         return 1
     _configure_logging(args.quiet, args.debug)
     if args.browser:

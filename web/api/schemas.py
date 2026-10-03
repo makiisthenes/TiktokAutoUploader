@@ -85,6 +85,16 @@ class ProxyTestResponse(BaseModel):
     error: Optional[str] = None
 
 
+class ProxyProviderRead(BaseModel):
+    key: str
+    name: str
+    tagline: str
+    signup_url: str
+    proxy_format: str
+    steps: list[str]
+    sponsor: bool
+
+
 # ---------- uploads (immediate) ---------------------------------------------
 
 class UploadOptions(BaseModel):

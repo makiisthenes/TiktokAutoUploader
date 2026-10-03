@@ -75,7 +75,9 @@ No uv? `pipx install "autotok[youtube]"` or `pip install "autotok[youtube]"` wor
 
 ## Getting started
 
-Setup takes about five minutes.
+Setup takes about five minutes. After installing (step 1), you can run `autotok setup` to be walked
+through the rest: it checks the browser, asks for a proxy and tests it, then logs you in to TikTok
+through it. The steps below do the same by hand.
 
 ### 1. Install autotok
 
@@ -202,6 +204,8 @@ every account its own proxy, and uses it **everywhere** that account talks to Ti
 | YouTube downloads | ❌ (not TikTok traffic; saves proxy bandwidth) |
 
 **Set, change and test proxies**
+
+`autotok setup` asks for the proxy, tests it and logs in through it. To do it by hand:
 
 ```bash
 autotok login -n alice -p http://user:pass@gate.example.com:7000   # set at login
@@ -402,6 +406,7 @@ If the client can't find `autotok`, use the full path that `which autotok` (Wind
 ## CLI reference
 
 ```
+autotok setup                         # step by step: browser, proxy (tested), TikTok login
 autotok login     -n NAME [-p PROXY] [--force] [--sessionid ID --datacenter DC]
 autotok upload    -u NAME (-v FILE | -yt URL) -t CAPTION [options]
 autotok accounts  list | check NAME | remove NAME

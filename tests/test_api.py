@@ -61,6 +61,21 @@ def test_update_proxy(client, saved_account):
     assert r.json()["proxy"] is None
 
 
+def test_proxy_providers_endpoint(client, monkeypatch):
+    from autotok import proxy_providers
+    from autotok.proxy_providers import ProxyProvider
+
+    assert client.get("/api/proxy/providers").json() == []
+    monkeypatch.setattr(proxy_providers, "PROVIDERS", (
+        ProxyProvider(key="other", name="Other", tagline="t", signup_url="https://other.example"),
+        ProxyProvider(key="acme", name="Acme", tagline="t", signup_url="https://acme.example",
+                      steps=("Sign up.",), sponsor=True),
+    ))
+    data = client.get("/api/proxy/providers").json()
+    assert [p["key"] for p in data] == ["acme", "other"]
+    assert data[0]["steps"] == ["Sign up."] and data[0]["proxy_format"] == "host:port:user:pass"
+
+
 def test_proxy_test_endpoint(client, saved_account, monkeypatch):
     acct = _import(client)[0]
     monkeypatch.setattr("api.routers.proxy.check_proxy", lambda p: "198.51.100.1")
