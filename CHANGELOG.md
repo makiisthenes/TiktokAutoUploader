@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.0.1
+
+Documentation release; no code changes.
+
+- README: install with one line, `uv tool install "autotok[youtube]"` (pipx and pip still work).
+- README: the Termius sponsor logo now has a white version for dark mode.
+- Repository tidy-up: the self-hosted web app lives under `web/`, docs under `docs/`, and outdated
+  files (sample video, old diagrams, `youtube_downloader.py`) are gone.
+
 ## 2.0.0
 
 First release on PyPI as **autotok** (`pip install autotok`).

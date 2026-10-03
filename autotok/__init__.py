@@ -12,7 +12,7 @@ Quick start::
 """
 from __future__ import annotations
 
-__version__ = "2.0.0"
+__version__ = "2.0.1"
 
 from .accounts import Account, AccountStore
 from .errors import (
