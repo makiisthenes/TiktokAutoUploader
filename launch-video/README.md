@@ -34,6 +34,14 @@ node scripts/render.mjs --stills 25.45   # key art: three phones, one command, t
 node scripts/render.mjs --stills 29.9    # key art: the field of phones spelling autotok from above
 ```
 
+The autoplaying preview at the top of the repository README is an animated WebP of a grain-free
+render (`scripts/preview.py` explains why WebP, and why every frame is a keyframe):
+
+```bash
+node scripts/render.mjs --w 960 --h 540 --fps 15 --grain 0 --fresh --out gif_source.mp4
+python3 scripts/preview.py renders/gif_source.mp4 ../docs/media/autotok-launch.webp   # 800x450 @ 12 fps, under 5 MiB
+```
+
 `render.mjs` uses the Chromium that Playwright installs (set `CHROME_PATH` to use another) with
 SwiftShader, so it runs on a machine without a GPU. Frames are read back with `readPixels` and piped
 to ffmpeg. The timeline is cut into 4-second chunks (`renders/<draft|master>_chunks/`) that
@@ -54,7 +62,7 @@ stills). On a 4-core machine without a GPU a 1080p60 master takes about two hour
 - the typing schedules (`loginTyping`, `typing`, `pipTyping`) are expanded by the same formula on
   both sides (`typingTimes` in `src/engine/util.js`, mirrored in `score.py`), one keystroke sound
   per glyph;
-- the split-flap board's flips (`flips` + `flap`) use `flapFlipTimes`, mirrored in `score.py`, so
+- the split-flap board's flips (`flips` + `flap`) use `boardFlips`, mirrored in `score.py`, so
   every flap you see has its own clack;
 - the pre-roll (`preroll`, 0.3 s) is the thumbnail hold: the score is rendered with the same offset.
 

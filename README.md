@@ -18,7 +18,7 @@
 
 <p align="center">
   <a href="https://github.com/makiisthenes/TiktokAutoUploader/blob/main/docs/media/autotok-launch.mp4">
-    <img src="https://raw.githubusercontent.com/makiisthenes/TiktokAutoUploader/main/docs/media/autotok-launch.gif" width="100%" alt="autotok in 38 seconds: log in once, then one command uploads your video to TikTok, now or scheduled, on any of your accounts">
+    <img src="https://raw.githubusercontent.com/makiisthenes/TiktokAutoUploader/main/docs/media/autotok-launch.webp" width="100%" alt="autotok in 38 seconds: log in once, then one command uploads your video to TikTok, now or scheduled, on any of your accounts">
   </a>
 </p>
 <p align="center"><sub>Click the video to watch it with sound.</sub></p>
