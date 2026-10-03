@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
+import { Link, useSearchParams } from "react-router-dom";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Login } from "../api/client";
+import { Login, errorMessage } from "../api/client";
 
 const schema = z.object({
   username: z
@@ -10,62 +11,93 @@ const schema = z.object({
     .min(1, "Required")
     .max(128)
     .regex(/^[A-Za-z0-9_.\-]+$/, "Letters, digits, . _ - only"),
+  proxy: z.string().optional(),
 });
 type FormValues = z.infer<typeof schema>;
 
-type Phase = "idle" | "starting" | "active" | "completing" | "completed" | "failed";
+type Phase = "idle" | "starting" | "pending" | "active" | "completing" | "completed" | "failed" | "expired";
 
 export default function LoginPage() {
-  const form = useForm<FormValues>({ resolver: zodResolver(schema) });
+  const [params] = useSearchParams();
+  const form = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: { username: params.get("username") ?? "", proxy: "" },
+  });
   const [phase, setPhase] = useState<Phase>("idle");
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [vncUrl, setVncUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const esRef = useRef<EventSource | null>(null);
+  const activeRef = useRef<string | null>(null); // session to cancel if the page is left
 
-  useEffect(() => () => esRef.current?.close(), []);
+  useEffect(() => {
+    const cancelActive = () => {
+      const id = activeRef.current;
+      if (id) {
+        fetch(`/api/login/browser/${id}`, {
+          method: "DELETE",
+          keepalive: true,
+          headers: { "X-Requested-With": "autotok" },
+        }).catch(() => undefined);
+      }
+    };
+    window.addEventListener("beforeunload", cancelActive);
+    return () => {
+      window.removeEventListener("beforeunload", cancelActive);
+      esRef.current?.close();
+      cancelActive();
+    };
+  }, []);
 
-  const onSubmit = async ({ username }: FormValues) => {
+  const onSubmit = async ({ username, proxy }: FormValues) => {
     setError(null);
     setPhase("starting");
     try {
-      const r = await Login.start(username);
+      const r = await Login.start(username, proxy?.trim());
       setSessionId(r.session_id);
+      activeRef.current = r.session_id;
       setVncUrl(r.vnc_url);
-      // Open SSE for status transitions
       const es = new EventSource(Login.eventStreamUrl(r.session_id));
       esRef.current = es;
       es.addEventListener("status", (e: MessageEvent) => {
         setPhase(e.data as Phase);
-        if (["completed", "failed", "expired"].includes(e.data)) es.close();
+        if (["completed", "failed", "expired"].includes(e.data)) {
+          activeRef.current = null;
+          es.close();
+        }
       });
-      es.addEventListener("error", () => {
-        setError("Event stream dropped — refresh to retry");
+      es.addEventListener("failure", (e: MessageEvent) => setError(e.data));
+      es.onerror = () => {
+        if (esRef.current?.readyState === EventSource.CLOSED) return;
+        setError("Lost connection to the server — refresh to check the status.");
         es.close();
-      });
+      };
     } catch (e: any) {
       setPhase("failed");
-      setError(e?.response?.data?.detail ?? e.message);
+      setError(errorMessage(e));
     }
   };
 
-  const cancel = async () => {
-    if (sessionId) {
-      await Login.cancel(sessionId);
-      esRef.current?.close();
+  const reset = async () => {
+    if (sessionId && !["completed", "failed", "expired"].includes(phase)) {
+      await Login.cancel(sessionId).catch(() => undefined);
     }
+    esRef.current?.close();
+    activeRef.current = null;
     setPhase("idle");
     setSessionId(null);
     setVncUrl(null);
+    setError(null);
   };
+
+  const finished = ["completed", "failed", "expired"].includes(phase);
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-semibold">Browser login</h2>
         <p className="text-sm text-slate-500 mt-1">
-          Log into TikTok inside a virtual browser. When your session cookie is
-          captured, you'll be redirected automatically.
+          Log into TikTok inside a virtual browser. The session is saved as soon as you're logged in.
         </p>
       </div>
 
@@ -78,6 +110,14 @@ export default function LoginPage() {
               <p className="text-xs text-red-600 mt-1">{form.formState.errors.username.message}</p>
             )}
           </div>
+          <div>
+            <label className="label">Proxy (optional)</label>
+            <input className="input font-mono" placeholder="http://user:pass@host:port" {...form.register("proxy")} />
+            <p className="text-xs text-slate-500 mt-1">
+              Used for this login and saved for every upload from this account. Leave empty to keep the
+              account's current proxy.
+            </p>
+          </div>
           <button className="btn-primary">Open virtual browser</button>
         </form>
       )}
@@ -86,13 +126,17 @@ export default function LoginPage() {
         <div className="card space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <span className="chip bg-brand-50 text-brand-700">session {sessionId?.slice(0, 8)}</span>
-              <span className="ml-2 text-sm text-slate-600">Status: <b>{phase}</b></span>
+              {sessionId && <span className="chip bg-brand-50 text-brand-700">session {sessionId.slice(0, 8)}</span>}
+              <span className="ml-2 text-sm text-slate-600">
+                Status: <b>{phase}</b>
+              </span>
               {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
             </div>
-            <button className="btn-secondary" onClick={cancel}>Cancel</button>
+            <button className="btn-secondary" onClick={reset}>
+              {finished ? "Start over" : "Cancel"}
+            </button>
           </div>
-          {vncUrl && phase !== "completed" && (
+          {vncUrl && !finished && (
             <iframe
               title="Virtual browser"
               src={vncUrl}
@@ -102,7 +146,7 @@ export default function LoginPage() {
           )}
           {phase === "completed" && (
             <p className="text-sm text-emerald-700">
-              Session captured. The account is now in your Accounts list.
+              Session captured. <Link to="/accounts" className="underline">Go to Accounts</Link>.
             </p>
           )}
         </div>

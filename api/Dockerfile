@@ -1,7 +1,8 @@
-# Build: `docker build -f api/Dockerfile -t tiktok-api .` from the repo root.
-# Depends on the local `tiktok-base` image built from docker/base.Dockerfile
-# by docker-compose (see docker-compose.yml).
-FROM tiktok-base:latest
+# Built by docker compose (see docker-compose.yml). `base` is the image built
+# from docker/base.Dockerfile. Without compose:
+#   docker build -t tiktok-base -f docker/base.Dockerfile .
+#   docker build --build-context base=docker-image://tiktok-base -f api/Dockerfile -t tiktok-api .
+FROM base
 
 WORKDIR /app
 

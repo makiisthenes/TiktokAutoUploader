@@ -1,4 +1,4 @@
-FROM tiktok-base:latest
+FROM base
 
 WORKDIR /app
 

@@ -4,11 +4,28 @@ polluting the ORM layer. These schemas are what appears in `/docs`.
 """
 from __future__ import annotations
 
-import re
 from datetime import datetime, timezone
 from typing import Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
+
+from autotok.errors import ValidationError as AutotokValidationError
+from autotok.proxy import parse_proxy
+from autotok.youtube import is_youtube_url
+
+USERNAME_PATTERN = r"^[A-Za-z0-9_.\-]+$"
+
+
+def _validate_proxy(v: Optional[str]) -> Optional[str]:
+    """Normalise a proxy string to its URL form; '' means "no proxy"."""
+    if v is None:
+        return None
+    if not v.strip():
+        return ""
+    try:
+        return parse_proxy(v).url
+    except AutotokValidationError as e:
+        raise ValueError(str(e)) from None
 
 
 # ---------- accounts ---------------------------------------------------------
@@ -19,6 +36,7 @@ class AccountRead(BaseModel):
     display_name: Optional[str]
     cookie_path: str
     has_valid_session: bool
+    proxy: Optional[str] = None  # masked: http://user:****@host:port
     created_at: datetime
     updated_at: datetime
     last_used_at: Optional[datetime]
@@ -27,29 +45,62 @@ class AccountRead(BaseModel):
 
 
 class AccountCreate(BaseModel):
-    # Register an existing cookie file (produced by CLI login or a previous
-    # noVNC login) against a username. The cookie file must already exist in
-    # CookiesDir; this endpoint does not *create* a login session.
-    username: str = Field(min_length=1, max_length=128, pattern=r"^[A-Za-z0-9_.\-]+$")
+    # Register an existing session file (produced by `autotok login` or a
+    # previous browser login) against a username. This endpoint does not log in.
+    username: str = Field(min_length=1, max_length=128, pattern=USERNAME_PATTERN)
     display_name: Optional[str] = Field(default=None, max_length=128)
 
 
 class AccountUpdate(BaseModel):
     display_name: Optional[str] = Field(default=None, max_length=128)
+    # Full proxy URL to set, "" to clear, omitted to leave unchanged.
+    proxy: Optional[str] = None
+
+    @field_validator("proxy")
+    @classmethod
+    def _check_proxy(cls, v: Optional[str]) -> Optional[str]:
+        return _validate_proxy(v)
+
+
+class SessionCheckResponse(BaseModel):
+    valid: bool
+
+
+# ---------- proxies ----------------------------------------------------------
+
+class ProxyTestRequest(BaseModel):
+    proxy: Optional[str] = None  # test this proxy...
+    account_id: Optional[int] = None  # ...or this account's saved proxy
+
+    @field_validator("proxy")
+    @classmethod
+    def _check_proxy(cls, v: Optional[str]) -> Optional[str]:
+        return _validate_proxy(v) or None
+
+
+class ProxyTestResponse(BaseModel):
+    ok: bool
+    proxy: Optional[str]  # masked
+    ip: Optional[str] = None
+    error: Optional[str] = None
 
 
 # ---------- uploads (immediate) ---------------------------------------------
 
 class UploadOptions(BaseModel):
-    """Mirrors CLI upload flags. All optional with sensible defaults."""
+    """Mirrors the CLI upload flags. All optional with sensible defaults."""
     allow_comment: Literal[0, 1] = 1
     allow_duet: Literal[0, 1] = 0
     allow_stitch: Literal[0, 1] = 0
     visibility_type: Literal[0, 1] = 0  # 0=public, 1=private
-    brand_organic_type: Literal[0, 1] = 0
-    branded_content_type: Literal[0, 1] = 0
     ai_label: Literal[0, 1] = 0
+    # Per-upload override; empty means "use the account's saved proxy".
     proxy: str = ""
+
+    @field_validator("proxy")
+    @classmethod
+    def _check_proxy(cls, v: str) -> str:
+        return _validate_proxy(v) or ""
 
 
 class UploadYouTubeRequest(BaseModel):
@@ -66,9 +117,17 @@ class UploadYouTubeRequest(BaseModel):
         return v
 
 
+class UploadLibraryRequest(BaseModel):
+    username: str
+    title: str = Field(min_length=1, max_length=2200)
+    name: str  # file name in the video library
+    options: UploadOptions = Field(default_factory=UploadOptions)
+
+
 class UploadResponse(BaseModel):
     ok: bool
     message: str
+    video_id: Optional[str] = None
 
 
 # ---------- schedules --------------------------------------------------------
@@ -77,22 +136,18 @@ class ScheduledUploadCreate(BaseModel):
     username: str
     title: str = Field(min_length=1, max_length=2200)
     source_type: Literal["local", "youtube"]
-    source_ref: str  # absolute path (local) or YouTube URL
+    source_ref: str  # file name in the video library (local) or YouTube URL
     scheduled_for: datetime  # ISO-8601; must have tzinfo
     options: UploadOptions = Field(default_factory=UploadOptions)
 
     @model_validator(mode="after")
     def _validate(self) -> "ScheduledUploadCreate":
-        # Normalize to UTC
         if self.scheduled_for.tzinfo is None:
             raise ValueError("scheduled_for must include timezone info")
         if self.scheduled_for <= datetime.now(timezone.utc):
             raise ValueError("scheduled_for must be in the future")
         if self.source_type == "youtube" and not is_youtube_url(self.source_ref):
             raise ValueError("source_ref must be a valid YouTube URL when source_type='youtube'")
-        if self.options.visibility_type == 1:
-            # Mirrors tiktok.py:77 — TikTok rejects scheduled private posts
-            raise ValueError("private videos (visibility_type=1) cannot be scheduled")
         return self
 
 
@@ -109,6 +164,22 @@ class ScheduledUploadUpdate(BaseModel):
             if self.scheduled_for <= datetime.now(timezone.utc):
                 raise ValueError("scheduled_for must be in the future")
         return self
+
+
+def mask_options_json(raw: str) -> str:
+    """Hide the proxy password in stored upload options before returning them."""
+    import json
+
+    try:
+        data = json.loads(raw or "{}")
+    except ValueError:
+        return "{}"
+    if isinstance(data, dict) and data.get("proxy"):
+        try:
+            data["proxy"] = parse_proxy(data["proxy"]).masked()
+        except AutotokValidationError:
+            data["proxy"] = "****"
+    return json.dumps(data)
 
 
 class ScheduledUploadRead(BaseModel):
@@ -128,6 +199,11 @@ class ScheduledUploadRead(BaseModel):
 
     model_config = {"from_attributes": True}
 
+    @field_validator("options_json")
+    @classmethod
+    def _mask(cls, v: str) -> str:
+        return mask_options_json(v)
+
 
 # ---------- videos / browse --------------------------------------------------
 
@@ -140,7 +216,14 @@ class VideoFileInfo(BaseModel):
 # ---------- login (noVNC) ----------------------------------------------------
 
 class LoginBrowserStartRequest(BaseModel):
-    username: str = Field(min_length=1, max_length=128, pattern=r"^[A-Za-z0-9_.\-]+$")
+    username: str = Field(min_length=1, max_length=128, pattern=USERNAME_PATTERN)
+    # Proxy for this account: used by the login browser and saved for uploads.
+    proxy: Optional[str] = None
+
+    @field_validator("proxy")
+    @classmethod
+    def _check_proxy(cls, v: Optional[str]) -> Optional[str]:
+        return _validate_proxy(v) or None
 
 
 class LoginBrowserStartResponse(BaseModel):
@@ -150,9 +233,11 @@ class LoginBrowserStartResponse(BaseModel):
 
 class LoginBrowserCompleteRequest(BaseModel):
     """Payload the noVNC control server POSTs back to the API when it detects
-    the sessionid cookie. The API is responsible for writing the pickle and
+    the session cookies. The API is responsible for saving the account and
     updating the account row — noVNC stays stateless."""
     cookies: list[dict]
+    user_agent: Optional[str] = None
+    proxy: Optional[str] = None
 
 
 class LoginSessionRead(BaseModel):
@@ -165,16 +250,3 @@ class LoginSessionRead(BaseModel):
     completed_at: Optional[datetime]
 
     model_config = {"from_attributes": True}
-
-
-# ---------- shared helpers ---------------------------------------------------
-
-# Mirrors tiktok_uploader/Video.py:75 domain list as a single regex.
-_YT_URL_RE = re.compile(
-    r"^https?://(?:www\.|m\.)?(?:youtube\.com/(?:watch\?v=|shorts/|embed/)|youtu\.be/)[\w\-]+",
-    re.IGNORECASE,
-)
-
-
-def is_youtube_url(value: str) -> bool:
-    return bool(_YT_URL_RE.match(value.strip()))

@@ -14,7 +14,7 @@ export default function Sidebar() {
   return (
     <aside className="w-60 shrink-0 border-r border-slate-200 bg-white">
       <div className="p-5 border-b border-slate-200">
-        <h1 className="text-lg font-semibold tracking-tight">TikTok Uploader</h1>
+        <h1 className="text-lg font-semibold tracking-tight">autotok</h1>
         <p className="text-xs text-slate-500 mt-1">Local control panel</p>
       </div>
       <nav className="p-3 space-y-1">

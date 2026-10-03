@@ -128,7 +128,7 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# Personal Development Files
+# Personal Development Files (legacy 1.x data folders)
 CookiesDir/
 VideosDirPath/
 *.cookie
@@ -150,11 +150,11 @@ data/
 
 # Node
 node_modules/
+*.tsbuildinfo
 
 # IDE
 .idea/
 .vscode/
 
-# Misc
-tests/
-tiktok_uploader/tiktok-signature/command.txt
+# Local autotok data (sessions are account credentials)
+.autotok/

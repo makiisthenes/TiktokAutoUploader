@@ -2,6 +2,12 @@
 
 Pulled out of main.py so it can be unit-tested directly (freeze time, patch
 the adapter, patch the heartbeat). The real service composes these.
+
+Duplicate posts are the failure mode that matters most, so the rules are:
+  * a job is retried automatically only when the upload failed before anything
+    reached TikTok's publish endpoint (``UploadOutcome.retryable``);
+  * a job found stuck in 'running' (the worker died mid-upload) is marked
+    failed, not retried: it may already be live. The user can retry it.
 """
 from __future__ import annotations
 
@@ -19,18 +25,20 @@ import api.db as _api_db
 from api.db import now_utc
 from api.models import Account, ScheduledUpload
 from api.services import tiktok_adapter, youtube
+from api.services import videos as library
+from api.services.tiktok_adapter import UploadOutcome
 
 log = logging.getLogger("scheduler.worker")
 
 STALE_RUNNING_AFTER = timedelta(minutes=5)
 MAX_ATTEMPTS = 3
+RETRY_DELAY = timedelta(minutes=2)
 HEARTBEAT_INTERVAL = 30.0  # seconds
 
 
 def reclaim_stale(session: Session) -> int:
-    """Rows stuck in 'running' beyond STALE_RUNNING_AFTER are put back into
-    'pending' if attempts remain, else marked 'failed'. Called on startup
-    and at the top of every poll cycle."""
+    """Rows stuck in 'running' beyond STALE_RUNNING_AFTER (no heartbeat, so the
+    worker died) are marked failed. Called at the top of every poll cycle."""
     cutoff = now_utc() - STALE_RUNNING_AFTER
     rows = session.exec(
         select(ScheduledUpload).where(
@@ -40,19 +48,17 @@ def reclaim_stale(session: Session) -> int:
             )
         )
     ).all()
-    count = 0
     for r in rows:
-        if r.attempts >= MAX_ATTEMPTS:
-            r.status = "failed"
-            r.result_text = f"exceeded max attempts ({MAX_ATTEMPTS}) after stall"
-        else:
-            r.status = "pending"
+        r.status = "failed"
+        r.result_text = (
+            "the scheduler stopped during this upload; it may or may not have been posted. "
+            "Check TikTok before retrying."
+        )
         r.updated_at = now_utc()
         session.add(r)
-        count += 1
-    if count:
+    if rows:
         session.commit()
-    return count
+    return len(rows)
 
 
 def claim_next_due(session: Session) -> Optional[ScheduledUpload]:
@@ -70,7 +76,6 @@ def claim_next_due(session: Session) -> Optional[ScheduledUpload]:
     if not row:
         return None
 
-    # Atomic claim — WHERE status='pending' ensures we can't double-claim.
     result = session.exec(
         update(ScheduledUpload)
         .where(ScheduledUpload.id == row.id)
@@ -85,7 +90,7 @@ def claim_next_due(session: Session) -> Optional[ScheduledUpload]:
     session.commit()
     if result.rowcount != 1:
         return None  # lost the race
-    # Re-read after the update so the caller sees fresh values.
+    session.expire_all()
     return session.get(ScheduledUpload, row.id)
 
 
@@ -122,46 +127,53 @@ class Heartbeat:
                 log.exception("heartbeat write failed")
 
 
-def run_one(row: ScheduledUpload) -> tuple[bool, str]:
-    """Execute a single claimed row. Returns (ok, message).
-    Isolated + pure in/out so tests can drive it without touching the loop."""
+def run_one(row: ScheduledUpload) -> UploadOutcome:
+    """Execute a single claimed row. Never raises."""
     with Session(_api_db.engine) as s:
         acct = s.get(Account, row.account_id)
         if not acct:
-            return False, "account row missing"
+            return UploadOutcome(ok=False, message="account row missing")
         username = acct.username
 
-    # Resolve source → local path.
     if row.source_type == "youtube":
         try:
             video_path = youtube.download(row.source_ref)
         except Exception as e:
-            return False, f"youtube download failed: {e}"
+            return UploadOutcome(ok=False, message=f"youtube download failed: {e}", retryable=True)
     else:
-        video_path = row.source_ref
+        try:
+            video_path = str(library.resolve(row.source_ref))
+        except ValueError as e:
+            return UploadOutcome(ok=False, message=str(e))
 
-    options = json.loads(row.options_json or "{}")
     try:
-        ok = tiktok_adapter.upload_from_options(username, video_path, row.title, options)
-    except Exception as e:
-        return False, f"upload raised: {e}"
-    return ok, "succeeded" if ok else "upload returned false"
+        options = json.loads(row.options_json or "{}")
+    except ValueError:
+        return UploadOutcome(ok=False, message="invalid options_json")
+    return tiktok_adapter.upload_from_options(username, video_path, row.title, options)
 
 
-def finalize(schedule_id: int, ok: bool, message: str) -> None:
+def finalize(schedule_id: int, outcome: UploadOutcome) -> None:
     with Session(_api_db.engine) as s:
         row = s.get(ScheduledUpload, schedule_id)
         if not row:
             return
-        row.status = "succeeded" if ok else ("failed" if row.attempts >= MAX_ATTEMPTS else "pending")
-        row.result_text = message
-        row.updated_at = now_utc()
-        # Update the account's last_used_at only on success.
-        if ok:
+        now = now_utc()
+        if outcome.ok:
+            row.status = "succeeded"
+            row.result_text = f"published (video id {outcome.video_id})" if outcome.video_id else "published"
             acct = s.get(Account, row.account_id)
             if acct:
-                acct.last_used_at = now_utc()
+                acct.last_used_at = now
                 s.add(acct)
+        elif outcome.retryable and row.attempts < MAX_ATTEMPTS:
+            row.status = "pending"
+            row.scheduled_for = now + RETRY_DELAY * row.attempts
+            row.result_text = f"attempt {row.attempts} failed, will retry: {outcome.message}"
+        else:
+            row.status = "failed"
+            row.result_text = outcome.message
+        row.updated_at = now
         s.add(row)
         s.commit()
 
@@ -178,10 +190,14 @@ def tick() -> bool:
     hb = Heartbeat(claimed.id)
     hb.start()
     try:
-        ok, msg = run_one(claimed)
+        outcome = run_one(claimed)
+    except Exception as e:  # pragma: no cover - run_one is defensive already
+        log.exception("job %s crashed", claimed.id)
+        outcome = UploadOutcome(ok=False, message=f"scheduler error: {e}")
     finally:
         hb.stop()
-    finalize(claimed.id, ok, msg)
+    finalize(claimed.id, outcome)
+    log.info("job %s: %s", claimed.id, "succeeded" if outcome.ok else outcome.message)
     return True
 
 

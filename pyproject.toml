@@ -1,0 +1,80 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "autotok"
+dynamic = ["version"]
+description = "Upload and schedule TikTok videos from Python or the command line, with per-account proxy support."
+readme = "README.md"
+license = "AGPL-3.0-only"
+license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md"]
+authors = [{ name = "Michael Peres" }]
+requires-python = ">=3.10"
+keywords = ["tiktok", "upload", "uploader", "automation", "scheduler", "proxy", "social-media"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Multimedia :: Video",
+    "Topic :: Internet :: WWW/HTTP",
+]
+dependencies = [
+    "requests[socks]>=2.31",
+    "requests-auth-aws-sigv4>=0.7",
+    "playwright>=1.45",
+]
+
+[project.optional-dependencies]
+youtube = ["yt-dlp>=2024.10.22"]
+shell = ["prompt_toolkit>=3.0"]
+dev = [
+    "pytest>=8",
+    "responses>=0.25",
+    "freezegun>=1.4",
+    "build>=1.2",
+    "twine>=5",
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+    "sqlmodel>=0.0.16",
+    "python-multipart>=0.0.9",
+    "httpx>=0.27",
+    "sse-starlette>=2.0",
+]
+
+[project.scripts]
+autotok = "autotok.cli:run"
+
+[project.urls]
+Homepage = "https://github.com/makiisthenes/TiktokAutoUploader"
+Issues = "https://github.com/makiisthenes/TiktokAutoUploader/issues"
+Changelog = "https://github.com/makiisthenes/TiktokAutoUploader/blob/main/CHANGELOG.md"
+
+[tool.hatch.version]
+path = "autotok/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["autotok"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "autotok",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-ra --strict-markers"
+markers = ["browser: needs a Chromium binary (skipped if none is available)"]
+filterwarnings = ["ignore::DeprecationWarning"]

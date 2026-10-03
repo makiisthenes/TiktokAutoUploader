@@ -1,0 +1,9 @@
+# Extra dependencies for the self-hosted web app (api/, scheduler/, novnc/).
+# Docker installs these automatically; for local runs: pip install -r requirements-server.txt
+fastapi>=0.110
+uvicorn[standard]>=0.27
+sqlmodel>=0.0.16
+pydantic>=2.6
+python-multipart>=0.0.9
+httpx>=0.27
+sse-starlette>=2.0

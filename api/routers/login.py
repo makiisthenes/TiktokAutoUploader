@@ -1,31 +1,34 @@
 """Browser-based login flow via noVNC.
 
-Three endpoints make up the flow:
-
   POST /api/login/browser/start   → creates a LoginSession row, asks the
-      noVNC control server to spin up Chromium at tiktok.com/login, returns
-      a session_id + vnc_url the frontend embeds in an iframe.
+      noVNC control server to open Chromium at tiktok.com/login (through the
+      account's proxy, if given), returns a session_id + vnc_url the frontend
+      embeds in an iframe.
 
-  GET  /api/login/browser/{id}/events → SSE stream. The API polls the control
-      server every ~1s and forwards status transitions to the client so the
-      UI can flip from "Log in now" to "Session captured" without polling.
+  GET  /api/login/browser/{id}/events → SSE stream of status transitions. It
+      also polls the control server, so a login that times out or whose
+      browser crashes is reported as failed instead of hanging.
 
-  POST /api/login/browser/{id}/complete → called by the noVNC control server
-      once it detects the sessionid cookie. The API (not noVNC) writes the
-      pickle to CookiesDir and upserts the Account row. Keeps noVNC stateless
-      and puts all DB/filesystem writes in one service for easier testing.
+  POST /api/login/browser/{id}/complete?token=… → called by the control server
+      once it sees the session cookies. The token is an HMAC of the session id,
+      so only the control server we started can complete a login. The API (not
+      noVNC) saves the account and upserts the Account row.
 """
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import hmac
 import os
+import secrets
 import uuid
 from typing import AsyncIterator
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import Response
 from sqlmodel import Session, select
 from sse_starlette.sse import EventSourceResponse
+from starlette.concurrency import run_in_threadpool
 
 from api.db import get_session, now_utc
 from api.models import Account, LoginSession
@@ -35,9 +38,46 @@ from api.schemas import (
     LoginBrowserStartResponse,
     LoginSessionRead,
 )
-from api.services import cookie_store, novnc_client
+from api.services import account_store, novnc_client
+from autotok import settings
 
 router = APIRouter(prefix="/api/login/browser", tags=["login"])
+
+TERMINAL = ("completed", "failed", "expired")
+_secret: bytes | None = None
+
+
+def _callback_secret() -> bytes:
+    """AUTOTOK_CALLBACK_SECRET, or a random secret persisted (0600) in
+    $AUTOTOK_HOME so it survives API restarts during a 10-minute login."""
+    global _secret
+    env = os.getenv("AUTOTOK_CALLBACK_SECRET")
+    if env:
+        return env.encode()
+    if _secret is None:
+        path = settings.home() / ".callback_secret"
+        if not path.is_file():
+            path.parent.mkdir(parents=True, exist_ok=True)
+            tmp = path.with_name(f".callback_secret.{os.getpid()}.tmp")
+            fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+            with os.fdopen(fd, "w") as f:
+                f.write(secrets.token_hex(32))
+            try:
+                os.link(tmp, path)  # atomic: if another worker won the race, keep theirs
+            except FileExistsError:
+                pass
+            except OSError:  # filesystem without hard links
+                if not path.exists():
+                    os.replace(tmp, path)
+            finally:
+                if tmp.exists():
+                    os.unlink(tmp)
+        _secret = path.read_text().strip().encode()
+    return _secret
+
+
+def callback_token(session_id: str) -> str:
+    return hmac.new(_callback_secret(), session_id.encode(), hashlib.sha256).hexdigest()
 
 
 def _callback_url() -> str:
@@ -47,31 +87,43 @@ def _callback_url() -> str:
     return base.rstrip("/")
 
 
+def _fail(session: Session, row: LoginSession, error: str) -> None:
+    row.status = "failed"
+    row.error = error
+    row.completed_at = now_utc()
+    session.add(row)
+    session.commit()
+
+
 @router.post("/start", response_model=LoginBrowserStartResponse, status_code=status.HTTP_201_CREATED)
 def start_browser_login(
     payload: LoginBrowserStartRequest,
     session: Session = Depends(get_session),
 ):
+    # One virtual browser at a time: a new login replaces any earlier one that
+    # was abandoned (closed tab, refresh) instead of waiting for its timeout.
+    for old in session.exec(select(LoginSession).where(LoginSession.status.in_(("pending", "active")))).all():
+        old.status = "expired"
+        old.error = "replaced by a newer login"
+        old.completed_at = now_utc()
+        session.add(old)
+        novnc_client.stop_browser(old.id)
+    session.commit()
+
     sid = uuid.uuid4().hex
     vnc_url = novnc_client.build_vnc_url(sid)
-    row = LoginSession(
-        id=sid,
-        username=payload.username,
-        status="pending",
-        vnc_url=vnc_url,
-    )
+    row = LoginSession(id=sid, username=payload.username, status="pending", vnc_url=vnc_url)
     session.add(row)
     session.commit()
 
-    callback = f"{_callback_url()}/api/login/browser/{sid}/complete"
+    callback = f"{_callback_url()}/api/login/browser/{sid}/complete?token={callback_token(sid)}"
+    # Re-logins keep using the account's saved proxy unless a new one is given.
+    saved = account_store.get_proxy(payload.username)
+    proxy = payload.proxy or (saved.url if saved else None)
     try:
-        novnc_client.start_browser(sid, payload.username, callback)
+        novnc_client.start_browser(sid, payload.username, callback, proxy=proxy)
     except Exception as e:
-        row.status = "failed"
-        row.error = f"noVNC start failed: {e}"
-        row.completed_at = now_utc()
-        session.add(row)
-        session.commit()
+        _fail(session, row, f"noVNC start failed: {e}")
         raise HTTPException(status_code=502, detail=str(e))
 
     row.status = "active"
@@ -88,33 +140,57 @@ def get_browser_session(session_id: str, session: Session = Depends(get_session)
     return row
 
 
+def _sync_with_control_server(session_id: str) -> None:
+    """Mark an active login failed if the control server says it failed or lost it."""
+    import api.db as _api_db
+
+    try:
+        remote = novnc_client.browser_status(session_id)
+    except Exception:
+        return  # control server briefly unreachable; try again next poll
+    if remote.get("status") not in ("failed", "missing"):
+        return
+    with Session(_api_db.engine) as s:
+        row = s.get(LoginSession, session_id)
+        if row and row.status == "active":
+            _fail(s, row, remote.get("error") or "login failed in the virtual browser")
+
+
 @router.get("/{session_id}/events")
 async def browser_events(session_id: str, request: Request):
     """Server-Sent Events: emits one event per status transition, terminates
     when the session enters a terminal state or the client disconnects.
 
     Note: nginx must have proxy_buffering off on this path (see webapp/nginx.conf)."""
-    from api.db import engine  # local import so tests that override engine still see latest
 
     async def stream() -> AsyncIterator[dict]:
+        import api.db as _api_db  # honour test fixtures that swap the engine
+
         last_status: str | None = None
+        polls = 0
         while True:
             if await request.is_disconnected():
                 break
-            # Each poll opens a fresh session — cheap under SQLite + WAL.
-            # Use api.db.engine (not a captured reference) so test fixtures
-            # that swap the engine are honored.
-            import api.db as _api_db
             with Session(_api_db.engine) as s:
                 row = s.get(LoginSession, session_id)
                 if not row:
-                    yield {"event": "error", "data": "unknown session"}
+                    # Not named "error": that would fire EventSource.onerror in the browser.
+                    yield {"event": "failure", "data": "unknown login session"}
+                    yield {"event": "status", "data": "failed"}
                     return
-                if row.status != last_status:
-                    last_status = row.status
-                    yield {"event": "status", "data": row.status}
-                if row.status in ("completed", "failed", "expired"):
-                    return
+                status_now, error = row.status, row.error
+            if status_now != last_status:
+                last_status = status_now
+                # The client closes the stream on a terminal status, so the
+                # reason has to arrive first.
+                if status_now == "failed" and error:
+                    yield {"event": "failure", "data": error}
+                yield {"event": "status", "data": status_now}
+            if status_now in TERMINAL:
+                return
+            polls += 1
+            if status_now == "active" and polls % 3 == 0:
+                await run_in_threadpool(_sync_with_control_server, session_id)
             await asyncio.sleep(1.0)
 
     return EventSourceResponse(stream())
@@ -124,29 +200,27 @@ async def browser_events(session_id: str, request: Request):
 def complete_browser_login(
     session_id: str,
     payload: LoginBrowserCompleteRequest,
+    token: str = Query(default=""),
     session: Session = Depends(get_session),
 ):
-    """Called by the noVNC control server when it sees the sessionid cookie."""
+    """Called by the noVNC control server when it sees the session cookies."""
+    if not hmac.compare_digest(token, callback_token(session_id)):
+        raise HTTPException(status_code=403, detail="invalid callback token")
     row = session.get(LoginSession, session_id)
     if not row:
         raise HTTPException(status_code=404, detail="login session not found")
     if row.status == "completed":
         return row  # idempotent
 
-    # Validate the payload actually contains a sessionid cookie.
-    has_session = any(
-        c.get("name") == "sessionid" and c.get("value") for c in payload.cookies
-    )
+    has_session = any(c.get("name") == "sessionid" and c.get("value") for c in payload.cookies)
     if not has_session:
-        row.status = "failed"
-        row.error = "no sessionid cookie in payload"
-        row.completed_at = now_utc()
-        session.add(row)
-        session.commit()
+        _fail(session, row, "no sessionid cookie in payload")
         raise HTTPException(status_code=400, detail="no sessionid cookie in payload")
 
-    # Write pickle → upsert account row.
-    cookie_path = cookie_store.save(row.username, payload.cookies)
+    # Save the account (cookies + browser user agent + proxy) → upsert DB row.
+    cookie_path = account_store.save(
+        row.username, payload.cookies, user_agent=payload.user_agent, proxy=payload.proxy
+    )
     acct = session.exec(select(Account).where(Account.username == row.username)).first()
     if acct is None:
         acct = Account(
@@ -155,13 +229,12 @@ def complete_browser_login(
             has_valid_session=True,
             last_used_at=now_utc(),
         )
-        session.add(acct)
     else:
         acct.cookie_path = cookie_path
         acct.has_valid_session = True
         acct.last_used_at = now_utc()
         acct.updated_at = now_utc()
-        session.add(acct)
+    session.add(acct)
 
     row.status = "completed"
     row.completed_at = now_utc()
@@ -178,7 +251,7 @@ def cancel_browser_login(session_id: str, session: Session = Depends(get_session
     row = session.get(LoginSession, session_id)
     if not row:
         raise HTTPException(status_code=404, detail="login session not found")
-    if row.status in ("completed", "failed", "expired"):
+    if row.status in TERMINAL:
         return Response(status_code=204)
     row.status = "expired"
     row.completed_at = now_utc()

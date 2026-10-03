@@ -2,12 +2,12 @@
 #
 # Services:
 #   tiktok-base — helper service that only exists to build the shared base
-#                 image that api, scheduler, and novnc all derive from.
-#                 `docker compose build` builds it once; dependent services
-#                 pull it by name.
+#                 image that api, scheduler, and novnc all derive from. They
+#                 reference it through `additional_contexts`, so Compose
+#                 always builds it first.
 #   api         — FastAPI REST API + OpenAPI docs at /docs (port 8000)
 #   scheduler   — polling worker for scheduled uploads
-#   novnc       — virtual browser for TikTok login
+#   novnc       — virtual browser for TikTok login (stateless; the API saves accounts)
 #   webapp      — React UI served by nginx, proxies /api and /novnc (port 3000)
 #
 # Ports are bound to 127.0.0.1 so nothing is exposed outside the host.
@@ -27,18 +27,27 @@ services:
     build:
       context: .
       dockerfile: api/Dockerfile
+      additional_contexts:
+        base: service:tiktok-base
     depends_on:
       - tiktok-base
     environment:
       - TIKTOK_API_DB_PATH=/data/tiktok.db
-      - TIKTOK_CONFIG_PATH=/app/config.txt
+      - AUTOTOK_HOME=/data/autotok
+      - AUTOTOK_VIDEOS_DIR=/data/VideosDirPath
       - NOVNC_CONTROL_URL=http://novnc:7900
       - NOVNC_PUBLIC_URL=/novnc/vnc.html
       - API_PUBLIC_URL=http://api:8000
+      # Optional cloud browser for signing uploads (README: Cloud browsers). Set in .env.
+      - AUTOTOK_BROWSER=${AUTOTOK_BROWSER:-local}
+      - BROWSERBASE_API_KEY=${BROWSERBASE_API_KEY:-}
+      - BROWSERBASE_PROJECT_ID=${BROWSERBASE_PROJECT_ID:-}
+      - STEEL_API_KEY=${STEEL_API_KEY:-}
+      - STEEL_BASE_URL=${STEEL_BASE_URL:-}
     volumes:
       - ./data:/data
-      - ./config.txt:/app/config.txt:ro
-    working_dir: /data  # so Config() resolves CookiesDir/VideosDirPath on the volume
+    # cwd on the volume so 1.x session files in data/CookiesDir are migrated.
+    working_dir: /data
     ports:
       - "127.0.0.1:8000:8000"
     restart: unless-stopped
@@ -48,17 +57,25 @@ services:
     build:
       context: .
       dockerfile: scheduler/Dockerfile
+      additional_contexts:
+        base: service:tiktok-base
     depends_on:
       - tiktok-base
       - api
     environment:
       - TIKTOK_API_DB_PATH=/data/tiktok.db
-      - TIKTOK_CONFIG_PATH=/app/config.txt
+      - AUTOTOK_HOME=/data/autotok
+      - AUTOTOK_VIDEOS_DIR=/data/VideosDirPath
       - SCHEDULER_POLL_SECONDS=30
       - SCHEDULER_CONCURRENCY=1
+      # Optional cloud browser for signing uploads (README: Cloud browsers). Set in .env.
+      - AUTOTOK_BROWSER=${AUTOTOK_BROWSER:-local}
+      - BROWSERBASE_API_KEY=${BROWSERBASE_API_KEY:-}
+      - BROWSERBASE_PROJECT_ID=${BROWSERBASE_PROJECT_ID:-}
+      - STEEL_API_KEY=${STEEL_API_KEY:-}
+      - STEEL_BASE_URL=${STEEL_BASE_URL:-}
     volumes:
       - ./data:/data
-      - ./config.txt:/app/config.txt:ro
     working_dir: /data
     restart: unless-stopped
 
@@ -67,13 +84,12 @@ services:
     build:
       context: .
       dockerfile: novnc/Dockerfile
+      additional_contexts:
+        base: service:tiktok-base
     depends_on:
       - tiktok-base
-    volumes:
-      - ./data:/data
-    working_dir: /data
     tmpfs:
-      # Mitigates Chromium OOM on TikTok's heavy login page (design-review flag).
+      # Mitigates Chromium OOM on TikTok's heavy login page.
       - /dev/shm:size=512m
     # noVNC ports stay internal — webapp nginx proxies them.
     expose:
