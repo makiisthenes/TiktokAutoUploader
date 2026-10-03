@@ -15,7 +15,7 @@ npm run install-browser          # Chromium for playwright-core (or point CHROME
 pip install numpy scipy pillow   # score + verification
 
 npm run build                    # bundle src/ -> build/bundle.js
-node scripts/render.mjs --stills 9.3,27.4      # 1080p PNGs of chosen video times (npm run preview: thumbnail + key art)
+node scripts/render.mjs --stills 27.4,36.6     # 1080p PNGs of any video times (renders/stills/)
 node scripts/render.mjs --draft                # 960x540 @ 30 fps -> renders/draft_video.mp4
 node scripts/render.mjs --master --workers 3   # 1920x1080 @ 60 fps -> renders/master_video.mp4
 python3 audio/score.py                         # -> build/score.wav (normalised to -13 LUFS, <= -1.2 dBTP)
@@ -24,11 +24,12 @@ scripts/mux.sh renders/master_video.mp4 build/score.wav renders/autotok-launch.m
 python3 scripts/sheet.py renders/sheet.jpg --video renders/autotok-launch.mp4 --from 8 --to 16 --n 12
 ```
 
-Thumbnail and key art are rendered stills (lossless, 1080p):
+Thumbnail and key art are rendered stills (lossless, 1080p); `npm run preview` renders all three:
 
 ```bash
 node scripts/render.mjs --stills 0.1     # thumbnail: the pre-roll frame (name, tagline, command and output)
 node scripts/render.mjs --stills 12.1    # key art: three proxy tunnels running to the horizon
+node scripts/render.mjs --stills 46.6    # key art: the field of phones spelling autotok from above
 ```
 
 `render.mjs` uses the Chromium that Playwright installs (set `CHROME_PATH` to use another) with

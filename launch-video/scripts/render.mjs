@@ -82,6 +82,7 @@ async function openPage(port) {
 
 function ffmpeg(args) {
   const p = spawn('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', ...args], { stdio: ['pipe', 'inherit', 'inherit'] });
+  p.stdin.on('error', () => {}); // a broken pipe shows up as ffmpeg's exit code in `done`
   const done = new Promise((res, rej) => p.on('close', (c) => (c === 0 ? res() : rej(new Error(`ffmpeg exit ${c}`)))));
   return { p, done };
 }
@@ -123,11 +124,14 @@ async function worker(port, idx, queue, state) {
       const { i, f0, f1, file } = queue.shift();
       const tmp = file.replace(/\.mp4$/, '.part.mp4');
       const { p, done } = ffmpeg([...rawIn, '-r', String(FPS), '-i', '-', '-vf', 'vflip', ...enc, '-r', String(FPS), '-f', 'mp4', tmp]);
+      // ffmpeg closing before stdin.end() is a failure, even with exit code 0
+      const exited = done.then(() => { throw new Error('ffmpeg exited before the chunk was complete'); });
+      exited.catch(() => {});
       const t0 = Date.now();
       try {
         for (let f = f0; f < f1 && !state.failed; f++) {
           const b64 = await page.evaluate(([t, f]) => window.__grab(t, f), [f / FPS, f]);
-          if (!p.stdin.write(Buffer.from(b64, 'base64'))) await new Promise((r) => p.stdin.once('drain', r));
+          if (!p.stdin.write(Buffer.from(b64, 'base64'))) await Promise.race([new Promise((r) => p.stdin.once('drain', r)), exited]);
         }
         if (state.failed) throw new Error('aborted');
         p.stdin.end();
@@ -184,7 +188,8 @@ try {
     console.log(`${tag}: ${chunks.length} chunks of ${CH} frames, rendering ${want.length}`);
     const queue = [...want];
     const state = { failed: false };
-    const results = await Promise.allSettled(Array.from({ length: Math.max(1, Math.min(workers, want.length)) }, (_, k) => worker(port, k, queue, state)));
+    const nWorkers = want.length ? Math.max(1, Math.min(workers, want.length)) : 0; // all cached: just join
+    const results = await Promise.allSettled(Array.from({ length: nWorkers }, (_, k) => worker(port, k, queue, state)));
     const failure = results.find((r) => r.status === 'rejected');
     if (failure) throw failure.reason;
     if (chunks.every((c) => fs.existsSync(c.file))) {
