@@ -161,7 +161,7 @@ async def browser_events(session_id: str, request: Request):
     """Server-Sent Events: emits one event per status transition, terminates
     when the session enters a terminal state or the client disconnects.
 
-    Note: nginx must have proxy_buffering off on this path (see webapp/nginx.conf)."""
+    Note: nginx must have proxy_buffering off on this path (see web/frontend/nginx.conf)."""
 
     async def stream() -> AsyncIterator[dict]:
         import api.db as _api_db  # honour test fixtures that swap the engine

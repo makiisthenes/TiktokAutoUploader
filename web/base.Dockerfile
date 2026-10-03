@@ -18,8 +18,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 # Server dependencies first for better layer caching.
-COPY requirements-server.txt /app/requirements-server.txt
-RUN pip install -r /app/requirements-server.txt
+COPY web/requirements.txt /app/web-requirements.txt
+RUN pip install -r /app/web-requirements.txt
 
 # The autotok package itself.
 COPY pyproject.toml README.md LICENSE THIRD_PARTY_NOTICES.md /app/

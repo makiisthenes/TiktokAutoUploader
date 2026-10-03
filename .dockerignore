@@ -4,8 +4,8 @@ __pycache__/
 *.pyc
 *.pyo
 node_modules/
-webapp/node_modules/
-webapp/dist/
+web/frontend/node_modules/
+web/frontend/dist/
 data/
 CookiesDir/
 VideosDirPath/

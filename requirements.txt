@@ -1,3 +1,0 @@
-# Installs autotok from this checkout, same as: pip install -e ".[youtube,shell]"
-# End users can simply run: pip install "autotok[youtube]"
--e .[youtube,shell]
