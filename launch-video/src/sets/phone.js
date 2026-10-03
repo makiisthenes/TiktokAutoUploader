@@ -285,7 +285,8 @@ export default function createPhone(ctx) {
     rimC.intensity = 6 + flashA * 20 + flashB * 6; rimM.intensity = 6 + flashA * 20 + flashB * 6;
 
     // the floating command: in with the pull-back
-    const ck = smooth(clamp((t - (C.accounts + 0.2)) / 0.5));
+    // in once the pull-back has settled, a beat before the first roll
+    const ck = smooth(clamp((t - (C.accounts + 0.95)) / 0.35));
     cmd.visible = ck > 0;
     if (cmd.visible) {
       drawCommand(t);
@@ -337,7 +338,7 @@ export default function createPhone(ctx) {
     if (vin > 0) fx.blur = [0, -easeOutCubic(vin) * 0.16];
     fx.exposure = 1 + flash * 0.4 + flashB * 0.15;
     hud.header('Posted.', t, D + 0.3, C.accounts - 0.1);
-    hud.header('Any account, by name.', t, C.accounts + 0.5, pushStart + 0.05);
+    hud.header('Any account, by name.', t, C.accounts + 1.1, pushStart + 0.05);
     return camera;
   }
   return { start: C.drop, scene, update };
