@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- MCP server for AI agents: `autotok mcp` (stdio) or `autotok mcp --http` (streamable HTTP on
+  `127.0.0.1:8000/mcp`), with tools to list accounts and videos, check a session, upload or
+  schedule a video (file or YouTube link), log in, and set or test proxies. Install the new `mcp`
+  extra: `pip install "autotok[mcp]"`.
+
 ## 2.0.1
 
 Documentation release; no code changes.

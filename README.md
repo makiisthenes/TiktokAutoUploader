@@ -57,6 +57,7 @@
 - **Clickable hashtags and @mentions**, emoji-safe.
 - **YouTube links** download automatically with [yt-dlp](https://github.com/yt-dlp/yt-dlp).
 - **Python SDK, CLI, and an optional web app** (Docker) with a browser-based login.
+- **MCP server** so AI agents (Claude, Cursor, VS Code...) can upload and schedule for you.
 - **Cloud browsers**: run the login and signing browser on [Browserbase](https://www.browserbase.com) or [Steel](https://github.com/steel-dev/steel-browser) (cloud or self-hosted) instead of your computer.
 - **Docker image** for running the CLI on servers.
 - **No Node.js**: TikTok's request signatures are computed in headless Chromium.
@@ -155,6 +156,7 @@ BROWSERBASE_API_KEY=bb_live_...
 | Run several accounts, each with its own IP | [Proxies](#proxies) |
 | Avoid running a browser on my computer | [Cloud browsers](#cloud-browsers-browserbase-steel) |
 | Upload from Python code | [Python SDK](#python-sdk) |
+| Let an AI agent (Claude, Cursor...) upload for me | [MCP server](#mcp-server-ai-agents) |
 | Run on a server or in a container | [Docker](#docker) |
 | Use a web dashboard with a scheduler | [Web app](#web-app-self-hosted) |
 | Fix an error | [Troubleshooting](#troubleshooting) |
@@ -322,6 +324,55 @@ autotok.import_session("alice", "<sessionid value>", datacenter="<tt-target-idc 
 
 ---
 
+## MCP server (AI agents)
+
+autotok includes an [MCP](https://modelcontextprotocol.io) server, so AI agents such as Claude,
+Cursor or VS Code can upload and schedule videos for you. It uses the same saved accounts as the CLI.
+
+```bash
+uv tool install "autotok[youtube,mcp]"    # or: pip install "autotok[youtube,mcp]"
+```
+
+**Claude Code**
+
+```bash
+claude mcp add autotok -- autotok mcp
+```
+
+**Claude Desktop, Cursor and other clients**: add this to the client's MCP settings
+(`claude_desktop_config.json`, `.cursor/mcp.json`, ...):
+
+```json
+{
+  "mcpServers": {
+    "autotok": { "command": "autotok", "args": ["mcp"] }
+  }
+}
+```
+
+If the client can't find `autotok`, use the full path that `which autotok` (Windows:
+`where autotok`) prints. Then ask, for example: *"Upload clip.mp4 to my_account with the caption
+'Hello #fyp', scheduled for 6 pm tomorrow."*
+
+| Tool | What it does |
+|---|---|
+| `list_accounts` | Saved accounts, whether each is logged in, and its proxy (masked) |
+| `check_account` | Asks TikTok whether an account's session still works |
+| `list_videos` | Files in your videos folder |
+| `upload_video` | Uploads a file or a YouTube link, posts now or schedules 15 minutes to 10 days ahead, with the same post settings as the CLI |
+| `login`, `login_status` | Starts a login. You finish it in the browser window that opens (or at the link a cloud browser gives) |
+| `set_proxy`, `test_proxy` | Saves or removes an account's proxy, and shows the IP TikTok will see |
+
+- **Your sessions stay on your computer.** The tools never return cookies, and proxy passwords
+  are masked.
+- **Every upload is a real post.** Most clients ask before each tool call; keep that on for
+  `upload_video`. An upload error that says the post *may or may not exist* tells the agent not to
+  retry, so nothing is posted twice.
+- **Streamable HTTP**: `autotok mcp --http` serves `http://127.0.0.1:8000/mcp` (`--host`,
+  `--port` to change). There is no authentication, so keep it on localhost or behind your own.
+
+---
+
 ## CLI reference
 
 ```
@@ -333,6 +384,7 @@ autotok show      -u (accounts) | -v (videos)
 autotok browser check [-u NAME]       # test the local or cloud browser
 autotok install-browser [--with-deps]
 autotok shell                         # interactive prompt
+autotok mcp [--http [--host H] [--port P]]   # MCP server for AI agents (needs autotok[mcp])
 
 autotok --browser {local,browserbase,steel} <command> ...   # choose where the browser runs
 ```

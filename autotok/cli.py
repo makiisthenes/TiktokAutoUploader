@@ -94,6 +94,12 @@ def build_parser() -> argparse.ArgumentParser:
     bc.add_argument("-u", "--user", help="use this account's proxy")
 
     sub.add_parser("shell", help="interactive prompt")
+
+    mp = sub.add_parser("mcp", help="run an MCP server so AI agents can use autotok (needs autotok[mcp])")
+    mp.add_argument("--http", action="store_true",
+                    help="serve streamable HTTP at http://HOST:PORT/mcp instead of stdio")
+    mp.add_argument("--host", default="127.0.0.1", help="HTTP address to listen on (default: 127.0.0.1)")
+    mp.add_argument("--port", type=int, default=8000, help="HTTP port (default: 8000)")
     return parser
 
 
@@ -313,6 +319,21 @@ def cmd_shell(args, store: AccountStore) -> int:
             pass
 
 
+def cmd_mcp(args, store: AccountStore) -> int:
+    from .mcp_server import create_server
+
+    server = create_server(store, log_level="DEBUG" if args.debug else "WARNING")
+    if not args.http:
+        server.run("stdio")  # stdout carries the protocol; logs go to stderr
+        return 0
+    if args.host not in ("127.0.0.1", "localhost", "::1"):
+        log.warning("Listening on %s with no authentication: anyone who can reach this port can "
+                    "upload to your TikTok accounts.", args.host)
+    log.info("MCP server at http://%s:%d/mcp", args.host, args.port)
+    server.run("streamable-http", host=args.host, port=args.port)
+    return 0
+
+
 COMMANDS = {
     "login": cmd_login,
     "upload": cmd_upload,
@@ -322,6 +343,7 @@ COMMANDS = {
     "install-browser": cmd_install_browser,
     "browser": cmd_browser,
     "shell": cmd_shell,
+    "mcp": cmd_mcp,
 }
 
 
