@@ -123,7 +123,7 @@ def test_chunks_and_crc(client, video_file, monkeypatch):
 
 @pytest.mark.parametrize("kwargs, msg", [
     ({"schedule": 60}, "15 minutes"),
-    ({"schedule": timedelta(days=11)}, "10 days"),
+    ({"schedule": timedelta(days=31)}, "30 days"),
     ({"schedule": 3600, "visibility": 1}, "private"),
     ({"visibility": "friends"}, "visibility"),
 ])
@@ -150,6 +150,31 @@ def test_tiktok_rejection_is_not_retryable(client, video_file):
     with pytest.raises(PublishError) as err:
         client.upload(video_file, "x")
     assert err.value.status_code == 3013046 and err.value.retryable is False
+
+
+@responses.activate
+def test_schedule_up_to_30_days(client, video_file):
+    mock_tiktok(responses)
+    before = int(time.time())
+    client.upload(video_file, "later", schedule=timedelta(days=30))
+    feature = json.loads(publish_call(responses).request.body)["feature_common_info_list"][0]
+    assert feature["schedule_time"] >= before + 30 * 86400
+
+
+@responses.activate
+def test_rejected_long_schedule_mentions_10_day_accounts(client, video_file):
+    mock_tiktok(responses, publish={"json": {"status_code": 5, "status_msg": "invalid parameters"}})
+    with pytest.raises(PublishError, match="some accounts can only schedule up to 10 days") as err:
+        client.upload(video_file, "x", schedule=timedelta(days=20))
+    assert err.value.status_code == 5 and err.value.status_msg == "invalid parameters"
+
+
+@responses.activate
+def test_rejected_short_schedule_has_no_10_day_hint(client, video_file):
+    mock_tiktok(responses, publish={"json": {"status_code": 5, "status_msg": "invalid parameters"}})
+    with pytest.raises(PublishError) as err:
+        client.upload(video_file, "x", schedule=timedelta(days=5))
+    assert "10 days" not in str(err.value)
 
 
 @responses.activate

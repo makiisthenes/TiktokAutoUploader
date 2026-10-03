@@ -47,7 +47,8 @@ back), then poll login_status until it says saved.
 - Every upload is a real post, public unless private is true. When the account, video or caption
   is unclear, confirm with the user before uploading.
 - Captions: up to {MAX_CAPTION_LENGTH} characters. #hashtags and @mentions become clickable.
-- Scheduling: 15 minutes to 10 days ahead. Private videos can't be scheduled.
+- Scheduling: 15 minutes to 30 days ahead (some accounts only allow 10 days). Private videos
+  can't be scheduled.
 - An error that says the post may or may not exist must not be retried: ask the user to check
   the account on TikTok first, or the video may be posted twice.
 """
@@ -192,9 +193,9 @@ def create_server(store: Optional[AccountStore] = None, *,
         youtube_url: Annotated[Optional[str], Field(description="Download this YouTube video and upload it, "
                                                                 "instead of video.")] = None,
         schedule_in_minutes: Annotated[Optional[int], Field(description="Publish this many minutes from now "
-                                                                        "(15 to 14400).")] = None,
+                                                                        "(15 to 43200).")] = None,
         schedule_at: Annotated[Optional[str], Field(description="Publish at this ISO 8601 time with a UTC "
-                                                                "offset, 15 minutes to 10 days ahead.")] = None,
+                                                                "offset, 15 minutes to 30 days ahead.")] = None,
         private: Annotated[bool, Field(description="Only the account owner can see the post.")] = False,
         allow_comments: bool = True,
         allow_duet: bool = False,

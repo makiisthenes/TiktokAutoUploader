@@ -49,7 +49,8 @@ def build_parser() -> argparse.ArgumentParser:
     src.add_argument("-yt", "--youtube", help="YouTube URL to download and upload")
     up.add_argument("-t", "--title", required=True, help="caption, up to 2200 characters")
     up.add_argument("-sc", "--schedule", type=int, default=0,
-                    help="publish this many seconds from now (900 to 864000, TikTok-side scheduling)")
+                    help="publish this many seconds from now (900 to 2592000, TikTok-side "
+                         "scheduling; some accounts only allow up to 864000)")
     up.add_argument("-vi", "--visibility", type=int, choices=[0, 1], default=0, help="0 = public, 1 = private")
     up.add_argument("-ct", "--comment", type=int, choices=[0, 1], default=1, help="allow comments")
     up.add_argument("-d", "--duet", type=int, choices=[0, 1], default=0, help="allow duets")
