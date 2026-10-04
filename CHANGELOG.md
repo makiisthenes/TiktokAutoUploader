@@ -15,6 +15,10 @@
   is empty for now. The web app's login page gets a proxy picker and a Test button, and the API
   serves the list at `GET /api/proxy/providers`.
 
+### Changed
+- TikTok-side scheduling now goes up to 30 days ahead instead of 10 (#117). TikTok still limits
+  some accounts to 10 days; if it rejects a post scheduled further out, the error says so.
+
 ## 2.0.1
 
 Documentation release; no code changes.

@@ -179,7 +179,7 @@ BROWSERBASE_API_KEY=bb_live_...
 - **One-command uploads** through TikTok's web upload API. No clicking through the TikTok website.
 - **Proxy per account**: login, request signing and every upload go through the same proxy, so each account always appears from one IP. HTTP(S) and SOCKS5 are supported.
 - **Multiple accounts**: log in once per account and upload by name.
-- **Scheduling**: TikTok-side scheduling from 15 minutes to 10 days ahead. The self-hosted web app adds a scheduler with no time limit.
+- **Scheduling**: TikTok-side scheduling from 15 minutes to 30 days ahead (TikTok limits some accounts to 10 days). The self-hosted web app adds a scheduler with no time limit.
 - **Post settings**: public or private, and comments, duets, stitches and the AI-generated label on or off.
 - **Clickable hashtags and @mentions**, emoji-safe.
 - **YouTube links** download automatically with [yt-dlp](https://github.com/yt-dlp/yt-dlp).
@@ -389,7 +389,7 @@ If the client can't find `autotok`, use the full path that `which autotok` (Wind
 | `list_accounts` | Saved accounts, whether each is logged in, and its proxy (masked) |
 | `check_account` | Asks TikTok whether an account's session still works |
 | `list_videos` | Files in your videos folder |
-| `upload_video` | Uploads a file or a YouTube link, posts now or schedules 15 minutes to 10 days ahead, with the same post settings as the CLI |
+| `upload_video` | Uploads a file or a YouTube link, posts now or schedules 15 minutes to 30 days ahead, with the same post settings as the CLI |
 | `login`, `login_status` | Starts a login. You finish it in the browser window that opens (or at the link a cloud browser gives) |
 | `set_proxy`, `test_proxy` | Saves or removes an account's proxy, and shows the IP TikTok will see |
 
@@ -428,7 +428,7 @@ Upload options:
 | `-v` / `--video` | Video file (path or name in your videos folder) | — |
 | `-yt` / `--youtube` | YouTube URL to download and upload | — |
 | `-t` / `--title` | Caption, up to 2200 characters | *required* |
-| `-sc` / `--schedule` | Publish this many seconds from now (900–864000) | now |
+| `-sc` / `--schedule` | Publish this many seconds from now (900–2592000; some accounts only allow up to 864000) | now |
 | `-vi` / `--visibility` | `0` public, `1` private | `0` |
 | `-ct` / `--comment` | Allow comments (`0`/`1`) | `1` |
 | `-d` / `--duet` | Allow duets (`0`/`1`) | `0` |
