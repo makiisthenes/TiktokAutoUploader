@@ -7,6 +7,13 @@
   `127.0.0.1:8000/mcp`), with tools to list accounts and videos, check a session, upload or
   schedule a video (file or YouTube link), log in, and set or test proxies. Install the new `mcp`
   extra: `pip install "autotok[mcp]"`.
+- `autotok setup`: a step-by-step wizard with arrow-key menus. It checks the browser (and offers to
+  download Chromium), asks for an account name and a proxy, tests the proxy, then logs in to TikTok
+  through it. `prompt_toolkit` is now a core dependency.
+- Proxy providers: `autotok/proxy_providers.py` lists providers that `autotok setup` and the web
+  app's login page suggest to people without a proxy, opening the provider's sign-up page. The list
+  is empty for now. The web app's login page gets a proxy picker and a Test button, and the API
+  serves the list at `GET /api/proxy/providers`.
 
 ### Changed
 - TikTok-side scheduling now goes up to 30 days ahead instead of 10 (#117). TikTok still limits
