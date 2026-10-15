@@ -6,6 +6,7 @@ __pycache__/
 node_modules/
 web/frontend/node_modules/
 web/frontend/dist/
+js/
 data/
 CookiesDir/
 VideosDirPath/

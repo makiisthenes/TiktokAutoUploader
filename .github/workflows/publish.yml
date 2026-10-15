@@ -1,4 +1,5 @@
-# Publishes to PyPI when a GitHub release is published (tag must be v<version>).
+# Publishes to PyPI when a GitHub release tagged v<version> is published.
+# (Releases tagged js-v<version> publish the npm package instead: publish-npm.yml.)
 #
 # One-time setup on pypi.org: add a "trusted publisher" for this repository
 # (workflow: publish.yml, environment: pypi). No API token is needed.
@@ -13,6 +14,7 @@ permissions:
 
 jobs:
   build:
+    if: startsWith(github.event.release.tag_name, 'v')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

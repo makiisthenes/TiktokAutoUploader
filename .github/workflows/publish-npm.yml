@@ -1,0 +1,52 @@
+# Publishes the npm package (js/) when a GitHub release tagged js-v<version> is published.
+#
+# One-time setup: trusted publishers are set in a package's settings on npmjs.com, so publish the
+# first version by hand (cd js && npm publish), then add a "trusted publisher" for this repository
+# (workflow: publish-npm.yml, environment: npm). After that no token is needed, and npm attaches
+# provenance to every release automatically.
+name: Publish to npm
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    if: startsWith(github.event.release.tag_name, 'js-v')
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: js
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - name: Check the tag matches the package version
+        run: |
+          version=$(node -p "require('./package.json').version")
+          test "${GITHUB_REF_NAME}" = "js-v${version}" || { echo "tag ${GITHUB_REF_NAME} != js-v${version}"; exit 1; }
+      - name: Skip versions already on npm (e.g. the first one, published by hand)
+        id: published
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if npm view "autotok@${version}" version > /dev/null 2>&1; then
+            echo "autotok@${version} is already on npm"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.published.outputs.skip != 'true'
+        run: npm ci
+      - if: steps.published.outputs.skip != 'true'
+        run: npx playwright install --with-deps chromium
+      - if: steps.published.outputs.skip != 'true'
+        run: npm test
+      - if: steps.published.outputs.skip != 'true'
+        run: npm publish

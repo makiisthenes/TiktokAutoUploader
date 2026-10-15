@@ -1,0 +1,59 @@
+{
+  "name": "autotok",
+  "version": "0.1.0",
+  "description": "Upload and schedule TikTok videos from Node.js and TypeScript, with per-account proxy support.",
+  "license": "AGPL-3.0-only",
+  "author": "Michael Peres",
+  "homepage": "https://github.com/makiisthenes/TiktokAutoUploader/tree/main/js#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/makiisthenes/TiktokAutoUploader.git",
+    "directory": "js"
+  },
+  "bugs": "https://github.com/makiisthenes/TiktokAutoUploader/issues",
+  "keywords": [
+    "tiktok",
+    "upload",
+    "uploader",
+    "automation",
+    "scheduler",
+    "proxy",
+    "social-media",
+    "typescript"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "signer_js",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "assets": "node scripts/copy-assets.mjs",
+    "build": "node scripts/copy-assets.mjs && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node scripts/copy-assets.mjs && node --test \"test/**/*.test.ts\"",
+    "prepack": "node scripts/copy-assets.mjs && tsc -p tsconfig.build.json"
+  },
+  "dependencies": {
+    "fetch-socks": "^1.3.3",
+    "playwright": "^1.64.1",
+    "undici": "^7.30.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.0",
+    "typescript": "^7.0.2"
+  }
+}
