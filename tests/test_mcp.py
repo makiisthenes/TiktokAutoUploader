@@ -262,3 +262,116 @@ def test_cli_mcp_without_the_extra(monkeypatch, capsys):
     monkeypatch.delitem(sys.modules, "autotok.mcp_server")
     assert cli.main(["mcp"]) == 1
     assert 'pip install "autotok[mcp]"' in capsys.readouterr().err
+
+
+# -- the same upload twice: never a second post ---------------------------------------------
+
+async def call_on(client, name, args):
+    result = await client.call_tool(name, args)
+    text = result.content[0].text if result.content else ""
+    return (True, text) if result.is_error else (False, json.loads(text))
+
+
+async def test_upload_tool_schema_hides_the_context(saved_account):
+    async with Client(create_server()) as client:
+        tool = next(t for t in (await client.list_tools()).tools if t.name == "upload_video")
+    assert "ctx" not in tool.input_schema["properties"] and "repost" in tool.input_schema["properties"]
+
+
+async def test_repeating_an_upload_returns_the_first_one(saved_account, video_file, uploads):
+    args = {"account": "alice", "video": "clip.mp4", "caption": "Hello #fyp"}
+    async with Client(create_server()) as client:
+        first = await call_on(client, "upload_video", args)
+        again = await call_on(client, "upload_video", args)
+        other_caption = await call_on(client, "upload_video", {**args, "caption": "Different"})
+        repost = await call_on(client, "upload_video", {**args, "repost": True})
+    assert not first[0] and "duplicate_call" not in first[1]
+    assert not again[0] and again[1]["duplicate_call"] and again[1]["video_id"] == first[1]["video_id"]
+    assert not other_caption[0] and not repost[0]
+    assert [c["caption"] for c in uploads] == ["Hello #fyp", "Different", "Hello #fyp"]
+
+
+async def test_a_client_timeout_then_retry_posts_once(saved_account, video_file, monkeypatch):
+    import threading
+
+    release = threading.Event()
+    calls = []
+
+    def slow_upload(self, video, caption, **kwargs):
+        calls.append(caption)
+        release.wait(10)
+        return UploadResult(video_id="v1", creation_id="c1")
+
+    monkeypatch.setattr("autotok.uploader.Client.upload", slow_upload)
+    args = {"account": "alice", "video": "clip.mp4", "caption": "x"}
+    async with Client(create_server()) as client:
+        with pytest.raises(Exception):  # the client gives up; the upload carries on
+            await client.call_tool("upload_video", args, read_timeout_seconds=0.5)
+        threading.Timer(0.5, release.set).start()
+        error, data = await call_on(client, "upload_video", args)  # waits for the same upload
+    assert not error and data["video_id"] == "v1" and data["duplicate_call"]
+    assert calls == ["x"]
+
+
+async def test_a_maybe_posted_upload_is_not_repeated(saved_account, video_file, monkeypatch):
+    outcomes = [PublishUncertainError("publish: connection reset"), None]
+    calls = []
+
+    def upload(self, video, caption, **kwargs):
+        calls.append(caption)
+        exc = outcomes.pop(0)
+        if exc:
+            raise exc
+        return UploadResult(video_id="v2", creation_id="c2")
+
+    monkeypatch.setattr("autotok.uploader.Client.upload", upload)
+    args = {"account": "alice", "video": "clip.mp4", "caption": "x"}
+    async with Client(create_server()) as client:
+        first = await call_on(client, "upload_video", args)
+        again = await call_on(client, "upload_video", args)
+        confirmed = await call_on(client, "upload_video", {**args, "repost": True})
+    assert first[0] and "Do not retry" in first[1]
+    assert again[0] and "check the account on TikTok" in again[1] and "repost=true" in again[1]
+    assert not confirmed[0] and confirmed[1]["video_id"] == "v2"
+    assert len(calls) == 2
+
+
+async def test_an_upload_that_failed_before_publishing_can_run_again(saved_account, video_file, monkeypatch):
+    outcomes = [UploadError("upload chunk: HTTP 502"), None]
+
+    def upload(self, video, caption, **kwargs):
+        exc = outcomes.pop(0)
+        if exc:
+            raise exc
+        return UploadResult(video_id="v3", creation_id="c3")
+
+    monkeypatch.setattr("autotok.uploader.Client.upload", upload)
+    args = {"account": "alice", "video": "clip.mp4", "caption": "x"}
+    async with Client(create_server()) as client:
+        first = await call_on(client, "upload_video", args)
+        again = await call_on(client, "upload_video", args)
+    assert first[0] and "safe to try again" in first[1]
+    assert not again[0] and again[1]["video_id"] == "v3" and "duplicate_call" not in again[1]
+
+
+async def test_long_uploads_report_progress(saved_account, video_file, monkeypatch):
+    import time
+
+    from autotok import mcp_server
+
+    def slow_upload(self, video, caption, **kwargs):
+        time.sleep(1.0)
+        return UploadResult(video_id="v4", creation_id="c4")
+
+    monkeypatch.setattr("autotok.uploader.Client.upload", slow_upload)
+    monkeypatch.setattr(mcp_server, "PROGRESS_EVERY", 0.2)
+    seen = []
+
+    async def on_progress(progress, total, message):
+        seen.append(message)
+
+    async with Client(create_server()) as client:
+        result = await client.call_tool("upload_video", {"account": "alice", "video": "clip.mp4", "caption": "x"},
+                                        progress_callback=on_progress)
+    assert not result.is_error
+    assert seen and all("Uploading to TikTok" in m for m in seen)

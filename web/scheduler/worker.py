@@ -50,6 +50,7 @@ def reclaim_stale(session: Session) -> int:
     ).all()
     for r in rows:
         r.status = "failed"
+        r.publish_uncertain = True
         r.result_text = (
             "the scheduler stopped during this upload; it may or may not have been posted. "
             "Check TikTok before retrying."
@@ -161,17 +162,22 @@ def finalize(schedule_id: int, outcome: UploadOutcome) -> None:
         now = now_utc()
         if outcome.ok:
             row.status = "succeeded"
+            row.publish_uncertain = False
             row.result_text = f"published (video id {outcome.video_id})" if outcome.video_id else "published"
             acct = s.get(Account, row.account_id)
             if acct:
                 acct.last_used_at = now
                 s.add(acct)
+        elif row.status != "running":
+            # Changed by someone else while uploading: record what happened, but never requeue.
+            row.result_text = outcome.message
         elif outcome.retryable and row.attempts < MAX_ATTEMPTS:
             row.status = "pending"
             row.scheduled_for = now + RETRY_DELAY * row.attempts
             row.result_text = f"attempt {row.attempts} failed, will retry: {outcome.message}"
         else:
             row.status = "failed"
+            row.publish_uncertain = outcome.uncertain
             row.result_text = outcome.message
         row.updated_at = now
         s.add(row)

@@ -35,6 +35,8 @@ export interface Schedule {
   scheduled_for: string;
   status: "pending" | "running" | "succeeded" | "failed" | "cancelled";
   result_text: string | null;
+  /** The last attempt may have posted the video: check TikTok before retrying. */
+  publish_uncertain: boolean;
   attempts: number;
   heartbeat_at: string | null;
   created_at: string;
@@ -95,8 +97,10 @@ export const Schedules = {
   cancel: (id: number) =>
     api.patch<Schedule>(`/schedules/${id}`, { status: "cancelled" }).then(r => r.data),
   remove: (id: number) => api.delete(`/schedules/${id}`),
-  retry: (id: number) =>
-    api.patch<Schedule>(`/schedules/${id}`, { status: "pending" }).then(r => r.data),
+  retry: (id: number, confirmUncertain = false) =>
+    api
+      .patch<Schedule>(`/schedules/${id}`, { status: "pending", confirm_uncertain: confirmUncertain })
+      .then(r => r.data),
 };
 
 export const Videos = {

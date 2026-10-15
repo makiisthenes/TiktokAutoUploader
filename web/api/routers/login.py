@@ -13,6 +13,11 @@
       once it sees the session cookies. The token is an HMAC of the session id,
       so only the control server we started can complete a login. The API (not
       noVNC) saves the account and upserts the Account row.
+
+  GET  /api/login/browser/vnc-auth → asked by nginx (auth_request) before it
+      opens the virtual browser's VNC websocket. The VNC server has no password,
+      so only pages served from an allowed host may connect, and only while a
+      login is in progress.
 """
 from __future__ import annotations
 
@@ -23,6 +28,7 @@ import os
 import secrets
 import uuid
 from typing import AsyncIterator
+from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import Response
@@ -38,6 +44,7 @@ from api.schemas import (
     LoginBrowserStartResponse,
     LoginSessionRead,
 )
+from api.security import allowed_hosts, hostname
 from api.services import account_store, novnc_client
 from autotok import settings
 
@@ -93,6 +100,23 @@ def _fail(session: Session, row: LoginSession, error: str) -> None:
     row.completed_at = now_utc()
     session.add(row)
     session.commit()
+
+
+@router.get("/vnc-auth", status_code=status.HTTP_204_NO_CONTENT, include_in_schema=False)
+def vnc_auth(request: Request, session: Session = Depends(get_session)):
+    # Browsers always send Origin on websocket requests, and pages can't change it, so this stops
+    # other web pages from watching or driving the login browser. (The Host header was already
+    # checked by the API's middleware.)
+    origin = request.headers.get("origin", "")
+    origin_host = hostname(urlsplit(origin).netloc) if "://" in origin else ""
+    if origin_host not in allowed_hosts():
+        raise HTTPException(status_code=403, detail="websocket origin not allowed")
+    in_progress = session.exec(
+        select(LoginSession).where(LoginSession.status.in_(("pending", "active")))
+    ).first()
+    if in_progress is None:
+        raise HTTPException(status_code=403, detail="no login in progress")
+    return Response(status_code=204)
 
 
 @router.post("/start", response_model=LoginBrowserStartResponse, status_code=status.HTTP_201_CREATED)

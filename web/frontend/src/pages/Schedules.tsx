@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Schedules } from "../api/client";
-import { Ban, RotateCw, Trash2 } from "lucide-react";
+import { Schedules, type Schedule } from "../api/client";
+import { AlertTriangle, Ban, RotateCw, Trash2 } from "lucide-react";
 
 const statusClass = (s: string) => {
   switch (s) {
@@ -25,9 +25,24 @@ export default function SchedulesPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["schedules"] }),
   });
   const retryMut = useMutation({
-    mutationFn: (id: number) => Schedules.retry(id),
+    mutationFn: ({ id, confirmUncertain }: { id: number; confirmUncertain: boolean }) =>
+      Schedules.retry(id, confirmUncertain),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["schedules"] }),
   });
+
+  // A job cut off while publishing may already be live: retrying could post it twice.
+  const retry = (s: Schedule) => {
+    if (
+      s.publish_uncertain &&
+      !window.confirm(
+        "This video may already be on TikTok: the last attempt was cut off while publishing.\n\n" +
+          "Check the account first. Post it again anyway?",
+      )
+    ) {
+      return;
+    }
+    retryMut.mutate({ id: s.id, confirmUncertain: s.publish_uncertain });
+  };
   const deleteMut = useMutation({
     mutationFn: (id: number) => Schedules.remove(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["schedules"] }),
@@ -70,8 +85,19 @@ export default function SchedulesPage() {
                 </td>
                 <td className="p-3">
                   <span className={"chip " + statusClass(s.status)}>{s.status}</span>
+                  {s.status === "failed" && s.publish_uncertain && (
+                    <span className="chip bg-amber-100 text-amber-800 ml-1">
+                      <AlertTriangle size={12} className="inline" /> may already be posted
+                    </span>
+                  )}
                   {s.result_text && (
-                    <div className="text-xs text-slate-500 mt-1 max-w-xs truncate" title={s.result_text}>
+                    <div
+                      className={
+                        "text-xs mt-1 max-w-xs " +
+                        (s.publish_uncertain ? "text-amber-800 whitespace-normal" : "text-slate-500 truncate")
+                      }
+                      title={s.result_text}
+                    >
                       {s.result_text}
                     </div>
                   )}
@@ -84,7 +110,7 @@ export default function SchedulesPage() {
                     </button>
                   )}
                   {s.status === "failed" && (
-                    <button className="text-xs text-brand-600" onClick={() => retryMut.mutate(s.id)}>
+                    <button className="text-xs text-brand-600" onClick={() => retry(s)}>
                       <RotateCw size={14} className="inline" /> Retry
                     </button>
                   )}

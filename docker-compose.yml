@@ -38,6 +38,8 @@ services:
       - NOVNC_CONTROL_URL=http://novnc:7900
       - NOVNC_PUBLIC_URL=/novnc/vnc.html
       - API_PUBLIC_URL=http://api:8000
+      # Extra host names the web app is reached by, e.g. behind your own reverse proxy.
+      - AUTOTOK_ALLOWED_HOSTS=${AUTOTOK_ALLOWED_HOSTS:-}
       # Optional cloud browser for signing uploads (README: Cloud browsers). Set in .env.
       - AUTOTOK_BROWSER=${AUTOTOK_BROWSER:-local}
       - BROWSERBASE_API_KEY=${BROWSERBASE_API_KEY:-}

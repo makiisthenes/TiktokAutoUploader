@@ -51,6 +51,9 @@ class ScheduledUpload(SQLModel, table=True):
     status: str = Field(default="pending", index=True, max_length=16)
 
     result_text: Optional[str] = Field(default=None)
+    # Set when a failed job may still have been posted (the publish request was cut off, or the
+    # scheduler stopped mid-upload). Retrying it needs an explicit confirmation.
+    publish_uncertain: bool = Field(default=False)
     attempts: int = Field(default=0)
     heartbeat_at: Optional[datetime] = Field(default=None)
 

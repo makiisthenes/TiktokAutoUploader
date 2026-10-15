@@ -2,8 +2,9 @@
 
 Never raises for upload problems: everything comes back as an
 :class:`UploadOutcome`, with ``retryable`` set only when nothing reached
-TikTok's publish endpoint (so retrying cannot create a duplicate post). Tests
-patch ``upload_from_options``.
+TikTok's publish endpoint (so retrying cannot create a duplicate post), and
+``uncertain`` set when the video may have been posted despite the failure.
+Tests patch ``upload_from_options``.
 """
 from __future__ import annotations
 
@@ -12,7 +13,7 @@ from dataclasses import dataclass
 from typing import Any, Optional
 
 from autotok import Client
-from autotok.errors import AutotokError
+from autotok.errors import AutotokError, PublishUncertainError
 from autotok.proxy import parse_proxy
 
 log = logging.getLogger("api.upload")
@@ -24,6 +25,7 @@ class UploadOutcome:
     message: str
     retryable: bool = False
     video_id: Optional[str] = None
+    uncertain: bool = False  # the post may exist: check TikTok before retrying
 
 
 def upload_from_options(username: str, video_path: str, title: str, options: dict[str, Any]) -> UploadOutcome:
@@ -40,8 +42,9 @@ def upload_from_options(username: str, video_path: str, title: str, options: dic
             ai_label=bool(int(options.get("ai_label", 0))),
         )
     except AutotokError as exc:
-        return UploadOutcome(ok=False, message=str(exc), retryable=exc.retryable)
+        return UploadOutcome(ok=False, message=str(exc), retryable=exc.retryable,
+                             uncertain=isinstance(exc, PublishUncertainError))
     except Exception as exc:  # a bug: never retry automatically, it may have posted
         log.exception("unexpected upload failure")
-        return UploadOutcome(ok=False, message=f"unexpected error: {exc}", retryable=False)
+        return UploadOutcome(ok=False, message=f"unexpected error: {exc}", retryable=False, uncertain=True)
     return UploadOutcome(ok=True, message="published", video_id=result.video_id)

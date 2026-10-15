@@ -165,6 +165,9 @@ class ScheduledUploadUpdate(BaseModel):
     scheduled_for: Optional[datetime] = None
     title: Optional[str] = Field(default=None, max_length=2200)
     status: Optional[Literal["pending", "cancelled"]] = None  # only safe transitions
+    # Retrying a job whose video may already be on TikTok (publish_uncertain) needs this set,
+    # after checking the account: otherwise the video could be posted twice.
+    confirm_uncertain: bool = False
 
     @model_validator(mode="after")
     def _validate(self) -> "ScheduledUploadUpdate":
@@ -202,6 +205,7 @@ class ScheduledUploadRead(BaseModel):
     scheduled_for: datetime
     status: str
     result_text: Optional[str]
+    publish_uncertain: bool = False
     attempts: int
     heartbeat_at: Optional[datetime]
     created_at: datetime

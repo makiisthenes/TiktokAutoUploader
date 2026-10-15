@@ -70,6 +70,24 @@ def init_db() -> None:
     from api import models  # noqa: F401
 
     SQLModel.metadata.create_all(engine)
+    _migrate(engine)
+
+
+def _migrate(eng: Engine) -> None:
+    """Add columns that newer versions expect to tables created by older ones.
+
+    ``create_all`` creates missing tables but never alters existing ones."""
+    with eng.begin() as conn:
+        columns = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(scheduled_uploads)")}
+        if columns and "publish_uncertain" not in columns:
+            conn.exec_driver_sql(
+                "ALTER TABLE scheduled_uploads ADD COLUMN publish_uncertain BOOLEAN NOT NULL DEFAULT 0"
+            )
+            # Jobs that failed this way before the column existed.
+            conn.exec_driver_sql(
+                "UPDATE scheduled_uploads SET publish_uncertain = 1 WHERE status = 'failed' AND "
+                "(result_text LIKE '%may or may not%' OR result_text LIKE 'unexpected error:%')"
+            )
 
 
 def get_session() -> Iterator[Session]:
