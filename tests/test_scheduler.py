@@ -240,3 +240,23 @@ def test_migration_tolerates_the_other_container_adding_the_column(tmp_path):
         columns = {r[1] for r in conn.exec_driver_sql("PRAGMA table_info(scheduled_uploads)")}
     eng.dispose()
     assert "publish_uncertain" in columns
+
+
+def test_an_interrupted_migration_is_finished_on_the_next_start(tmp_path):
+    from sqlalchemy import create_engine
+
+    path = tmp_path / "half.db"
+    old = create_engine(f"sqlite:///{path}")
+    with old.begin() as conn:  # the column was added, then the process stopped before the backfill
+        conn.exec_driver_sql("CREATE TABLE scheduled_uploads (id INTEGER PRIMARY KEY, status TEXT, result_text TEXT, "
+                             "publish_uncertain BOOLEAN NOT NULL DEFAULT 0)")
+        conn.exec_driver_sql("INSERT INTO scheduled_uploads VALUES (1, 'failed', 'it may or may not have been posted', 0)")
+    old.dispose()
+
+    eng = api_db.make_engine(f"sqlite:///{path}")
+    api_db._migrate(eng)
+    with eng.connect() as conn:
+        flag = conn.exec_driver_sql("SELECT publish_uncertain FROM scheduled_uploads WHERE id = 1").scalar()
+        version = conn.exec_driver_sql("PRAGMA user_version").scalar()
+    eng.dispose()
+    assert flag == 1 and version == api_db.SCHEMA_VERSION

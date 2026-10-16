@@ -334,8 +334,10 @@ def test_vnc_websocket_only_for_the_app_during_a_login(client, engine):
 
     from api.models import LoginSession
 
-    def check(origin=None):
-        headers = {"Origin": origin} if origin else {}
+    def check(origin=None, host="localhost:3000"):
+        headers = {"Host": host}
+        if origin:
+            headers["Origin"] = origin
         return client.get("/api/login/browser/vnc-auth", headers=headers).status_code
 
     assert check("http://localhost:3000") == 403  # no login in progress
@@ -343,7 +345,9 @@ def test_vnc_websocket_only_for_the_app_during_a_login(client, engine):
         s.add(LoginSession(id="s1", username="alice", status="active"))
         s.commit()
     assert check("http://localhost:3000") == 204
-    assert check("http://127.0.0.1:3000") == 204
+    assert check("http://127.0.0.1:3000", host="127.0.0.1:3000") == 204
     assert check() == 403  # browsers always send Origin on websockets
     assert check("https://evil.example") == 403
+    assert check("http://localhost:9999") == 403  # another app on this machine
+    assert check("http://127.0.0.1:3000") == 403  # a different origin from the app's
     assert check("null") == 403

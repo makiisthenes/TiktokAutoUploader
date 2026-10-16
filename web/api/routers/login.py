@@ -44,7 +44,6 @@ from api.schemas import (
     LoginBrowserStartResponse,
     LoginSessionRead,
 )
-from api.security import allowed_hosts, hostname
 from api.services import account_store, novnc_client
 from autotok import settings
 
@@ -104,12 +103,13 @@ def _fail(session: Session, row: LoginSession, error: str) -> None:
 
 @router.get("/vnc-auth", status_code=status.HTTP_204_NO_CONTENT, include_in_schema=False)
 def vnc_auth(request: Request, session: Session = Depends(get_session)):
-    # Browsers always send Origin on websocket requests, and pages can't change it, so this stops
-    # other web pages from watching or driving the login browser. (The Host header was already
-    # checked by the API's middleware.)
-    origin = request.headers.get("origin", "")
-    origin_host = hostname(urlsplit(origin).netloc) if "://" in origin else ""
-    if origin_host not in allowed_hosts():
+    # The page opening the websocket must be the app itself: its Origin must name the same host
+    # and port the browser connected to (nginx forwards that Host, port included). Browsers always
+    # send Origin on websocket requests and pages can't change it, so other web pages, including
+    # other apps on localhost, can't watch or drive the login browser. The API's middleware has
+    # already checked that the Host is an allowed name.
+    origin = urlsplit(request.headers.get("origin", ""))
+    if origin.scheme not in ("http", "https") or origin.netloc.lower() != request.headers.get("host", "").lower():
         raise HTTPException(status_code=403, detail="websocket origin not allowed")
     in_progress = session.exec(
         select(LoginSession).where(LoginSession.status.in_(("pending", "active")))
