@@ -476,6 +476,34 @@ func TestLocalBrowserUsesTheAccountProxy(t *testing.T) {
 	}
 }
 
+func TestLocalBrowserGetsPlaywrightsSwitches(t *testing.T) {
+	needBrowser(t)
+	useHeadlessBrowsers(t, nil)
+	h, err := LocalProvider{}.Open(context.Background(), OpenOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer h.Close()
+	ctx, cancel := context.WithTimeout(h.Page(), 30*time.Second)
+	defer cancel()
+	if err := Navigate(ctx, "chrome://version"); err != nil {
+		t.Fatal(err)
+	}
+	line, err := chromedp.Run(ctx, chromedp.Evaluate[string](`document.getElementById("command_line").innerText`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"--no-first-run", "--disable-field-trial-config", "--disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,",
+		"--disable-blink-features=AutomationControlled"} {
+		if !strings.Contains(line, want) {
+			t.Errorf("missing %s in %s", want, line)
+		}
+	}
+	if strings.Contains(line, "---") || strings.Contains(line, "--enable-automation") {
+		t.Errorf("command line: %s", line)
+	}
+}
+
 // startDebuggableChrome runs Chrome with a DevTools websocket, standing in for a cloud browser.
 func startDebuggableChrome(t *testing.T, path string) string {
 	args := []string{"--headless", "--remote-debugging-port=0", "--user-data-dir=" + t.TempDir(),

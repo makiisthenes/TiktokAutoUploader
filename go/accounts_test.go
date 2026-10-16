@@ -121,6 +121,18 @@ func TestMissingUnreadableAndInvalidAccounts(t *testing.T) {
 	}
 }
 
+func TestLegacySessionsPointToTheMigration(t *testing.T) {
+	isolatedHome(t)
+	t.Chdir(t.TempDir())
+	os.MkdirAll("CookiesDir", 0o700)
+	os.WriteFile(filepath.Join("CookiesDir", "tiktok_session-old.cookie"), []byte("pickle"), 0o600)
+	_, err := NewAccountStore("").Load("old")
+	var nf *AccountNotFoundError
+	if !errors.As(err, &nf) || !strings.Contains(err.Error(), "1.x session") || !strings.Contains(err.Error(), "migrate") {
+		t.Fatal(err)
+	}
+}
+
 func TestSetProxyListDelete(t *testing.T) {
 	isolatedHome(t)
 	store := NewAccountStore("")

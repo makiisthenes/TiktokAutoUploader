@@ -96,7 +96,8 @@ func (LocalProvider) Open(ctx context.Context, o OpenOptions) (*BrowserHandle, e
 
 	opts := []chromedp.ExecAllocatorOption{chromedp.ExecPath(path)}
 	for _, flag := range playwrightSwitches {
-		name, value, hasValue := strings.Cut(flag, "=")
+		// chromedp.Flag takes the bare name and adds the dashes itself.
+		name, value, hasValue := strings.Cut(strings.TrimPrefix(flag, "--"), "=")
 		if hasValue {
 			opts = append(opts, chromedp.Flag(name, value))
 		} else {

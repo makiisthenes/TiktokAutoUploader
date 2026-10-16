@@ -347,6 +347,13 @@ func (s *AccountStore) Load(name string) (*Account, error) {
 	}
 	data, err := os.ReadFile(path)
 	if errors.Is(err, fs.ErrNotExist) {
+		if legacy := legacySessionPath(name); legacy != "" {
+			// 1.x saved sessions as Python pickles; the Python package migrates them.
+			return nil, &AccountNotFoundError{baseError{msg: fmt.Sprintf(
+				"'%s' has a TiktokAutoUploader 1.x session in %s, which this Go build can't read. Run the Python "+
+					"autotok once (e.g. autotok accounts list) to migrate it, or log in again: autotok login -n %s",
+				name, legacy, name)}}
+		}
 		return nil, &AccountNotFoundError{baseError{msg: fmt.Sprintf(
 			"no saved session for '%s' in %s. Log in first: autotok login -n %s", name, s.root(), name)}}
 	}
@@ -364,6 +371,16 @@ func (s *AccountStore) Load(name string) (*Account, error) {
 		return nil, &ValidationError{baseError{msg: fmt.Sprintf("account file %s is unreadable (%v); log in again", path, err), cause: err}}
 	}
 	return a, nil
+}
+
+// legacySessionPath is where TiktokAutoUploader 1.x saved the session called name, if it's
+// there: CookiesDir/tiktok_session-<name>.cookie in the current folder.
+func legacySessionPath(name string) string {
+	path, err := filepath.Abs(filepath.Join("CookiesDir", "tiktok_session-"+name+".cookie"))
+	if err != nil || !isFile(path) {
+		return ""
+	}
+	return path
 }
 
 // Save writes the account (atomically, with 0600 permissions) and returns the file's path.
