@@ -1,0 +1,81 @@
+# Builds the single autotok binary when a GitHub release tagged go/v<version> is published, and
+# attaches it to the release for Linux, macOS and Windows (amd64 and arm64), with SHA256SUMS.
+#
+# The Go module itself needs no publishing: the go/v<version> tag is the release, and the Go
+# module proxy (and pkg.go.dev) fetch it from GitHub on first use; the last step asks it to.
+#
+# The tests and builds run in a job without write access; only the upload job can change the
+# release, and it runs no code from the repository.
+name: Release Go binaries
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    if: startsWith(github.event.release.tag_name, 'go/v')
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: go
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff  # v5
+        with:
+          go-version-file: go/go.mod
+          cache: false
+      - name: Check the tag matches the module version
+        id: version
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          version=$(sed -n 's/^const Version = "\(.*\)"$/\1/p' doc.go)
+          test "${TAG}" = "go/v${version}" || { echo "tag ${TAG} != go/v${version}"; exit 1; }
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+      - run: go vet ./...
+      - run: go test ./...
+      - name: Build
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          mkdir -p dist
+          for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64; do
+            os=${target%/*}; arch=${target#*/}
+            name="autotok_${VERSION}_${os}_${arch}"
+            exe=autotok; [ "$os" = windows ] && exe=autotok.exe
+            mkdir -p "dist/$name"
+            CGO_ENABLED=0 GOOS=$os GOARCH=$arch go build -trimpath -ldflags "-s -w" -o "dist/$name/$exe" ./cmd/autotok
+            cp README.md THIRD_PARTY_NOTICES.md ../LICENSE "dist/$name/"
+            if [ "$os" = windows ]; then (cd dist && zip -qr "$name.zip" "$name"); else tar -czf "dist/$name.tar.gz" -C dist "$name"; fi
+          done
+          cd dist && sha256sum ./*.zip ./*.tar.gz | sed 's| \./| |' > SHA256SUMS && cat SHA256SUMS
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: binaries
+          path: |
+            go/dist/*.zip
+            go/dist/*.tar.gz
+            go/dist/SHA256SUMS
+
+  upload:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
+        with:
+          name: binaries
+      - name: Attach the binaries to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload "$TAG" autotok_* SHA256SUMS --clobber --repo "$GITHUB_REPOSITORY"
+      - name: Ask the Go module proxy to fetch the new version
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: curl -fsS "https://proxy.golang.org/github.com/makiisthenes/!tiktok!auto!uploader/go/@v/${TAG#go/}.info"

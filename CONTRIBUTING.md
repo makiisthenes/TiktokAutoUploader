@@ -31,6 +31,20 @@ The npm package mirrors the Python package module for module (`js/src/uploader.t
 the other too; `js/test` checks captions, proxy parsing and request signing against values
 produced by the Python package.
 
+### Go module and binary
+
+```bash
+cd go
+go vet ./...
+go test ./...                     # the browser tests need Chrome or Chromium, and are skipped without it
+go build ./cmd/autotok            # the single binary
+```
+
+The Go module mirrors the Python package too (`go/uploader.go` ↔ `autotok/uploader.py`, and so
+on), with the same account files and test values. Go modules can't reach files outside their
+folder, so TikTok's signing scripts are copied into `go/signer_js`; CI checks the copy matches
+`autotok/signer_js`, so update both together.
+
 ## Repository layout
 
 | Path | What it is |
@@ -38,6 +52,7 @@ produced by the Python package.
 | `autotok/` | The `autotok` package published to PyPI (CLI, uploader, browsers) |
 | `tests/` | The test suite (`pytest`) |
 | `js/` | The `autotok` npm package for Node.js and TypeScript (`npm ci && npm test`) |
+| `go/` | The Go module and the single `autotok` binary (`go test ./...`) |
 | `web/` | The self-hosted web app: `api/` (FastAPI), `scheduler/`, `novnc/` (virtual login browser), `frontend/` (React; `npm ci && npm run dev`) |
 | `docs/` | Extra documentation and images |
 | `Dockerfile` | Image for the `autotok` CLI |

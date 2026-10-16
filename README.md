@@ -4,13 +4,14 @@
   <img src="https://user-images.githubusercontent.com/52138450/111885490-04ab6680-89c0-11eb-955a-f833577b4406.png" width="35%" alt="TiktokAutoUploader logo">
 </p>
 
-<p align="center">Upload and schedule TikTok videos from the command line, Python or TypeScript, with a proxy per account.</p>
+<p align="center">Upload and schedule TikTok videos from the command line, Python, TypeScript or Go, with a proxy per account.</p>
 <p align="center"><code>uv tool install autotok</code> · <code>npm install autotok</code> · one login · one command per upload</p>
 
 <p align="center">
   <a href="https://pypi.org/project/autotok/"><img alt="PyPI" src="https://img.shields.io/pypi/v/autotok?label=pypi"></a>
   <a href="https://www.npmjs.com/package/autotok"><img alt="npm" src="https://img.shields.io/npm/v/autotok?label=npm"></a>
   <a href="#typescript-sdk"><img alt="TypeScript types included" src="https://img.shields.io/npm/types/autotok"></a>
+  <a href="https://pkg.go.dev/github.com/makiisthenes/TiktokAutoUploader/go"><img alt="Go Reference" src="https://pkg.go.dev/badge/github.com/makiisthenes/TiktokAutoUploader/go.svg"></a>
   <a href="https://github.com/makiisthenes/TiktokAutoUploader/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/makiisthenes/TiktokAutoUploader/actions/workflows/ci.yml/badge.svg"></a>
   <a href="LICENSE"><img alt="License: AGPL-3.0" src="https://img.shields.io/badge/license-AGPL--3.0-blue"></a>
   <a href="https://www.linkedin.com/in/michael-p-88b015200/"><img alt="LinkedIn" src="https://img.shields.io/badge/LinkedIn-0077B5?style=flat-square&logo=linkedin&logoColor=white"></a>
@@ -62,6 +63,18 @@ await uploadVideo("my_account", "clip.mp4", "Hello #fyp");
 
 Typed, promise-based, no Python needed, and it shares saved accounts with the CLI. See the
 [TypeScript SDK](#typescript-sdk).
+
+**Go, or one binary with nothing else to install**
+
+```bash
+go install github.com/makiisthenes/TiktokAutoUploader/go/cmd/autotok@latest
+```
+
+or download the `autotok` binary for your system from the
+[releases](https://github.com/makiisthenes/TiktokAutoUploader/releases) (the `go/v...` ones). It
+has the same commands as above, needs no Python or Node.js, and uses the Chrome already on your
+computer. In Go code: `go get github.com/makiisthenes/TiktokAutoUploader/go`. See
+[Go](#go-sdk-and-single-binary).
 
 ---
 
@@ -119,6 +132,9 @@ or use [pipx](https://pipx.pypa.io): `pipx install "autotok[youtube]"`.
   `pip install "autotok[youtube]"`.
 - Using TypeScript or JavaScript? `npm install autotok` instead, see the [TypeScript SDK](#typescript-sdk).
   From code, `login()` and `uploadVideo()` replace the commands in steps 3 and 4.
+- Can't install Python, or writing Go? Use the single `autotok` binary from the
+  [releases](https://github.com/makiisthenes/TiktokAutoUploader/releases) instead: the steps below
+  are the same. See [Go](#go-sdk-and-single-binary).
 - `[youtube]` adds YouTube-link support. Leave it out if you don't need it.
 - `autotok` "not recognized" or "command not found"? Run `uv tool update-shell` once and open a new
   terminal.
@@ -191,6 +207,7 @@ BROWSERBASE_API_KEY=bb_live_...
 | Avoid running a browser on my computer | [Cloud browsers](#cloud-browsers-browserbase-steel) |
 | Upload from Python code | [Python SDK](#python-sdk) |
 | Upload from TypeScript or JavaScript | [TypeScript SDK](#typescript-sdk) |
+| Upload from Go, or use one binary with no Python | [Go](#go-sdk-and-single-binary) |
 | Let an AI agent (Claude, Cursor...) upload for me | [MCP server](#mcp-server-ai-agents) |
 | Run on a server or in a container | [Docker](#docker) |
 | Use a web dashboard with a scheduler | [Web app](#web-app-self-hosted) |
@@ -210,6 +227,8 @@ BROWSERBASE_API_KEY=bb_live_...
 - **Python SDK, CLI, and an optional web app** (Docker) with a browser-based login.
 - **TypeScript SDK** on npm (`npm install autotok`): fully typed, promise-based, no Python needed, and it
   shares saved accounts with the CLI.
+- **Go package and a single binary**: `go get` the library, or download one `autotok` executable
+  with no Python or Node.js. It shares saved accounts with the other packages.
 - **MCP server** so AI agents (Claude, Cursor, VS Code...) can upload and schedule for you.
 - **Cloud browsers**: run the login and signing browser on [Browserbase](https://www.browserbase.com) or [Steel](https://github.com/steel-dev/steel-browser) (cloud or self-hosted) instead of your computer.
 - **Docker image** for running the CLI on servers.
@@ -430,6 +449,56 @@ try {
 
 The full API is in [`js/README.md`](js/README.md). The CLI, YouTube links, the MCP server and the
 web app are in the Python package.
+
+---
+
+## Go SDK and single binary
+
+autotok is also a Go module, which builds into one `autotok` binary with no Python or Node.js
+needed. The binary has the same commands and flags as the Python CLI. Like the TypeScript
+package, it reads and writes the same `~/.autotok/accounts`, so accounts work everywhere.
+
+```bash
+go install github.com/makiisthenes/TiktokAutoUploader/go/cmd/autotok@latest   # or download a release binary
+autotok login -n my_account
+autotok upload -u my_account -v clip.mp4 -t "Hello #fyp"
+```
+
+It logs in and signs with the Chrome, Chromium or Edge already on your computer, or with
+Playwright's Chromium if the other packages installed it. On a machine with neither, run
+`autotok install-browser`, which downloads Chrome for Testing (about 200 MB, once).
+
+From Go code (Go 1.26+):
+
+```go
+import autotok "github.com/makiisthenes/TiktokAutoUploader/go"
+
+ctx := context.Background()
+if _, err := autotok.Login(ctx, "alice", &autotok.LoginOptions{Proxy: "http://user:pass@gate.example.com:7000"}); err != nil {
+	log.Fatal(err) // once; opens a browser
+}
+client, err := autotok.NewClient("alice", nil) // uses alice's saved proxy
+if err != nil {
+	log.Fatal(err)
+}
+result, err := client.Upload(ctx, "clip.mp4", "Hello #fyp", &autotok.UploadOptions{
+	Schedule: time.Now().Add(24 * time.Hour), // optional: 15 minutes to 30 days ahead
+})
+if err != nil {
+	log.Fatal(err) // autotok.IsRetryable(err) says whether trying again is safe
+}
+fmt.Println(result.VideoID)
+```
+
+- Every call takes a `context.Context`, so uploads can be cancelled or given a deadline.
+- Errors are typed (`*autotok.PublishError`, `*autotok.UploadError`...) for `errors.As`.
+- Proxies and cloud browsers (`AUTOTOK_BROWSER`) work as described in this README. The login
+  browser also works with SOCKS5 proxies that need a password.
+- YouTube links work when [yt-dlp](https://github.com/yt-dlp/yt-dlp) is installed. The setup
+  wizard, the shell and the MCP server are in the Python package only.
+
+The full API is in [`go/README.md`](go/README.md) and on
+[pkg.go.dev](https://pkg.go.dev/github.com/makiisthenes/TiktokAutoUploader/go).
 
 ---
 

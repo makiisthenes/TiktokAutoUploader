@@ -1,5 +1,6 @@
 # Publishes to PyPI when a GitHub release tagged v<version> is published.
-# (Releases tagged js-v<version> publish the npm package instead: publish-npm.yml.)
+# (Releases tagged js-v<version> publish the npm package instead: publish-npm.yml, and go/v<version>
+# the Go binaries: release-go.yml.)
 #
 # One-time setup on pypi.org: add a "trusted publisher" for this repository
 # (workflow: publish.yml, environment: pypi). No API token is needed.

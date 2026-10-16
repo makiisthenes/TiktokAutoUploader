@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- Go module and a single `autotok` binary (source in `go/`). Install the binary with
+  `go install github.com/makiisthenes/TiktokAutoUploader/go/cmd/autotok@latest`, or download it from
+  the `go/v*` GitHub releases (Linux, macOS and Windows, amd64 and arm64). It needs no Python or
+  Node.js, and has the CLI's `login`, `upload`, `show`, `accounts`, `proxy`, `install-browser` and
+  `browser check` commands with the same flags. The library (`go get
+  github.com/makiisthenes/TiktokAutoUploader/go`) has the same uploader, login, per-account
+  proxies, cloud browsers and typed errors as the other packages, with `context.Context`
+  cancellation. It reads and writes the same `~/.autotok/accounts` files, so accounts work in all
+  three. It uses an installed Chrome, Chromium or Edge, or Playwright's Chromium;
+  `autotok install-browser` downloads Chrome for Testing on machines with neither. Its login
+  browser also works with SOCKS5 proxies that need a password. The Go module is versioned
+  separately, starting at 0.1.0, and released from `go/v*` tags.
+
 ## 2.1.0
 
 Released together with the first version of the TypeScript SDK on npm (`autotok` 0.1.0).
