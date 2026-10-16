@@ -17,6 +17,7 @@ package autotok
 // means the same thing to all of them.
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"regexp"
@@ -195,12 +196,13 @@ func urlsplit(raw string) (splitURL, error) {
 		out.hostname = host
 		port = p
 	}
+	// Never quote the port text: it can hold the password (http://host:port:user:pass).
 	if port != "" && !digitsRE.MatchString(port) {
-		return splitURL{}, fmt.Errorf("Port could not be cast to integer value as '%s'", port)
+		return splitURL{}, errors.New("missing or bad port")
 	}
 	if port != "" {
 		if n, err := strconv.Atoi(port); err != nil || n > 65535 {
-			return splitURL{}, fmt.Errorf("Port out of range 0-65535")
+			return splitURL{}, errors.New("port out of range")
 		}
 	}
 	out.hostname = strings.ToLower(out.hostname)

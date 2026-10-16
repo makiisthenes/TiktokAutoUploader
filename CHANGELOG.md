@@ -16,6 +16,11 @@
   browser also works with SOCKS5 proxies that need a password. The Go module is versioned
   separately, starting at 0.1.0, and released from `go/v*` tags.
 
+### Fixed
+- A proxy written as `http://host:port:user:pass` (the provider export format with a scheme added,
+  which isn't valid) was rejected with an error message that showed the password. The message no
+  longer quotes the port text. The npm package had the same problem.
+
 ## 2.1.0
 
 Released together with the first version of the TypeScript SDK on npm (`autotok` 0.1.0).

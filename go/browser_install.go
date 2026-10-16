@@ -169,7 +169,8 @@ func download(ctx context.Context, client *http.Client, url string, w io.Writer,
 }
 
 // unzip extracts archive into dest, keeping file modes and symlinks (macOS app bundles have
-// them) and refusing entries that would land outside dest.
+// them) and refusing entries that would land outside dest: by their path, or by being written
+// through a symlink the archive made (which could point anywhere).
 func unzip(archive, dest string) error {
 	r, err := zip.OpenReader(archive)
 	if err != nil {
@@ -184,9 +185,18 @@ func unzip(archive, dest string) error {
 		rel, err := filepath.Rel(root, path)
 		return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && !filepath.IsAbs(rel)
 	}
+	links := map[string]bool{}
+	underLink := func(path string) bool {
+		for dir := filepath.Dir(path); dir != root && inside(dir); dir = filepath.Dir(dir) {
+			if links[dir] {
+				return true
+			}
+		}
+		return false
+	}
 	for _, f := range r.File {
 		target := filepath.Join(root, filepath.FromSlash(f.Name))
-		if !inside(target) {
+		if !inside(target) || underLink(target) {
 			return fmt.Errorf("unsafe path in archive: %s", f.Name)
 		}
 		mode := f.Mode()
@@ -210,6 +220,7 @@ func unzip(archive, dest string) error {
 			if err := os.Symlink(string(link), target); err != nil {
 				return err
 			}
+			links[target] = true
 		default:
 			if err := extractFile(f, target, mode.Perm()|0o600); err != nil {
 				return err

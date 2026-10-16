@@ -29,6 +29,14 @@ def test_repr_hides_password():
     assert "topsecret" not in repr(p) and "topsecret" not in f"{p!r} {p}"
 
 
+# The second is the provider format with a scheme added, which isn't valid.
+@pytest.mark.parametrize("raw", ["http://user:topsecret@h.example:99999", "http://h.example:8000:user:topsecret"])
+def test_errors_hide_password(raw):
+    with pytest.raises(ValidationError) as exc:
+        Proxy.parse(raw)
+    assert "topsecret" not in str(exc.value)
+
+
 def test_proxied_session_pins_proxy(monkeypatch):
     from autotok.proxy import proxied_session
 

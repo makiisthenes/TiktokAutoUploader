@@ -77,9 +77,12 @@ func TestInvalidProxies(t *testing.T) {
 }
 
 func TestProxyErrorsMaskThePassword(t *testing.T) {
-	_, err := ParseProxy("http://user:topsecret@h.example:99999")
-	if err == nil || strings.Contains(err.Error(), "topsecret") {
-		t.Fatalf("%v", err)
+	// The second is the provider format with a scheme added, which isn't valid.
+	for _, bad := range []string{"http://user:topsecret@h.example:99999", "http://h.example:8000:user:topsecret"} {
+		_, err := ParseProxy(bad)
+		if err == nil || strings.Contains(err.Error(), "topsecret") {
+			t.Errorf("%s: %v", bad, err)
+		}
 	}
 	if got := MaskProxyString("h.example:1:user:topsecret"); got != "h.example:1:user:****" {
 		t.Error(got)

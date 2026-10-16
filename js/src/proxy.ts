@@ -176,8 +176,9 @@ function urlsplit(raw: string): SplitUrl | string {
     port = colon === -1 ? "" : hostinfo.slice(colon + 1);
   }
 
-  if (port && !/^[0-9]+$/.test(port)) return `Port could not be cast to integer value as '${port}'`;
-  if (port && Number(port) > 65535) return "Port out of range 0-65535";
+  // Never quote the port text: it can hold the password (http://host:port:user:pass).
+  if (port && !/^[0-9]+$/.test(port)) return "missing or bad port";
+  if (port && Number(port) > 65535) return "port out of range";
   return { scheme, hostname: hostname.toLowerCase(), port: port || null, username, password };
 }
 

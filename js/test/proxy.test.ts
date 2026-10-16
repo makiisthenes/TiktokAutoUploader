@@ -54,10 +54,13 @@ test("invalid proxies", () => {
 });
 
 test("errors about bad proxies mask the password", () => {
-  assert.throws(() => Proxy.parse("http://user:topsecret@h.example:99999"), (error: Error) => {
-    assert.ok(!error.message.includes("topsecret"), error.message);
-    return true;
-  });
+  // The second is the provider format with a scheme added, which isn't valid.
+  for (const bad of ["http://user:topsecret@h.example:99999", "http://h.example:8000:user:topsecret"]) {
+    assert.throws(() => Proxy.parse(bad), (error: Error) => {
+      assert.ok(!error.message.includes("topsecret"), error.message);
+      return true;
+    });
+  }
 });
 
 test("parseProxy: empty is null, Proxy passes through", () => {

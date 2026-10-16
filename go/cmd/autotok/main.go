@@ -432,7 +432,7 @@ func cmdUpload(ctx context.Context, args []string, store *autotok.AccountStore) 
 		return err
 	}
 	if youtube != "" {
-		if video, err = downloadYouTube(ctx, youtube, client.Proxy); err != nil {
+		if video, err = downloadYouTube(ctx, youtube); err != nil {
 			return err
 		}
 		fmt.Fprintf(stdout, "Downloaded %s\n", video)
@@ -461,9 +461,9 @@ func cmdUpload(ctx context.Context, args []string, store *autotok.AccountStore) 
 
 var youtubeRE = regexp.MustCompile(`(?i)^https?://(?:www\.|m\.)?(?:youtube\.com/(?:watch\?v=|shorts/|embed/)|youtu\.be/)[\w\-]+`)
 
-// downloadYouTube downloads url into the videos folder with yt-dlp, like the Python package,
-// and returns the file's path.
-func downloadYouTube(ctx context.Context, url string, proxy *autotok.Proxy) (string, error) {
+// downloadYouTube downloads url into the videos folder with yt-dlp, like the Python CLI (not
+// through the account's proxy: it isn't TikTok traffic), and returns the file's path.
+func downloadYouTube(ctx context.Context, url string) (string, error) {
 	if !youtubeRE.MatchString(strings.TrimSpace(url)) {
 		return "", &usageError{"not a YouTube URL: " + url}
 	}
@@ -480,9 +480,6 @@ func downloadYouTube(ctx context.Context, url string, proxy *autotok.Proxy) (str
 		"--merge-output-format", "mp4", "--no-playlist", "--quiet", "--no-warnings",
 		"-o", filepath.Join(dest, "youtube-%(id)s.%(ext)s"),
 		"--print", "after_move:filepath",
-	}
-	if proxy != nil {
-		args = append(args, "--proxy", proxy.URL())
 	}
 	slog.Info("Downloading " + url)
 	cmd := exec.CommandContext(ctx, ytdlp, append(args, url)...)

@@ -142,6 +142,56 @@ func TestUnzipRefusesPathsOutsideTheFolder(t *testing.T) {
 	}
 }
 
+func TestUnzipRefusesWritingThroughSymlinks(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlinks need extra rights on Windows; Chrome's Windows archive has none")
+	}
+	dir := t.TempDir()
+	type entry struct {
+		name, body string
+		link       bool
+	}
+	write := func(name string, entries []entry) string {
+		path := filepath.Join(dir, name)
+		f, _ := os.Create(path)
+		w := zip.NewWriter(f)
+		for _, e := range entries {
+			h := &zip.FileHeader{Name: e.name}
+			if e.link {
+				h.SetMode(os.ModeSymlink | 0o777)
+			} else {
+				h.SetMode(0o644)
+			}
+			fw, _ := w.CreateHeader(h)
+			io.WriteString(fw, e.body)
+		}
+		w.Close()
+		f.Close()
+		return path
+	}
+	// s -> ., s/l -> .. (the parent of the folder, on disk), then a file through both.
+	evil := write("chain.zip", []entry{{"s", ".", true}, {"s/l", "..", true}, {"s/l/evil", "x", false}})
+	if err := unzip(evil, filepath.Join(dir, "out")); err == nil {
+		t.Error("archive writing through its own symlinks was accepted")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "evil")); err == nil {
+		t.Error("file written outside the folder")
+	}
+	// A macOS framework: links that point through other links are fine.
+	bundle := write("bundle.zip", []entry{
+		{"F.framework/Versions/155/F", "binary", false},
+		{"F.framework/Versions/Current", "155", true},
+		{"F.framework/F", "Versions/Current/F", true},
+	})
+	out := filepath.Join(dir, "bundle")
+	if err := unzip(bundle, out); err != nil {
+		t.Fatal(err)
+	}
+	if b, err := os.ReadFile(filepath.Join(out, "F.framework", "F")); err != nil || string(b) != "binary" {
+		t.Errorf("%q %v", b, err)
+	}
+}
+
 func TestBrowserbaseSessions(t *testing.T) {
 	var mu sync.Mutex
 	var requests []string
