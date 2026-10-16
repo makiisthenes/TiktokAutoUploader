@@ -177,6 +177,14 @@ func TestUnzipRefusesWritingThroughSymlinks(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(dir, "evil")); err == nil {
 		t.Error("file written outside the folder")
 	}
+	// A regular entry with the name of a link the archive made would be written through it.
+	replaced := write("replace.zip", []entry{{"a", ".", true}, {"b", "a/../escaped", true}, {"b", "x", false}})
+	if err := unzip(replaced, filepath.Join(dir, "out3")); err == nil {
+		t.Error("archive replacing its own symlink was accepted")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "escaped")); err == nil {
+		t.Error("file written outside the folder")
+	}
 	// A macOS framework: links that point through other links are fine.
 	bundle := write("bundle.zip", []entry{
 		{"F.framework/Versions/155/F", "binary", false},
