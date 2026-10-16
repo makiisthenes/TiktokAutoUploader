@@ -169,8 +169,10 @@ def finalize(schedule_id: int, outcome: UploadOutcome) -> None:
                 acct.last_used_at = now
                 s.add(acct)
         elif row.status != "running":
-            # Changed by someone else while uploading: record what happened, but never requeue.
+            # Changed by someone else while uploading (e.g. marked failed as stale): record what
+            # actually happened, but never requeue.
             row.result_text = outcome.message
+            row.publish_uncertain = outcome.uncertain
         elif outcome.retryable and row.attempts < MAX_ATTEMPTS:
             row.status = "pending"
             row.scheduled_for = now + RETRY_DELAY * row.attempts

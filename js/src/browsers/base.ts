@@ -8,6 +8,7 @@
 import { chromium, type Browser, type BrowserContext, type BrowserContextOptions, type Page } from "playwright";
 import { RemoteBrowserError } from "../errors.ts";
 import type { Proxy } from "../proxy.ts";
+import { redactUrls } from "./util.ts";
 
 /** A remote browser session. */
 export interface CloudSession {
@@ -97,7 +98,9 @@ export abstract class CloudProvider extends BrowserProvider {
       browser = await chromium.connectOverCDP(session.connectUrl);
     } catch (error) {
       await session.release();
-      throw new RemoteBrowserError(`could not connect to the ${this.label} session: ${(error as Error).message}`);
+      // The CDP URL can carry an API key or a signed token (Steel, Browserbase), and Playwright
+      // may quote it in its error.
+      throw new RemoteBrowserError(`could not connect to the ${this.label} session: ${redactUrls((error as Error).message)}`);
     }
     return new BrowserHandle(browser, { session, provider: this.label });
   }

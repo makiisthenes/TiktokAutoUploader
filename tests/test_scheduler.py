@@ -196,3 +196,47 @@ def test_adapter_marks_cut_off_publishes_as_uncertain(monkeypatch):
         monkeypatch.setattr(tiktok_adapter.Client, "from_account", client_raising(exc))
         outcome = tiktok_adapter.upload_from_options("alice", "v.mp4", "t", {})
         assert outcome.ok is False and outcome.uncertain is uncertain and outcome.retryable is False
+
+
+def test_a_late_definite_failure_clears_the_stale_flag(engine, job, monkeypatch):
+    def reclaimed_meanwhile(username, video_path, title, options):
+        with Session(engine) as s:  # the job was marked failed as stale while uploading...
+            row = s.get(ScheduledUpload, job)
+            row.status = "failed"
+            row.publish_uncertain = True
+            s.add(row)
+            s.commit()
+        return UploadOutcome(ok=False, message="TikTok rejected the post")  # ...but nothing was posted
+
+    monkeypatch.setattr("api.services.tiktok_adapter.upload_from_options", reclaimed_meanwhile)
+    worker.tick()
+    row = _row(engine, job)
+    assert row.status == "failed" and row.publish_uncertain is False
+
+
+def test_migration_tolerates_the_other_container_adding_the_column(tmp_path):
+    import sqlite3
+
+    from sqlalchemy import create_engine, event
+
+    path = tmp_path / "race.db"
+    old = create_engine(f"sqlite:///{path}")
+    with old.begin() as conn:
+        conn.exec_driver_sql("CREATE TABLE scheduled_uploads (id INTEGER PRIMARY KEY, status TEXT, result_text TEXT)")
+    old.dispose()
+
+    eng = api_db.make_engine(f"sqlite:///{path}")
+
+    @event.listens_for(eng, "before_cursor_execute")
+    def other_container_first(conn, cursor, statement, *args):
+        if statement.startswith("ALTER TABLE scheduled_uploads"):
+            other = sqlite3.connect(path)
+            other.execute(statement)
+            other.commit()
+            other.close()
+
+    api_db._migrate(eng)  # must not raise "duplicate column name"
+    with eng.connect() as conn:
+        columns = {r[1] for r in conn.exec_driver_sql("PRAGMA table_info(scheduled_uploads)")}
+    eng.dispose()
+    assert "publish_uncertain" in columns

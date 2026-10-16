@@ -14,6 +14,7 @@ from typing import Iterator
 
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
+from sqlalchemy.exc import OperationalError
 from sqlmodel import Session, SQLModel, create_engine
 
 
@@ -76,18 +77,26 @@ def init_db() -> None:
 def _migrate(eng: Engine) -> None:
     """Add columns that newer versions expect to tables created by older ones.
 
-    ``create_all`` creates missing tables but never alters existing ones."""
+    ``create_all`` creates missing tables but never alters existing ones. The api and
+    scheduler containers both run this at startup on the same database, so the other one may
+    add a column first."""
     with eng.begin() as conn:
         columns = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(scheduled_uploads)")}
-        if columns and "publish_uncertain" not in columns:
+        if not columns or "publish_uncertain" in columns:
+            return
+        try:
             conn.exec_driver_sql(
                 "ALTER TABLE scheduled_uploads ADD COLUMN publish_uncertain BOOLEAN NOT NULL DEFAULT 0"
             )
-            # Jobs that failed this way before the column existed.
-            conn.exec_driver_sql(
-                "UPDATE scheduled_uploads SET publish_uncertain = 1 WHERE status = 'failed' AND "
-                "(result_text LIKE '%may or may not%' OR result_text LIKE 'unexpected error:%')"
-            )
+        except OperationalError as exc:
+            if "duplicate column name" in str(exc).lower():
+                return  # the other container migrated (and backfilled) at the same moment
+            raise
+        # Jobs that failed this way before the column existed.
+        conn.exec_driver_sql(
+            "UPDATE scheduled_uploads SET publish_uncertain = 1 WHERE status = 'failed' AND "
+            "(result_text LIKE '%may or may not%' OR result_text LIKE 'unexpected error:%')"
+        )
 
 
 def get_session() -> Iterator[Session]:

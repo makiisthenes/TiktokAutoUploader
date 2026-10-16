@@ -286,7 +286,7 @@ def create_server(store: Optional[AccountStore] = None, *,
 
         def run(job: _Upload) -> None:
             try:
-                source = video
+                source = source_key  # the file the duplicate check was made for
                 if youtube_url is not None:
                     from .youtube import download
 
@@ -304,7 +304,8 @@ def create_server(store: Optional[AccountStore] = None, *,
                     out["downloaded_to"] = source
                 job.result = out
             except BaseException as exc:  # handed to every call waiting on this upload
-                job.error = exc
+                # Re-raised in the server's event loop, so never as SystemExit and the like.
+                job.error = exc if isinstance(exc, Exception) else RuntimeError(f"upload stopped: {exc!r}")
             finally:
                 job.done.set()
 

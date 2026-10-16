@@ -45,6 +45,8 @@ Released together with the first version of the TypeScript SDK on npm (`autotok`
 - Web app: the login browser's VNC connection is only opened for the app's own page, and only
   while a login is in progress. Before, any web page open during a login could watch or control the
   virtual browser. The VNC server also listens only inside its container now.
+- Cloud browsers: when connecting to a session failed, the error message could include the
+  session's connection URL, which for Steel contains your API key. It is now hidden.
 
 ## 2.0.1
 

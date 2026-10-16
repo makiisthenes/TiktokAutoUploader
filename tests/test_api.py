@@ -321,7 +321,7 @@ def test_requests_for_other_host_names_are_refused(engine, saved_account, monkey
     with TestClient(create_app(), base_url="http://localhost") as c:
         for host in ("localhost:3000", "127.0.0.1:8000", "[::1]:8000", "api:8000", "LOCALHOST"):
             assert c.get("/api/accounts", headers={"Host": host}).status_code == 200, host
-        for host in ("evil.example", "evil.example:3000", "localhost.evil.example", ""):
+        for host in ("evil.example", "evil.example:3000", "localhost.evil.example", "", "[::1]evil.example"):
             r = c.post("/api/accounts/import-from-disk",
                        headers={"Host": host, "X-Requested-With": "autotok"})
             assert r.status_code == 403, host

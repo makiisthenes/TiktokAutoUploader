@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import re
 
 # A web page can rebind its own domain to 127.0.0.1 (DNS rebinding). The browser then treats it
 # as the same origin as this API, so the CSRF header alone doesn't stop it, but its requests
@@ -20,5 +21,7 @@ def hostname(host_header: str) -> str:
     """The host name in a Host header or Origin authority, without the port."""
     value = host_header.strip().lower()
     if value.startswith("["):  # [::1]:8000
-        return value[1:].split("]", 1)[0]
+        host, _, rest = value[1:].partition("]")
+        # Only ":port" may follow the brackets; anything else is malformed and matches nothing.
+        return host if re.fullmatch(r"(:\d+)?", rest) else value
     return value.rsplit(":", 1)[0] if value.count(":") == 1 else value

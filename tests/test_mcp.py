@@ -71,7 +71,9 @@ async def test_upload_now(saved_account, video_file, uploads):
     error, data = await call("upload_video", {"account": "alice", "video": "clip.mp4", "caption": "Hello #fyp"})
     assert not error
     assert data == {"account": "alice", "video_id": "7429183650274961408", "status": "published"}
-    assert uploads == [{"account": "alice", "video": "clip.mp4", "caption": "Hello #fyp", "schedule": None,
+    # The file the duplicate check was made for, resolved from the videos folder.
+    assert uploads == [{"account": "alice", "video": str(video_file.resolve()), "caption": "Hello #fyp",
+                        "schedule": None,
                         "visibility": "public", "allow_comment": True, "allow_duet": False,
                         "allow_stitch": False, "ai_label": False}]
 

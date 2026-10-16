@@ -14,6 +14,11 @@ export function errorDetail(r: HttpResponse): string {
   return (data === undefined ? r.text() : JSON.stringify(data)).slice(0, 300);
 }
 
+/** Hide the query string of every URL in `text` (API keys and tokens travel there). */
+export function redactUrls(text: string): string {
+  return text.replace(/\b((?:wss?|https?):\/\/[^\s?#'"]+)\?[^\s'"]*/g, "$1?****");
+}
+
 /** Append `query` (`a=1&b=2`) to `url`. */
 export function addQuery(url: string, query: string): string {
   return `${url}${url.includes("?") ? "&" : "?"}${query}`;

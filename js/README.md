@@ -57,6 +57,8 @@ await client.upload("clip.mp4", "Going live tomorrow #fyp @friend", {
   uploads in a row, keep one signer open (it must use the client's user agent and proxy):
 
   ```ts
+  import { Client, Signer } from "autotok";
+
   const base = await Client.fromAccount("alice");
   const signer = await Signer.start(base.userAgent, { proxy: base.proxy });
   const client = new Client(base.account, { signer });
@@ -70,8 +72,9 @@ Every error extends `AutotokError`. `error.retryable` is `true` only when nothin
 TikTok's publish step, so running the same upload again can't post twice.
 
 ```ts
-import { AutotokError, PublishError, PublishUncertainError } from "autotok";
+import { AutotokError, Client, PublishError, PublishUncertainError } from "autotok";
 
+const client = await Client.fromAccount("alice");
 try {
   await client.upload("clip.mp4", "caption");
 } catch (error) {
@@ -92,7 +95,7 @@ upload request. `HTTP_PROXY`/`HTTPS_PROXY` environment variables are ignored, so
 an account through another IP.
 
 ```ts
-import { AccountStore, checkProxy, login } from "autotok";
+import { AccountStore, checkProxy, login, uploadVideo } from "autotok";
 
 await login("alice", { proxy: "http://user:pass@gate.example.com:7000" });   // set at login
 await new AccountStore().setProxy("alice", "socks5://user:pass@gate.example.com:1080");
@@ -134,6 +137,8 @@ instead of this machine. That suits servers and containers.
 With a cloud browser, `login` gives you a link to log in through:
 
 ```ts
+import { login } from "autotok";
+
 await login("alice", { onLiveUrl: (url) => console.log("Log in here:", url) });
 ```
 

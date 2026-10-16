@@ -10,6 +10,7 @@ from abc import ABC, abstractmethod
 
 from ..errors import RemoteBrowserError
 from ..proxy import Proxy
+from .http import redact_urls
 
 
 class CloudSession(ABC):
@@ -108,5 +109,9 @@ class CloudProvider(BrowserProvider):
             browser = pw.chromium.connect_over_cdp(session.connect_url)
         except Exception as exc:
             session.release()
-            raise RemoteBrowserError(f"could not connect to the {self.label} session: {exc}") from None
+            # The CDP URL can carry an API key or a signed token (Steel, Browserbase), and
+            # Playwright may quote it in its error.
+            raise RemoteBrowserError(
+                f"could not connect to the {self.label} session: {redact_urls(str(exc))}"
+            ) from None
         return BrowserHandle(browser, session=session, provider=self.label)
