@@ -651,17 +651,6 @@ See also [Common problems](docs/common-problems.md).
 
 ---
 
-## Demo
-
-Video showcases main usage of the app, uploading a video to TikTok.
-
-<p align="center">
-  <video src="https://github.com/makiisthenes/TiktokAutoUploader/assets/52138450/3dc36fd4-b9f4-4059-bcb4-c2ddca2a285d" controls width="320" height="240">
-  </video>
-</p>
-
----
-
 ## Professional Software (autotok Pro)
 
 Fill waiting list form: https://forms.gle/M4KpdfruqCukQvj99
