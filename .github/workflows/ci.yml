@@ -80,6 +80,39 @@ jobs:
           node --input-type=module -e "import { VERSION, Proxy } from 'autotok'; console.log(VERSION, Proxy.parse('h.example:1').url)"
           node -e "console.log(typeof require('autotok').uploadVideo)"
 
+  go:
+    name: Go module (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    defaults:
+      run:
+        working-directory: go
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go/go.mod
+          cache-dependency-path: go/go.sum
+      - name: The signing scripts match the Python package's
+        run: diff -r ../autotok/signer_js signer_js
+      - name: gofmt
+        if: runner.os == 'Linux'
+        run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+      - run: go vet ./...
+      # The runners have Google Chrome, so the real-browser tests run too.
+      - run: go test ./...
+      - name: Cross-compile the binary
+        if: runner.os == 'Linux'
+        run: |
+          for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64; do
+            CGO_ENABLED=0 GOOS=${target%/*} GOARCH=${target#*/} go build -o /dev/null ./cmd/autotok
+          done
+          go run ./cmd/autotok --version
+
   docker:
     name: Docker images
     runs-on: ubuntu-latest

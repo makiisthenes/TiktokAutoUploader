@@ -52,7 +52,12 @@ class Proxy:
             parsed = urlsplit(raw)
             port = parsed.port
         except ValueError as exc:
-            raise ValidationError(f"invalid proxy '{_mask_raw(value)}': {exc}") from None
+            # urllib's message quotes the port text, which can hold the password (the provider
+            # format with a scheme: http://host:port:user:pass), so it isn't passed on.
+            text = str(exc)
+            reason = ("port out of range" if "out of range" in text
+                      else "invalid IPv6 address" if "IPv6" in text else "missing or bad port")
+            raise ValidationError(f"invalid proxy '{_mask_raw(value)}': {reason}") from None
         return cls._build(
             (parsed.scheme or "http").lower(),
             parsed.hostname or "",

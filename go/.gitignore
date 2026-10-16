@@ -1,0 +1,4 @@
+# Built binaries (go build ./cmd/autotok) and release archives
+/autotok
+/autotok.exe
+/dist/
