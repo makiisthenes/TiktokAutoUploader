@@ -4,11 +4,13 @@
   <img src="https://user-images.githubusercontent.com/52138450/111885490-04ab6680-89c0-11eb-955a-f833577b4406.png" width="35%" alt="TiktokAutoUploader logo">
 </p>
 
-<p align="center">Upload and schedule TikTok videos from the command line or Python, with a proxy per account.</p>
-<p align="center"><code>uv tool install autotok</code> · one login · one command per upload</p>
+<p align="center">Upload and schedule TikTok videos from the command line, Python or TypeScript, with a proxy per account.</p>
+<p align="center"><code>uv tool install autotok</code> · <code>npm install autotok</code> · one login · one command per upload</p>
 
 <p align="center">
   <a href="https://pypi.org/project/autotok/"><img alt="PyPI" src="https://img.shields.io/pypi/v/autotok?label=pypi"></a>
+  <a href="https://www.npmjs.com/package/autotok"><img alt="npm" src="https://img.shields.io/npm/v/autotok?label=npm"></a>
+  <a href="#typescript-sdk"><img alt="TypeScript types included" src="https://img.shields.io/npm/types/autotok"></a>
   <a href="https://github.com/makiisthenes/TiktokAutoUploader/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/makiisthenes/TiktokAutoUploader/actions/workflows/ci.yml/badge.svg"></a>
   <a href="LICENSE"><img alt="License: AGPL-3.0" src="https://img.shields.io/badge/license-AGPL--3.0-blue"></a>
   <a href="https://www.linkedin.com/in/michael-p-88b015200/"><img alt="LinkedIn" src="https://img.shields.io/badge/LinkedIn-0077B5?style=flat-square&logo=linkedin&logoColor=white"></a>
@@ -27,6 +29,8 @@
 
 ## Install
 
+**Command line and Python**
+
 ```bash
 uv tool install "autotok[youtube]"
 autotok install-browser                                   # one-time browser download, about 300 MB
@@ -41,6 +45,23 @@ autotok upload -u my_account -v clip.mp4 -t "Hello #fyp"
 
 No uv? `pipx install "autotok[youtube]"` or `pip install "autotok[youtube]"` work too.
 [Getting started](#getting-started) goes through each step, including proxies and cloud browsers.
+
+**TypeScript and JavaScript (Node.js)**
+
+```bash
+npm install autotok
+npx playwright install chromium                           # one-time browser download
+```
+
+```ts
+import { login, uploadVideo } from "autotok";
+
+await login("my_account");                                // once: log in on the page that opens
+await uploadVideo("my_account", "clip.mp4", "Hello #fyp");
+```
+
+Typed, promise-based, no Python needed, and it shares saved accounts with the CLI. See the
+[TypeScript SDK](#typescript-sdk).
 
 ---
 
@@ -96,6 +117,8 @@ or use [pipx](https://pipx.pypa.io): `pipx install "autotok[youtube]"`.
 - Try it without installing: `uvx --from "autotok[youtube]" autotok --version`.
 - Using autotok from Python code? Add it to your project: `uv add "autotok[youtube]"` or
   `pip install "autotok[youtube]"`.
+- Using TypeScript or JavaScript? `npm install autotok` instead, see the [TypeScript SDK](#typescript-sdk).
+  From code, `login()` and `uploadVideo()` replace the commands in steps 3 and 4.
 - `[youtube]` adds YouTube-link support. Leave it out if you don't need it.
 - `autotok` "not recognized" or "command not found"? Run `uv tool update-shell` once and open a new
   terminal.
@@ -167,6 +190,7 @@ BROWSERBASE_API_KEY=bb_live_...
 | Run several accounts, each with its own IP | [Proxies](#proxies) |
 | Avoid running a browser on my computer | [Cloud browsers](#cloud-browsers-browserbase-steel) |
 | Upload from Python code | [Python SDK](#python-sdk) |
+| Upload from TypeScript or JavaScript | [TypeScript SDK](#typescript-sdk) |
 | Let an AI agent (Claude, Cursor...) upload for me | [MCP server](#mcp-server-ai-agents) |
 | Run on a server or in a container | [Docker](#docker) |
 | Use a web dashboard with a scheduler | [Web app](#web-app-self-hosted) |
@@ -184,10 +208,12 @@ BROWSERBASE_API_KEY=bb_live_...
 - **Clickable hashtags and @mentions**, emoji-safe.
 - **YouTube links** download automatically with [yt-dlp](https://github.com/yt-dlp/yt-dlp).
 - **Python SDK, CLI, and an optional web app** (Docker) with a browser-based login.
+- **TypeScript SDK** on npm (`npm install autotok`): fully typed, promise-based, no Python needed, and it
+  shares saved accounts with the CLI.
 - **MCP server** so AI agents (Claude, Cursor, VS Code...) can upload and schedule for you.
 - **Cloud browsers**: run the login and signing browser on [Browserbase](https://www.browserbase.com) or [Steel](https://github.com/steel-dev/steel-browser) (cloud or self-hosted) instead of your computer.
 - **Docker image** for running the CLI on servers.
-- **No Node.js**: TikTok's request signatures are computed in headless Chromium.
+- **No Node.js needed** for the Python package: TikTok's request signatures are computed in headless Chromium.
 
 ---
 
@@ -354,6 +380,59 @@ autotok.import_session("alice", "<sessionid value>", datacenter="<tt-target-idc 
 
 ---
 
+## TypeScript SDK
+
+The same uploader for TypeScript and JavaScript, on npm as [`autotok`](https://www.npmjs.com/package/autotok).
+It runs on Node.js 22.12+, has types included, and needs no Python. It reads and writes the same
+`~/.autotok/accounts`, so an account you log in to with the CLI works from TypeScript too, and the
+other way round.
+
+```bash
+npm install autotok
+npx playwright install chromium        # one-time browser download, unless you use a cloud browser
+```
+
+```ts
+import { Client, login, uploadVideo, AutotokError, PublishError } from "autotok";
+
+await login("alice", { proxy: "http://user:pass@gate.example.com:7000" });   // once; opens a browser
+
+const result = await uploadVideo("alice", "clip.mp4", "Hello #fyp");
+console.log(result.videoId);
+
+// More control: reuse a client, set post options, schedule
+const client = await Client.fromAccount("alice");        // uses alice's saved proxy
+await client.upload("clip.mp4", "Going live tomorrow #fyp @friend", {
+  schedule: new Date(Date.now() + 24 * 3_600_000),     // a Date, a timestamp in ms, or an ISO string
+  visibility: "public",                                 // or "private"
+  allowComment: true,
+  allowDuet: false,
+  allowStitch: false,
+  aiLabel: false,
+});
+
+// Errors are typed; `retryable` is true only when nothing reached TikTok's publish step.
+try {
+  await client.upload("clip.mp4", "caption");
+} catch (error) {
+  if (error instanceof PublishError) console.log(error.statusCode, error.statusMsg);
+  else if (error instanceof AutotokError) console.log("failed:", error.message, "safe to retry:", error.retryable);
+}
+```
+
+- Everything in your editor is typed: options, results and every error class.
+- The video can be a path, a file name in `~/.autotok/videos`, or the video's bytes (`Buffer`/`Uint8Array`).
+- Works from ES modules and CommonJS (`require("autotok")`), and with TypeScript's `nodenext`,
+  `node20` and `bundler` settings.
+- Proxies, cloud browsers (`AUTOTOK_BROWSER`), the configuration variables and `.env` files work as
+  described in this README; call `loadEnv()` to read `.env`.
+- Already have a `sessionid` cookie? `await importSession("alice", "<sessionid>", { datacenter: "<tt-target-idc>" })`.
+
+The full API is in [`js/README.md`](js/README.md). The CLI, YouTube links, the MCP server and the
+web app are in the Python package.
+
+---
+
 ## MCP server (AI agents)
 
 autotok includes an [MCP](https://modelcontextprotocol.io) server, so AI agents such as Claude,
@@ -398,6 +477,9 @@ If the client can't find `autotok`, use the full path that `which autotok` (Wind
 - **Every upload is a real post.** Most clients ask before each tool call; keep that on for
   `upload_video`. An upload error that says the post *may or may not exist* tells the agent not to
   retry, so nothing is posted twice.
+- **Timeouts don't cause duplicates.** If a client gives up on a long upload and calls
+  `upload_video` again with the same account, video and caption, it gets the first upload's result
+  instead of a second post. Clients that support progress notifications keep waiting meanwhile.
 - **Streamable HTTP**: `autotok mcp --http` serves `http://127.0.0.1:8000/mcp` (`--host`,
   `--port` to change). There is no authentication, so keep it on localhost or behind your own.
 
@@ -487,7 +569,8 @@ Open <http://localhost:3000>. The API docs are at <http://localhost:8000/docs>.
 - **Upload**: drop a file, pick one from the library, or paste a YouTube link. Publish now or
   schedule for any time.
 - **Schedules**: the scheduler retries only failures that happened before anything reached TikTok,
-  so a job can't post twice.
+  so a job can't post twice. A job that was cut off while publishing is marked *may already be
+  posted*, and retrying it asks you to check TikTok first.
 
 Data lives in `./data`. To use an account you logged in to with the CLI, copy its file into the
 app's store and click **Import from disk** on the Accounts page:
@@ -505,6 +588,8 @@ Logging in through the web app still uses its built-in virtual browser.
 
 Scripts that call the API directly must send the header `X-Requested-With: autotok` on
 `POST`/`PATCH`/`DELETE` requests. This stops other web pages from using the local API.
+The API also only answers to `localhost` and `127.0.0.1`. If you reach the app by another name
+(say, behind your own reverse proxy), add it to `.env`: `AUTOTOK_ALLOWED_HOSTS=tiktok.home.lan`.
 
 > The web app has no login of its own and only listens on `127.0.0.1`. Don't expose it to the
 > internet.

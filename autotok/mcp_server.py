@@ -8,12 +8,20 @@ The tools work on the same saved accounts as the CLI. Saved sessions never
 leave this process and proxies are always shown masked. The SDK runs these
 sync tools in worker threads, which also keeps Playwright's sync API (login,
 request signing) off the server's event loop.
+
+Uploads run in their own thread and are remembered by account, video and
+caption, so an agent that calls upload_video again (say, after its client
+timed out) gets the first upload's result instead of a second post.
 """
 import functools
+import inspect
 import threading
-from dataclasses import dataclass
+import time
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Annotated, Any, Callable, Literal, Optional, TypeVar
+
+import anyio
 
 from . import __version__, auth, settings
 from .accounts import AccountStore, validate_account_name
@@ -27,10 +35,10 @@ from .errors import (
     ValidationError,
 )
 from .proxy import check_proxy, parse_proxy
-from .uploader import MAX_CAPTION_LENGTH, Client
+from .uploader import MAX_CAPTION_LENGTH, Client, resolve_video_path
 
 try:  # pydantic comes with mcp
-    from mcp.server.mcpserver import MCPServer
+    from mcp.server.mcpserver import Context, MCPServer
     from mcp.server.mcpserver.exceptions import ToolError
     from mcp.types import ToolAnnotations
     from pydantic import Field
@@ -51,9 +59,16 @@ back), then poll login_status until it says saved.
   can't be scheduled.
 - An error that says the post may or may not exist must not be retried: ask the user to check
   the account on TikTok first, or the video may be posted twice.
+- If upload_video times out or the connection drops, call it again with the same arguments.
+  autotok recognises the same account, video and caption: it waits for that upload or returns
+  its result, and doesn't post it twice. Pass repost=true only when the user wants the same
+  video and caption posted again.
 """
 
 LOGIN_TIMEOUT = 600.0
+# Progress notifications while an upload runs: clients that reset their timeout on progress keep
+# waiting instead of giving up on a long upload.
+PROGRESS_EVERY = 10.0
 # How long login waits before answering: long enough for a cloud browser to hand back its live
 # URL, and for a local browser to fail fast (say, Chromium not installed).
 CLOUD_URL_WAIT = 60.0
@@ -86,6 +101,16 @@ def _describe(exc: AutotokError) -> str:
 def _tool_errors(fn: F) -> F:
     """Report autotok's own errors to the agent as tool errors, with retry advice."""
 
+    if inspect.iscoroutinefunction(fn):
+        @functools.wraps(fn)
+        async def async_wrapper(*args, **kwargs):
+            try:
+                return await fn(*args, **kwargs)
+            except AutotokError as exc:
+                raise ToolError(_describe(exc)) from exc
+
+        return async_wrapper  # type: ignore[return-value]
+
     @functools.wraps(fn)
     def wrapper(*args, **kwargs):
         try:
@@ -94,6 +119,23 @@ def _tool_errors(fn: F) -> F:
             raise ToolError(_describe(exc)) from exc
 
     return wrapper  # type: ignore[return-value]
+
+
+@dataclass
+class _Upload:
+    """An upload started by upload_video, kept so a repeated call can't post it twice."""
+
+    started: float = field(default_factory=time.monotonic)
+    done: threading.Event = field(default_factory=threading.Event)
+    result: Optional[dict] = None
+    error: Optional[BaseException] = None
+
+    @property
+    def maybe_posted(self) -> bool:
+        """Failed in a way that may still have published the video."""
+        return self.error is not None and (
+            isinstance(self.error, PublishUncertainError) or not isinstance(self.error, AutotokError)
+        )
 
 
 def _parse_when(value: str) -> datetime:
@@ -135,7 +177,24 @@ def create_server(store: Optional[AccountStore] = None, *,
     """Build the MCP server. ``store`` defaults to the accounts in ``$AUTOTOK_HOME``."""
     store = store or AccountStore()
     logins: dict[str, _Login] = {}
+    uploads: dict[tuple[str, str, str], _Upload] = {}
     lock = threading.Lock()
+
+    async def wait_for(job: _Upload, ctx: Optional[Context]) -> dict:
+        reported = 0.0
+        while not job.done.is_set():
+            await anyio.sleep(0.2)
+            elapsed = time.monotonic() - job.started
+            if ctx is not None and elapsed - reported >= PROGRESS_EVERY:
+                reported = elapsed
+                try:
+                    await ctx.report_progress(elapsed, None, f"Uploading to TikTok ({int(elapsed)} s so far)")
+                except Exception:  # progress is best effort
+                    pass
+        if job.error is not None:
+            raise job.error
+        assert job.result is not None
+        return job.result
 
     server = MCPServer(
         name="autotok",
@@ -184,7 +243,7 @@ def create_server(store: Optional[AccountStore] = None, *,
     @server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False,
                                              idempotent_hint=False, open_world_hint=True))
     @_tool_errors
-    def upload_video(
+    async def upload_video(
         account: AccountName,
         caption: Annotated[str, Field(description=f"Post caption, at most {MAX_CAPTION_LENGTH} characters. "
                                                    "#hashtags and @mentions become clickable.")],
@@ -201,11 +260,16 @@ def create_server(store: Optional[AccountStore] = None, *,
         allow_duet: bool = False,
         allow_stitch: bool = False,
         ai_generated: Annotated[bool, Field(description="Label the post as AI-generated content.")] = False,
+        repost: Annotated[bool, Field(description="Post again even though this server already uploaded (or may "
+                                                  "have uploaded) the same video with the same caption to this "
+                                                  "account. Only when the user asks for a second post.")] = False,
+        ctx: Optional[Context] = None,
     ) -> dict:
         """Upload a video to a TikTok account and post it now or at a scheduled time.
 
         Give exactly one of video or youtube_url, and at most one of schedule_in_minutes or
-        schedule_at. Returns the TikTok video id.
+        schedule_at. Returns the TikTok video id. Calling it again with the same account, video
+        and caption returns the first upload instead of posting twice.
         """
         if (video is None) == (youtube_url is None):
             raise ValidationError("give exactly one of video or youtube_url")
@@ -218,23 +282,60 @@ def create_server(store: Optional[AccountStore] = None, *,
             schedule = _parse_when(schedule_at)
 
         client = Client.from_account(account, store=store)
-        source = video
-        if youtube_url is not None:
-            from .youtube import download
+        source_key = youtube_url.strip() if youtube_url is not None else str(resolve_video_path(video))
 
-            source = str(download(youtube_url))  # like the CLI's -yt: downloaded without the proxy
-        result = client.upload(
-            source, caption, schedule=schedule, visibility="private" if private else "public",
-            allow_comment=allow_comments, allow_duet=allow_duet, allow_stitch=allow_stitch,
-            ai_label=ai_generated,
-        )
-        out = {"account": account, "video_id": result.video_id,
-               "status": "scheduled" if result.scheduled_for else "published"}
-        if result.scheduled_for:
-            out["scheduled_for"] = result.scheduled_for.isoformat()
-        if youtube_url is not None:
-            out["downloaded_to"] = source
-        return out
+        def run(job: _Upload) -> None:
+            try:
+                source = source_key  # the file the duplicate check was made for
+                if youtube_url is not None:
+                    from .youtube import download
+
+                    source = str(download(youtube_url))  # like the CLI's -yt: downloaded without the proxy
+                result = client.upload(
+                    source, caption, schedule=schedule, visibility="private" if private else "public",
+                    allow_comment=allow_comments, allow_duet=allow_duet, allow_stitch=allow_stitch,
+                    ai_label=ai_generated,
+                )
+                out = {"account": account, "video_id": result.video_id,
+                       "status": "scheduled" if result.scheduled_for else "published"}
+                if result.scheduled_for:
+                    out["scheduled_for"] = result.scheduled_for.isoformat()
+                if youtube_url is not None:
+                    out["downloaded_to"] = source
+                job.result = out
+            except BaseException as exc:  # handed to every call waiting on this upload
+                # Re-raised in the server's event loop, so never as SystemExit and the like.
+                job.error = exc if isinstance(exc, Exception) else RuntimeError(f"upload stopped: {exc!r}")
+            finally:
+                job.done.set()
+
+        # Same account, video and caption: the same post, whatever the other settings.
+        key = (account, source_key, caption)
+        note = None
+        with lock:
+            job = uploads.get(key)
+            if job is not None and not repost:
+                if not job.done.is_set():
+                    note = "This upload was already running from an earlier call; this is its result."
+                elif job.result is not None:
+                    return {**job.result, "duplicate_call": True,
+                            "message": "This video was already uploaded to this account with this caption, "
+                                       "so it was not posted again. Pass repost=true to post it a second time."}
+                elif job.maybe_posted:
+                    raise ToolError(
+                        f"An earlier attempt at this upload failed in a way that may still have posted it "
+                        f"({job.error}). Ask the user to check the account on TikTok, and call again with "
+                        "repost=true only if the video isn't there."
+                    )
+                else:
+                    job = None  # it failed before publishing, so running it again is safe
+            elif repost:
+                job = None
+            if job is None:
+                job = uploads[key] = _Upload()
+                threading.Thread(target=run, args=(job,), name=f"autotok-upload-{account}", daemon=True).start()
+        result = await wait_for(job, ctx)
+        return {**result, "duplicate_call": True, "message": note} if note else result
 
     @server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False,
                                              idempotent_hint=False, open_world_hint=True))

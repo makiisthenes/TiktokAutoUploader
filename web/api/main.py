@@ -15,6 +15,7 @@ from fastapi.responses import JSONResponse
 import autotok
 from api.db import init_db
 from api.routers import accounts, login, proxy, schedules, uploads, videos
+from api.security import allowed_hosts, hostname
 from autotok import settings
 
 
@@ -48,6 +49,15 @@ def create_app() -> FastAPI:
             allow_headers=["*"],
             allow_credentials=False,
         )
+
+    @app.middleware("http")
+    async def _require_known_host(request: Request, call_next):
+        if hostname(request.headers.get("host", "")) not in allowed_hosts():
+            return JSONResponse(
+                {"detail": "unknown Host header; add it to AUTOTOK_ALLOWED_HOSTS if you use this name"},
+                status_code=403,
+            )
+        return await call_next(request)
 
     @app.middleware("http")
     async def _require_csrf_header(request: Request, call_next):

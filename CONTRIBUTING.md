@@ -15,12 +15,29 @@ autotok install-browser
 pytest
 ```
 
+### Node.js / TypeScript package
+
+```bash
+cd js
+npm ci
+npx playwright install chromium   # for the signer tests; they're skipped without it
+npm test                          # runs the TypeScript sources directly (Node.js 22.18+)
+npm run typecheck
+```
+
+The npm package mirrors the Python package module for module (`js/src/uploader.ts` ↔
+`autotok/uploader.py`, and so on) and shares its account files and TikTok's signing scripts
+(`autotok/signer_js` is copied in at build time). When you change upload behaviour in one, change
+the other too; `js/test` checks captions, proxy parsing and request signing against values
+produced by the Python package.
+
 ## Repository layout
 
 | Path | What it is |
 |---|---|
 | `autotok/` | The `autotok` package published to PyPI (CLI, uploader, browsers) |
 | `tests/` | The test suite (`pytest`) |
+| `js/` | The `autotok` npm package for Node.js and TypeScript (`npm ci && npm test`) |
 | `web/` | The self-hosted web app: `api/` (FastAPI), `scheduler/`, `novnc/` (virtual login browser), `frontend/` (React; `npm ci && npm run dev`) |
 | `docs/` | Extra documentation and images |
 | `Dockerfile` | Image for the `autotok` CLI |

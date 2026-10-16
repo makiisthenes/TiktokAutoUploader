@@ -23,7 +23,7 @@ def engine(tmp_path):
 def client(engine):
     from api.main import create_app
 
-    with TestClient(create_app(), headers={"X-Requested-With": "autotok"}) as c:
+    with TestClient(create_app(), base_url="http://localhost", headers={"X-Requested-With": "autotok"}) as c:
         yield c
 
 
@@ -198,7 +198,7 @@ def test_callback_secret_is_persisted(monkeypatch, autotok_home):
 def test_state_changing_requests_need_csrf_header(engine, saved_account):
     from api.main import create_app
 
-    with TestClient(create_app()) as bare:
+    with TestClient(create_app(), base_url="http://localhost") as bare:
         assert bare.post("/api/accounts/import-from-disk").status_code == 403
         assert bare.get("/api/accounts").status_code == 200  # reads are fine
         r = bare.get("/api/accounts", headers={"Origin": "https://evil.example"})
@@ -247,3 +247,107 @@ def test_unknown_login_session_stream(client):
     body = client.get("/api/login/browser/nope/events").text
     assert "event: error" not in body
     assert body.index("event: failure") < body.index("event: status")
+
+
+def _failed_schedule(client, engine, *, uncertain):
+    from sqlmodel import Session
+
+    from api.models import ScheduledUpload
+
+    _import(client)
+    when = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
+    sid = client.post("/api/schedules", json={"username": "alice", "title": "t", "source_type": "local",
+                                              "source_ref": "clip.mp4", "scheduled_for": when}).json()["id"]
+    with Session(engine) as s:
+        row = s.get(ScheduledUpload, sid)
+        row.status = "failed"
+        row.publish_uncertain = uncertain
+        row.result_text = "publish request failed; the video may or may not have been posted."
+        s.add(row)
+        s.commit()
+    return sid
+
+
+def test_retrying_a_maybe_posted_job_needs_confirmation(client, engine, saved_account, video_file):
+    sid = _failed_schedule(client, engine, uncertain=True)
+    assert client.get(f"/api/schedules/{sid}").json()["publish_uncertain"] is True
+    r = client.patch(f"/api/schedules/{sid}", json={"status": "pending"})
+    assert r.status_code == 409 and "may already be on TikTok" in r.json()["detail"]
+    assert client.get(f"/api/schedules/{sid}").json()["status"] == "failed"
+
+    r = client.patch(f"/api/schedules/{sid}", json={"status": "pending", "confirm_uncertain": True})
+    assert r.status_code == 200
+    assert r.json()["status"] == "pending" and r.json()["publish_uncertain"] is False
+
+
+def test_retrying_a_definite_failure_needs_no_confirmation(client, engine, saved_account, video_file):
+    sid = _failed_schedule(client, engine, uncertain=False)
+    r = client.patch(f"/api/schedules/{sid}", json={"status": "pending"})
+    assert r.status_code == 200 and r.json()["status"] == "pending"
+
+
+def test_edits_never_overwrite_a_job_the_scheduler_just_claimed(client, engine, saved_account, video_file):
+    from fastapi import HTTPException
+    from sqlmodel import Session
+
+    from api.models import ScheduledUpload
+    from api.routers import schedules
+    from api.schemas import ScheduledUploadUpdate
+
+    _import(client)
+    when = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
+    sid = client.post("/api/schedules", json={"username": "alice", "title": "t", "source_type": "local",
+                                              "source_ref": "clip.mp4", "scheduled_for": when}).json()["id"]
+    with Session(engine) as stale, Session(engine) as worker_side:
+        assert stale.get(ScheduledUpload, sid).status == "pending"  # the API reads the row...
+        claimed = worker_side.get(ScheduledUpload, sid)  # ...then the scheduler claims it
+        claimed.status = "running"
+        worker_side.add(claimed)
+        worker_side.commit()
+        with pytest.raises(HTTPException) as cancel:
+            schedules.update_schedule(sid, ScheduledUploadUpdate(status="cancelled"), stale)
+        assert cancel.value.status_code == 409
+        with pytest.raises(HTTPException) as remove:
+            schedules.delete_schedule(sid, stale)
+        assert remove.value.status_code == 409
+    assert client.get(f"/api/schedules/{sid}").json()["status"] == "running"
+
+
+def test_requests_for_other_host_names_are_refused(engine, saved_account, monkeypatch):
+    # A DNS-rebinding page is "same origin" to the browser and can send the CSRF header, but its
+    # Host header names its own domain.
+    from api.main import create_app
+
+    with TestClient(create_app(), base_url="http://localhost") as c:
+        for host in ("localhost:3000", "127.0.0.1:8000", "[::1]:8000", "api:8000", "LOCALHOST"):
+            assert c.get("/api/accounts", headers={"Host": host}).status_code == 200, host
+        for host in ("evil.example", "evil.example:3000", "localhost.evil.example", "", "[::1]evil.example"):
+            r = c.post("/api/accounts/import-from-disk",
+                       headers={"Host": host, "X-Requested-With": "autotok"})
+            assert r.status_code == 403, host
+        monkeypatch.setenv("AUTOTOK_ALLOWED_HOSTS", "tiktok.home.lan, other.lan")
+        assert c.get("/api/accounts", headers={"Host": "tiktok.home.lan:3000"}).status_code == 200
+
+
+def test_vnc_websocket_only_for_the_app_during_a_login(client, engine):
+    from sqlmodel import Session
+
+    from api.models import LoginSession
+
+    def check(origin=None, host="localhost:3000"):
+        headers = {"Host": host}
+        if origin:
+            headers["Origin"] = origin
+        return client.get("/api/login/browser/vnc-auth", headers=headers).status_code
+
+    assert check("http://localhost:3000") == 403  # no login in progress
+    with Session(engine) as s:
+        s.add(LoginSession(id="s1", username="alice", status="active"))
+        s.commit()
+    assert check("http://localhost:3000") == 204
+    assert check("http://127.0.0.1:3000", host="127.0.0.1:3000") == 204
+    assert check() == 403  # browsers always send Origin on websockets
+    assert check("https://evil.example") == 403
+    assert check("http://localhost:9999") == 403  # another app on this machine
+    assert check("http://127.0.0.1:3000") == 403  # a different origin from the app's
+    assert check("null") == 403

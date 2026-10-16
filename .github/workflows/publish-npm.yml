@@ -1,0 +1,76 @@
+# Publishes the npm package (js/) when a GitHub release tagged js-v<version> is published.
+#
+# One-time setup: trusted publishers are set in a package's settings on npmjs.com, so publish the
+# first version by hand (cd js && npm publish), then add a "trusted publisher" for this repository
+# (workflow: publish-npm.yml, environment: npm). After that no token is needed, and npm attaches
+# provenance to every release automatically.
+#
+# Dependencies are installed and tested in the build job, which can't publish. The publish job
+# only uploads the tarball the build job made, so no third-party code runs where the publishing
+# token can be minted.
+name: Publish to npm
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    if: startsWith(github.event.release.tag_name, 'js-v')
+    runs-on: ubuntu-latest
+    outputs:
+      skip: ${{ steps.published.outputs.skip }}
+    defaults:
+      run:
+        working-directory: js
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
+        with:
+          node-version: 24
+      - name: Check the tag matches the package version
+        run: |
+          version=$(node -p "require('./package.json').version")
+          test "${GITHUB_REF_NAME}" = "js-v${version}" || { echo "tag ${GITHUB_REF_NAME} != js-v${version}"; exit 1; }
+      - name: Skip versions already on npm (e.g. the first one, published by hand)
+        id: published
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if npm view "autotok@${version}" version > /dev/null 2>&1; then
+            echo "autotok@${version} is already on npm"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.published.outputs.skip != 'true'
+        run: npm ci
+      - if: steps.published.outputs.skip != 'true'
+        run: npx playwright install --with-deps chromium
+      - if: steps.published.outputs.skip != 'true'
+        run: npm test
+      - if: steps.published.outputs.skip != 'true'
+        run: npm pack
+      - if: steps.published.outputs.skip != 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: npm-package
+          path: js/autotok-*.tgz
+
+  publish:
+    needs: build
+    if: needs.build.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
+        with:
+          name: npm-package
+      - run: npm publish ./autotok-*.tgz

@@ -1,0 +1,6 @@
+dist/
+# Copied from the repository root by scripts/copy-assets.mjs
+signer_js/
+LICENSE
+THIRD_PARTY_NOTICES.md
+*.tgz

@@ -353,3 +353,39 @@ def test_login_over_cdp_reports_live_view(local_cdp, monkeypatch):
     assert {c["name"] for c in cookies} == {"sessionid", "tt-target-idc"}
     assert "Chrome" in user_agent
     assert [s.released for s in local_cdp.sessions] == [True]
+
+
+def test_cloud_connection_errors_hide_the_api_key():
+    from autotok.browsers import CloudProvider
+    from autotok.browsers.base import CloudSession
+    from autotok.errors import RemoteBrowserError
+
+    released = []
+
+    class Session(CloudSession):
+        id = "s1"
+        connect_url = "wss://connect.example/?sessionId=s1&apiKey=topsecret"
+
+        def live_view_url(self):
+            return ""
+
+        def release(self):
+            released.append(True)
+
+    class Provider(CloudProvider):
+        label = "Test cloud"
+
+        def create_session(self, *, proxy=None, timeout=None, offline=False):
+            return Session()
+
+    class Chromium:
+        def connect_over_cdp(self, url):
+            raise RuntimeError(f"BrowserType.connect_over_cdp: connect ECONNREFUSED ({url})")
+
+    class PW:
+        chromium = Chromium()
+
+    with pytest.raises(RemoteBrowserError) as err:
+        Provider().open(PW())
+    assert "topsecret" not in str(err.value)
+    assert "wss://connect.example/?****" in str(err.value) and released

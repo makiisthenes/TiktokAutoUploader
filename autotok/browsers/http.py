@@ -1,12 +1,19 @@
 """Small helpers shared by the cloud providers."""
 from __future__ import annotations
 
+import re
 from urllib.parse import urlsplit, urlunsplit
 
 import requests
 
 # Hosts a server reports when it doesn't know its public address.
 _UNROUTABLE_HOSTS = {"0.0.0.0", "::", ""}
+_URL_QUERY_RE = re.compile(r"\b((?:wss?|https?)://[^\s?#'\"]+)\?[^\s'\"]*")
+
+
+def redact_urls(text: str) -> str:
+    """Hide the query string of every URL in ``text`` (API keys and tokens travel there)."""
+    return _URL_QUERY_RE.sub(r"\1?****", text)
 
 
 def error_detail(r: requests.Response) -> str:

@@ -1,8 +1,15 @@
 # Changelog
 
-## Unreleased
+## 2.1.0
+
+Released together with the first version of the TypeScript SDK on npm (`autotok` 0.1.0).
 
 ### Added
+- TypeScript SDK on npm: `npm install autotok` (source in `js/`). It has the same uploader, login,
+  per-account proxies, cloud browsers and typed errors as the Python package, as a typed,
+  promise-based API (`login`, `uploadVideo`, `Client`), and reads and writes the same
+  `~/.autotok/accounts` files, so accounts work in both. No Python needed; Node.js 22.12+. The npm
+  package is versioned separately (starting at 0.1.0) and released from `js-v*` tags.
 - MCP server for AI agents: `autotok mcp` (stdio) or `autotok mcp --http` (streamable HTTP on
   `127.0.0.1:8000/mcp`), with tools to list accounts and videos, check a session, upload or
   schedule a video (file or YouTube link), log in, and set or test proxies. Install the new `mcp`
@@ -18,6 +25,28 @@
 ### Changed
 - TikTok-side scheduling now goes up to 30 days ahead instead of 10 (#117). TikTok still limits
   some accounts to 10 days; if it rejects a post scheduled further out, the error says so.
+- MCP server: `upload_video` remembers each upload by account, video and caption. Calling it again
+  (for example after the client timed out) waits for or returns the first upload instead of
+  posting the video twice; pass the new `repost=true` to post the same video again on purpose.
+  Long uploads send progress notifications, so clients that support them keep waiting.
+
+### Fixed
+- Web app: retrying a scheduled upload that was cut off while publishing could post the video
+  twice. Such jobs are now marked "may already be posted", and retrying one asks you to check
+  TikTok first (the API needs `confirm_uncertain: true`). Existing databases are upgraded
+  automatically.
+- Web app: cancelling, editing or deleting a job at the moment the scheduler started it could be
+  lost, and a cancelled job could still run or be retried.
+
+### Security
+- Web app: the API now only answers to known host names (`localhost`, `127.0.0.1`; add more with
+  `AUTOTOK_ALLOWED_HOSTS`). Before, a web page using DNS rebinding could get past the
+  `X-Requested-With` check and upload, change proxies or delete accounts.
+- Web app: the login browser's VNC connection is only opened for the app's own page, and only
+  while a login is in progress. Before, any web page open during a login could watch or control the
+  virtual browser. The VNC server also listens only inside its container now.
+- Cloud browsers: when connecting to a session failed, the error message could include the
+  session's connection URL, which for Steel contains your API key. It is now hidden.
 
 ## 2.0.1
 
