@@ -6,7 +6,8 @@
 - `--json` for `autotok upload` and `autotok accounts list|check|remove`, in the Python and Go
   command lines: they print one line of JSON on stdout instead of text, and errors print
   `{"error": {"type", "message", "retryable"}}`, so scripts and other languages can use autotok
-  without parsing text.
+  without parsing text. Mistakes the argument parser catches before a command runs (an unknown or
+  missing option) still print usage text on stderr, with exit status 2.
 - `--title-file FILE` for `autotok upload` (Python and Go): reads the caption from a UTF-8 text
   file, or from stdin with `--title-file -`. Captions with emoji arrive intact even where the
   system can't pass them as command-line arguments (for example Java in a container without a

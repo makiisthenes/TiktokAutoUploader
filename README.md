@@ -729,6 +729,9 @@ usual exit status (2 for invalid input). `type` is the error's class name, such 
 `ValidationError`, `AccountNotFoundError`, `PublishError` or `PublishUncertainError`. `retryable`
 is `true` only when nothing reached TikTok's publish step, so running the command again can't post
 twice. A `PublishError` also has TikTok's `status_code` and `status_msg`.
+Mistakes the argument parser catches before a command runs, such as an unknown option or a
+missing account name, print usage text on stderr instead, with exit status 2, so treat output that
+isn't JSON as an error too.
 
 ---
 
