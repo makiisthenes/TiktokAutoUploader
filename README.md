@@ -215,6 +215,7 @@ BROWSERBASE_API_KEY=bb_live_...
 | Upload from Go, or use one binary with no Python | [Go](#go-sdk-and-single-binary) |
 | Upload from PHP, Java or C# | [PHP, Java and C#](#php-java-and-c) |
 | Let an AI agent (Claude, Cursor...) upload for me | [MCP server](#mcp-server-ai-agents) |
+| Upload by asking Claude Code, with a skill | [Claude Code plugin](#claude-code-plugin) |
 | Run on a server or in a container | [Docker](#docker) |
 | Use a web dashboard with a scheduler | [Web app](#web-app-self-hosted) |
 | Fix an error | [Troubleshooting](#troubleshooting) |
@@ -238,6 +239,8 @@ BROWSERBASE_API_KEY=bb_live_...
 - **PHP, Java and C# libraries** that drive the `autotok` command and return typed results and
   errors, with no other dependencies.
 - **MCP server** so AI agents (Claude, Cursor, VS Code...) can upload and schedule for you.
+- **Claude Code plugin** with a TikTok upload skill: ask in plain words, and it confirms before
+  posting.
 - **Cloud browsers**: run the login and signing browser on [Browserbase](https://www.browserbase.com) or [Steel](https://github.com/steel-dev/steel-browser) (cloud or self-hosted) instead of your computer.
 - **Docker image** for running the CLI on servers.
 - **No Node.js needed** for the Python package: TikTok's request signatures are computed in headless Chromium.
@@ -626,6 +629,30 @@ If the client can't find `autotok`, use the full path that `which autotok` (Wind
   instead of a second post. Clients that support progress notifications keep waiting meanwhile.
 - **Streamable HTTP**: `autotok mcp --http` serves `http://127.0.0.1:8000/mcp` (`--host`,
   `--port` to change). There is no authentication, so keep it on localhost or behind your own.
+
+---
+
+## Claude Code plugin
+
+A plugin for [Claude Code](https://code.claude.com) with a `tiktok-upload` skill, so you can
+upload by asking:
+
+> Post ~/Videos/clip.mp4 to my_account with the caption "Behind the scenes 🎬 #fyp", tomorrow at 6 pm.
+
+```
+/plugin marketplace add makiisthenes/TiktokAutoUploader
+/plugin install autotok@autotok
+```
+
+The skill runs the `autotok` command, so [install autotok](#install) and log in first. It picks
+the account (or logs one in through a browser window), shows the account, video, caption and time
+and asks before posting, then uploads and explains any error. Only read-only commands, such as
+listing accounts, run without a permission prompt. An upload that may or may not have reached
+TikTok is never retried, so nothing is posted twice. You can also run it directly:
+`/autotok:tiktok-upload clip.mp4 "Hello #fyp"`.
+
+More in [`claude-plugin/README.md`](claude-plugin/README.md), including how to use the skill
+without the plugin.
 
 ---
 

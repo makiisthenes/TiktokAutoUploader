@@ -68,6 +68,7 @@ the three libraries too.
 | `js/` | The `autotok` npm package for Node.js and TypeScript (`npm ci && npm test`) |
 | `go/` | The Go module and the single `autotok` binary (`go test ./...`) |
 | `php/`, `java/`, `dotnet/` | PHP, Java and C# libraries that run the `autotok` command with `--json` (`vendor/bin/phpunit`, `mvn test`, `dotnet test`) |
+| `claude-plugin/`, `.claude-plugin/` | The Claude Code plugin (a `tiktok-upload` skill) and the marketplace file that lists it (`claude plugin validate .`) |
 | `web/` | The self-hosted web app: `api/` (FastAPI), `scheduler/`, `novnc/` (virtual login browser), `frontend/` (React; `npm ci && npm run dev`) |
 | `docs/` | Extra documentation and images |
 | `Dockerfile` | Image for the `autotok` CLI |

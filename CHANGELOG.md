@@ -15,6 +15,10 @@
   with `--json` and return typed results and errors: upload or schedule a video with the same post
   settings as the CLI, and list, check or remove accounts. They need no dependencies (PHP 8.1+,
   Java 17+, .NET 8+) and aren't published to Packagist, Maven Central or NuGet yet.
+- A Claude Code plugin with a `tiktok-upload` skill (`/plugin marketplace add
+  makiisthenes/TiktokAutoUploader`, then `/plugin install autotok@autotok`): ask to upload or
+  schedule a video in plain words. It runs the `autotok` command, confirms the post before
+  uploading, and never retries an upload that may already be posted.
 
 ### Fixed
 - A proxy written as `http://host:port:user:pass` (the provider export format with a scheme added,
