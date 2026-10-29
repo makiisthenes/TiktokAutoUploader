@@ -4,7 +4,7 @@
   <img src="https://user-images.githubusercontent.com/52138450/111885490-04ab6680-89c0-11eb-955a-f833577b4406.png" width="35%" alt="TiktokAutoUploader logo">
 </p>
 
-<p align="center">Upload and schedule TikTok videos from the command line, Python, TypeScript or Go, with a proxy per account.</p>
+<p align="center">Upload and schedule TikTok videos from the command line, Python, TypeScript, Go, PHP, Java or C#, with a proxy per account.</p>
 <p align="center"><code>uv tool install autotok</code> · <code>npm install autotok</code> · one login · one command per upload</p>
 
 <p align="center">
@@ -75,6 +75,11 @@ or download the `autotok` binary for your system from the
 has the same commands as above, needs no Python or Node.js, and uses the Chrome already on your
 computer. In Go code: `go get github.com/makiisthenes/TiktokAutoUploader/go`. See
 [Go](#go-sdk-and-single-binary).
+
+**PHP, Java and C#**
+
+Small libraries that run the `autotok` command for you and give back typed results and errors.
+Install autotok as above, then see [PHP, Java and C#](#php-java-and-c).
 
 ---
 
@@ -208,6 +213,7 @@ BROWSERBASE_API_KEY=bb_live_...
 | Upload from Python code | [Python SDK](#python-sdk) |
 | Upload from TypeScript or JavaScript | [TypeScript SDK](#typescript-sdk) |
 | Upload from Go, or use one binary with no Python | [Go](#go-sdk-and-single-binary) |
+| Upload from PHP, Java or C# | [PHP, Java and C#](#php-java-and-c) |
 | Let an AI agent (Claude, Cursor...) upload for me | [MCP server](#mcp-server-ai-agents) |
 | Run on a server or in a container | [Docker](#docker) |
 | Use a web dashboard with a scheduler | [Web app](#web-app-self-hosted) |
@@ -229,6 +235,8 @@ BROWSERBASE_API_KEY=bb_live_...
   shares saved accounts with the CLI.
 - **Go package and a single binary**: `go get` the library, or download one `autotok` executable
   with no Python or Node.js. It shares saved accounts with the other packages.
+- **PHP, Java and C# libraries** that drive the `autotok` command and return typed results and
+  errors, with no other dependencies.
 - **MCP server** so AI agents (Claude, Cursor, VS Code...) can upload and schedule for you.
 - **Cloud browsers**: run the login and signing browser on [Browserbase](https://www.browserbase.com) or [Steel](https://github.com/steel-dev/steel-browser) (cloud or self-hosted) instead of your computer.
 - **Docker image** for running the CLI on servers.
@@ -502,6 +510,73 @@ The full API is in [`go/README.md`](go/README.md) and on
 
 ---
 
+## PHP, Java and C#
+
+Small libraries for PHP, Java and .NET run the `autotok` command for you (the Python package or
+the Go binary) and turn its answers into objects and typed errors. They use the same saved
+accounts and proxies, and need nothing else. Install autotok and log in once with
+`autotok login -n alice`, then:
+
+<table>
+<tr><th>PHP 8.1+</th><th>Java 17+</th><th>C# (.NET 8+)</th></tr>
+<tr>
+<td>
+
+```php
+$autotok = new Autotok\Client();
+$result = $autotok->upload(
+    'alice', 'clip.mp4', 'Hello #fyp',
+    schedule: new DateTimeImmutable('+1 day'),
+);
+echo $result->videoId;
+```
+
+</td>
+<td>
+
+```java
+var autotok = new Autotok();
+var result = autotok.upload(
+    "alice", "clip.mp4", "Hello #fyp",
+    new UploadOptions().schedule(
+        Instant.now().plus(Duration.ofDays(1))));
+System.out.println(result.videoId());
+```
+
+</td>
+<td>
+
+```csharp
+var autotok = new AutotokClient();
+var result = await autotok.UploadAsync(
+    "alice", "clip.mp4", "Hello #fyp",
+    new UploadOptions {
+        Schedule = DateTimeOffset.UtcNow.AddDays(1) });
+Console.WriteLine(result.VideoId);
+```
+
+</td>
+</tr>
+<tr>
+<td><a href="php/README.md"><code>php/</code></a></td>
+<td><a href="java/README.md"><code>java/</code></a></td>
+<td><a href="dotnet/README.md"><code>dotnet/</code></a></td>
+</tr>
+</table>
+
+- All three have the same post settings as the CLI (schedule, visibility, comments, duets,
+  stitches, AI label, proxy), list and check accounts, and raise one exception type with
+  autotok's error `type` and `retryable`, so you know when trying again can't post twice.
+- They need an autotok with [`--json`](#json-output) and `--title-file`: the Python package after
+  2.1.0, or the Go binary after 0.1.0. Until those are released, install autotok from this
+  repository: `uv tool install "autotok[youtube] @ git+https://github.com/makiisthenes/TiktokAutoUploader"`.
+- They aren't on Packagist, Maven Central or NuGet yet; each README says how to add it from this
+  repository.
+- Any other language can do the same: run `autotok --json upload ...` and read one line of
+  [JSON](#json-output).
+
+---
+
 ## MCP server (AI agents)
 
 autotok includes an [MCP](https://modelcontextprotocol.io) server, so AI agents such as Claude,
@@ -595,7 +670,8 @@ Upload options:
 ### JSON output
 
 For scripts and other languages, `--json` makes `upload` and `accounts` print one line of JSON on
-stdout instead of text. Logs still go to stderr.
+stdout instead of text. Logs still go to stderr. The [PHP, Java and C# libraries](#php-java-and-c)
+use it.
 
 ```bash
 autotok --json upload -u alice -v clip.mp4 -t "Hello #fyp"

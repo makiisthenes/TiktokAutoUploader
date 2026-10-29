@@ -113,6 +113,88 @@ jobs:
           done
           go run ./cmd/autotok --version
 
+  php:
+    name: PHP ${{ matrix.php-version }} library
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php-version: ["8.1", "8.4"]
+    defaults:
+      run:
+        working-directory: php
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go/go.mod
+          cache-dependency-path: go/go.sum
+      - name: Build autotok for the tests against a real autotok
+        working-directory: go
+        run: go build -o "$RUNNER_TEMP/autotok" ./cmd/autotok
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          tools: composer
+          coverage: none
+      - run: composer install --no-interaction --no-progress
+      - run: vendor/bin/phpunit
+        env:
+          AUTOTOK_TEST_BIN: ${{ runner.temp }}/autotok
+
+  java:
+    name: Java ${{ matrix.java-version }} library
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        java-version: ["17", "21"]
+    defaults:
+      run:
+        working-directory: java
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go/go.mod
+          cache-dependency-path: go/go.sum
+      - name: Build autotok for the tests against a real autotok
+        working-directory: go
+        run: go build -o "$RUNNER_TEMP/autotok" ./cmd/autotok
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java-version }}
+          cache: maven
+          cache-dependency-path: java/pom.xml
+      - run: mvn -B verify
+        env:
+          AUTOTOK_TEST_BIN: ${{ runner.temp }}/autotok
+
+  dotnet:
+    name: .NET library
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dotnet
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go/go.mod
+          cache-dependency-path: go/go.sum
+      - name: Build autotok for the tests against a real autotok
+        working-directory: go
+        run: go build -o "$RUNNER_TEMP/autotok" ./cmd/autotok
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - run: dotnet test
+        env:
+          AUTOTOK_TEST_BIN: ${{ runner.temp }}/autotok
+      - name: Pack the library
+        run: dotnet pack src/Autotok -o "$RUNNER_TEMP/nupkg"
+
   docker:
     name: Docker images
     runs-on: ubuntu-latest

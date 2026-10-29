@@ -11,6 +11,10 @@
   file, or from stdin with `--title-file -`. Captions with emoji arrive intact even where the
   system can't pass them as command-line arguments (for example Java in a container without a
   UTF-8 locale).
+- PHP, Java and C# libraries (in `php/`, `java/` and `dotnet/`), which run the `autotok` command
+  with `--json` and return typed results and errors: upload or schedule a video with the same post
+  settings as the CLI, and list, check or remove accounts. They need no dependencies (PHP 8.1+,
+  Java 17+, .NET 8+) and aren't published to Packagist, Maven Central or NuGet yet.
 
 ### Fixed
 - A proxy written as `http://host:port:user:pass` (the provider export format with a scheme added,

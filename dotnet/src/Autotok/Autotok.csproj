@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <RootNamespace>Autotok</RootNamespace>
+
+    <PackageId>Autotok</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>Michael Peres</Authors>
+    <Description>Upload and schedule TikTok videos from .NET, through the autotok command line.</Description>
+    <PackageTags>tiktok;upload;video;schedule;autotok</PackageTags>
+    <PackageLicenseExpression>AGPL-3.0-only</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/makiisthenes/TiktokAutoUploader</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/makiisthenes/TiktokAutoUploader</RepositoryUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../../README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+
+</Project>

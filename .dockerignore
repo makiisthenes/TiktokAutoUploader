@@ -8,6 +8,9 @@ web/frontend/node_modules/
 web/frontend/dist/
 js/
 go/
+php/
+java/
+dotnet/
 data/
 CookiesDir/
 VideosDirPath/
