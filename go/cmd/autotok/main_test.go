@@ -211,3 +211,38 @@ func TestJSONErrorFields(t *testing.T) {
 		}
 	}
 }
+
+func TestUploadReadsTheCaptionFromAFileOrStdin(t *testing.T) {
+	dir := t.TempDir()
+	caption := "-50% off \U0001f389\nsecond line"
+	path := filepath.Join(dir, "caption.txt")
+	os.WriteFile(path, []byte("\ufeff"+caption+"\r\n"), 0o644)
+	if got, err := readCaption(path); err != nil || got != caption {
+		t.Errorf("%q %v", got, err)
+	}
+	stdin = strings.NewReader(caption + "\n")
+	t.Cleanup(func() { stdin = os.Stdin })
+	if got, err := readCaption("-"); err != nil || got != caption {
+		t.Errorf("%q %v", got, err)
+	}
+
+	os.WriteFile(path, []byte("caf\xe9"), 0o644)
+	var usage *usageError
+	if _, err := readCaption(path); !errors.As(err, &usage) || usage.msg != "the caption is not UTF-8 text" {
+		t.Errorf("%v", err)
+	}
+	if _, err := readCaption(filepath.Join(dir, "missing.txt")); !errors.As(err, &usage) || !strings.HasPrefix(usage.msg, "cannot read the caption: ") {
+		t.Errorf("%v", err)
+	}
+
+	home(t)
+	cli(t, "login", "-n", "bob", "--sessionid", "s")
+	for _, args := range [][]string{
+		{"upload", "-u", "bob", "-v", "a.mp4", "-t", "x", "--title-file", "-"},
+		{"upload", "-u", "bob", "-v", "a.mp4"},
+	} {
+		if code, _, errOut := cli(t, args...); code != 2 || !strings.Contains(errOut, "--title-file") {
+			t.Errorf("%v: %d %q", args, code, errOut)
+		}
+	}
+}

@@ -1,3 +1,4 @@
+import io
 import json
 from datetime import datetime, timezone
 
@@ -58,6 +59,32 @@ def test_upload_uses_account_proxy_and_flags(saved_account, video_file, monkeypa
     assert seen["allow_duet"] is True and seen["allow_stitch"] is True
     assert seen["proxy"].masked() == "http://bob:****@proxy.example:8000"
     assert "v9" in capsys.readouterr().out
+
+
+def test_upload_reads_the_caption_from_a_file_or_stdin(saved_account, video_file, monkeypatch, tmp_path):
+    captions = []
+    monkeypatch.setattr("autotok.uploader.Client.upload",
+                        lambda self, video, caption, **k: captions.append(caption) or UploadResult("v", "c"))
+    caption = "-50% off \U0001f389\nsecond line"
+    (tmp_path / "caption.txt").write_bytes(b"\xef\xbb\xbf" + caption.encode() + b"\r\n")  # with a BOM
+    assert run("upload", "-u", "alice", "-v", "clip.mp4", "--title-file", str(tmp_path / "caption.txt")) == 0
+
+    class Stdin:
+        buffer = io.BytesIO(caption.encode() + b"\n")
+
+    monkeypatch.setattr("sys.stdin", Stdin)
+    assert run("upload", "-u", "alice", "-v", "clip.mp4", "--title-file=-") == 0
+    assert captions == [caption, caption]
+
+
+def test_upload_caption_file_mistakes(saved_account, video_file, tmp_path, capsys):
+    assert run("upload", "-u", "alice", "-v", "clip.mp4", "--title-file", str(tmp_path / "missing.txt")) == 2
+    assert "cannot read the caption" in capsys.readouterr().err
+    (tmp_path / "latin1.txt").write_bytes("caf\xe9".encode("latin-1"))
+    assert run("upload", "-u", "alice", "-v", "clip.mp4", "--title-file", str(tmp_path / "latin1.txt")) == 2
+    assert "not UTF-8" in capsys.readouterr().err
+    with pytest.raises(SystemExit):  # one or the other, not both
+        run("upload", "-u", "alice", "-v", "clip.mp4", "-t", "x", "--title-file", "-")
 
 
 def test_upload_proxy_flags(saved_account, monkeypatch):

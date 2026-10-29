@@ -7,6 +7,10 @@
   command lines: they print one line of JSON on stdout instead of text, and errors print
   `{"error": {"type", "message", "retryable"}}`, so scripts and other languages can use autotok
   without parsing text.
+- `--title-file FILE` for `autotok upload` (Python and Go): reads the caption from a UTF-8 text
+  file, or from stdin with `--title-file -`. Captions with emoji arrive intact even where the
+  system can't pass them as command-line arguments (for example Java in a container without a
+  UTF-8 locale).
 
 ### Fixed
 - A proxy written as `http://host:port:user:pass` (the provider export format with a scheme added,

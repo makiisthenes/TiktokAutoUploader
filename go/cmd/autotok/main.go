@@ -8,6 +8,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -25,6 +26,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/chromedp/chromedp"
 
@@ -32,6 +34,7 @@ import (
 )
 
 var (
+	stdin  io.Reader = os.Stdin
 	stdout io.Writer = os.Stdout
 	stderr io.Writer = os.Stderr
 	// jsonOutput is set by --json: results and errors are printed as JSON on stdout.
@@ -432,14 +435,15 @@ func openInBrowser(url string) {
 	}
 }
 
-const uploadUsage = `Usage: autotok upload -u ACCOUNT (-v VIDEO | -yt URL) -t CAPTION [options]
+const uploadUsage = `Usage: autotok upload -u ACCOUNT (-v VIDEO | -yt URL) (-t CAPTION | --title-file FILE) [options]
 
 Upload a video.
 
   -u, --user ACCOUNT     saved account name (required)
   -v, --video VIDEO      video file (path, or a name inside your videos folder)
   -yt, --youtube URL     YouTube URL to download (with yt-dlp) and upload
-  -t, --title CAPTION    caption, up to 2200 characters (required)
+  -t, --title CAPTION    caption, up to 2200 characters
+  --title-file FILE      read the caption from a UTF-8 text file, or from stdin if FILE is -
   -sc, --schedule SEC    publish this many seconds from now (900 to 2592000, TikTok-side
                          scheduling; some accounts only allow up to 864000)
   -vi, --visibility N    0 = public (default), 1 = private
@@ -453,13 +457,14 @@ Upload a video.
 
 func cmdUpload(ctx context.Context, args []string, store *autotok.AccountStore) error {
 	fs := newFlags("upload", uploadUsage)
-	var user, video, youtube, title, proxy string
+	var user, video, youtube, title, titleFile, proxy string
 	var schedule, visibility, comment, duet, stitch, ailabel, brandOrganic, brandContent int
 	var noProxy bool
 	stringFlag(fs, &user, "", "", "u", "user", "users")
 	stringFlag(fs, &video, "", "", "v", "video")
 	stringFlag(fs, &youtube, "", "", "yt", "youtube")
 	stringFlag(fs, &title, "", "", "t", "title")
+	stringFlag(fs, &titleFile, "", "", "title-file")
 	intFlag(fs, &schedule, 0, "", "sc", "schedule")
 	intFlag(fs, &visibility, 0, "", "vi", "visibility")
 	intFlag(fs, &comment, 1, "", "ct", "comment")
@@ -477,8 +482,10 @@ func cmdUpload(ctx context.Context, args []string, store *autotok.AccountStore) 
 	switch {
 	case user == "":
 		return &usageError{"upload needs -u/--user"}
-	case title == "":
-		return &usageError{"upload needs -t/--title"}
+	case title == "" && titleFile == "":
+		return &usageError{"upload needs -t/--title or --title-file"}
+	case title != "" && titleFile != "":
+		return &usageError{"use either -t/--title or --title-file, not both"}
 	case (video == "") == (youtube == ""):
 		return &usageError{"upload needs exactly one of -v/--video or -yt/--youtube"}
 	case proxy != "" && noProxy:
@@ -494,6 +501,12 @@ func cmdUpload(ctx context.Context, args []string, store *autotok.AccountStore) 
 	}
 	if brandOrganic != 0 || brandContent != 0 {
 		slog.Warn("--brandorganic/--brandcontent are not supported and are ignored")
+	}
+	if titleFile != "" {
+		var err error
+		if title, err = readCaption(titleFile); err != nil {
+			return err
+		}
 	}
 
 	client, err := autotok.NewClient(user, &autotok.ClientOptions{Proxy: proxy, NoProxy: noProxy, Store: store})
@@ -538,6 +551,27 @@ func cmdUpload(ctx context.Context, args []string, store *autotok.AccountStore) 
 	}
 	fmt.Fprintf(stdout, "Published%s. Video id: %s\n", when, result.VideoID)
 	return nil
+}
+
+// readCaption returns the caption from --title-file: UTF-8 text from a file, or stdin for "-".
+// Reading bytes (not a command-line argument in the system's encoding) keeps emoji intact whatever
+// the locale, which is why the PHP, Java and C# clients send captions this way.
+func readCaption(path string) (string, error) {
+	var data []byte
+	var err error
+	if path == "-" {
+		data, err = io.ReadAll(stdin)
+	} else {
+		data, err = os.ReadFile(path)
+	}
+	if err != nil {
+		return "", &usageError{"cannot read the caption: " + err.Error()}
+	}
+	data = bytes.TrimPrefix(data, []byte("\ufeff"))
+	if !utf8.Valid(data) {
+		return "", &usageError{"the caption is not UTF-8 text"}
+	}
+	return strings.TrimRight(string(data), "\r\n"), nil
 }
 
 var youtubeRE = regexp.MustCompile(`(?i)^https?://(?:www\.|m\.)?(?:youtube\.com/(?:watch\?v=|shorts/|embed/)|youtu\.be/)[\w\-]+`)

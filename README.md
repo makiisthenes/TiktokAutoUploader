@@ -559,7 +559,7 @@ If the client can't find `autotok`, use the full path that `which autotok` (Wind
 ```
 autotok setup                         # step by step: browser, proxy (tested), TikTok login
 autotok login     -n NAME [-p PROXY] [--force] [--sessionid ID --datacenter DC]
-autotok upload    -u NAME (-v FILE | -yt URL) -t CAPTION [options]
+autotok upload    -u NAME (-v FILE | -yt URL) (-t CAPTION | --title-file FILE) [options]
 autotok accounts  list | check NAME | remove NAME
 autotok proxy     set NAME PROXY | clear NAME | test [PROXY | -u NAME]
 autotok show      -u (accounts) | -v (videos)
@@ -579,7 +579,8 @@ Upload options:
 | `-u` / `--user` | Saved account name | *required* |
 | `-v` / `--video` | Video file (path or name in your videos folder) | — |
 | `-yt` / `--youtube` | YouTube URL to download and upload | — |
-| `-t` / `--title` | Caption, up to 2200 characters | *required* |
+| `-t` / `--title` | Caption, up to 2200 characters | *required* (or `--title-file`) |
+| `--title-file` | Read the caption from a UTF-8 text file, or from stdin with `-` | — |
 | `-sc` / `--schedule` | Publish this many seconds from now (900–2592000; some accounts only allow up to 864000) | now |
 | `-vi` / `--visibility` | `0` public, `1` private | `0` |
 | `-ct` / `--comment` | Allow comments (`0`/`1`) | `1` |

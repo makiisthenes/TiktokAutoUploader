@@ -13,6 +13,7 @@ import shlex
 import sys
 import webbrowser
 from datetime import timezone
+from pathlib import Path
 
 from . import __version__
 from .accounts import AccountStore
@@ -52,7 +53,10 @@ def build_parser() -> argparse.ArgumentParser:
     src = up.add_mutually_exclusive_group(required=True)
     src.add_argument("-v", "--video", help="video file (path, or a name inside your videos folder)")
     src.add_argument("-yt", "--youtube", help="YouTube URL to download and upload")
-    up.add_argument("-t", "--title", required=True, help="caption, up to 2200 characters")
+    caption = up.add_mutually_exclusive_group(required=True)
+    caption.add_argument("-t", "--title", help="caption, up to 2200 characters")
+    caption.add_argument("--title-file", metavar="FILE",
+                         help="read the caption from a UTF-8 text file, or from stdin if FILE is -")
     up.add_argument("-sc", "--schedule", type=int, default=0,
                     help="publish this many seconds from now (900 to 2592000, TikTok-side "
                          "scheduling; some accounts only allow up to 864000)")
@@ -165,6 +169,7 @@ def cmd_upload(args, store: AccountStore) -> int:
 
     if args.brandorganic or args.brandcontent:
         log.warning("--brandorganic/--brandcontent are not supported and are ignored")
+    caption = args.title if args.title_file is None else _read_caption(args.title_file)
     if args.no_proxy:
         proxy = None
     elif args.proxy:
@@ -182,7 +187,7 @@ def cmd_upload(args, store: AccountStore) -> int:
 
     result = client.upload(
         video,
-        args.title,
+        caption,
         schedule=args.schedule or None,
         visibility=args.visibility,
         allow_comment=bool(args.comment),
@@ -201,6 +206,22 @@ def cmd_upload(args, store: AccountStore) -> int:
     when = f" (scheduled for {result.scheduled_for.astimezone():%Y-%m-%d %H:%M %Z})" if result.scheduled_for else ""
     print(f"Published{when}. Video id: {result.video_id}")
     return 0
+
+
+def _read_caption(path: str) -> str:
+    """The caption from --title-file: UTF-8 text from a file, or stdin for "-".
+
+    Reading bytes and decoding them as UTF-8 (not with the console's encoding) keeps emoji intact
+    whatever the locale, which is why the PHP, Java and C# clients send captions this way.
+    """
+    try:
+        data = sys.stdin.buffer.read() if path == "-" else Path(path).read_bytes()
+    except OSError as exc:
+        raise ValidationError(f"cannot read the caption: {exc}") from None
+    try:
+        return data.decode("utf-8-sig").rstrip("\r\n")
+    except UnicodeDecodeError:
+        raise ValidationError("the caption is not UTF-8 text") from None
 
 
 def cmd_show(args, store: AccountStore) -> int:
