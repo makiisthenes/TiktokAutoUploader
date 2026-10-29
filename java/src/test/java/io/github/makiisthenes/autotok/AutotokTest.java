@@ -26,10 +26,10 @@ class AutotokTest {
 
     /** An Autotok whose autotok prints {@code stdout} and exits with {@code exit}. */
     private Autotok fake(String stdout, int exit, String stderr) {
-        return fake(stdout, exit, stderr, 0);
+        return fake(stdout, exit, stderr, 0, true);
     }
 
-    private Autotok fake(String stdout, int exit, String stderr, long sleepMillis) {
+    private Autotok fake(String stdout, int exit, String stderr, long sleepMillis, boolean readStdin) {
         String java = Path.of(System.getProperty("java.home"), "bin", "java").toString();
         return new Autotok(
                 List.of(java, "-cp", System.getProperty("java.class.path"), FakeAutotok.class.getName()),
@@ -37,7 +37,8 @@ class AutotokTest {
                         "FAKE_AUTOTOK_STDOUT", stdout,
                         "FAKE_AUTOTOK_STDERR", stderr,
                         "FAKE_AUTOTOK_EXIT", String.valueOf(exit),
-                        "FAKE_AUTOTOK_SLEEP", String.valueOf(sleepMillis)));
+                        "FAKE_AUTOTOK_SLEEP", String.valueOf(sleepMillis),
+                        "FAKE_AUTOTOK_READ_STDIN", readStdin ? "1" : "0"));
     }
 
     private Autotok fake(String stdout) {
@@ -122,20 +123,32 @@ class AutotokTest {
 
     @Test
     void interruptingTheThreadStopsAutotok() throws Exception {
-        Autotok autotok = fake("{\"video_id\": \"1\"}", 0, "", 60_000);
+        assertInterruptStopsAutotok(fake("{\"video_id\": \"1\"}", 0, "", 60_000, true), "x");
+    }
+
+    @Test
+    void interruptingWorksWhenAutotokDoesNotReadALargeCaption() throws Exception {
+        // More than a pipe holds, to an autotok that never reads it: the write must not block the caller.
+        assertInterruptStopsAutotok(fake("{\"video_id\": \"1\"}", 0, "", 60_000, false), "x".repeat(1 << 20));
+    }
+
+    private void assertInterruptStopsAutotok(Autotok autotok, String caption) throws Exception {
         AtomicReference<Throwable> thrown = new AtomicReference<>();
         Thread uploader = new Thread(() -> {
             try {
-                autotok.upload("alice", "clip.mp4", "x");
+                autotok.upload("alice", "clip.mp4", caption);
             } catch (Throwable e) {
                 thrown.set(e);
             }
         });
         long start = System.nanoTime();
         uploader.start();
-        for (int i = 0; i < 100 && !Files.exists(tmp.resolve("args")); i++) {
+        Path pidFile = tmp.resolve("args.pid");
+        for (int i = 0; i < 100 && !Files.exists(pidFile); i++) {
             Thread.sleep(100); // until the fake autotok is running
         }
+        Thread.sleep(200);
+        long pid = Long.parseLong(Files.readString(pidFile).strip());
         uploader.interrupt();
         uploader.join(30_000);
         assertFalse(uploader.isAlive());
@@ -143,6 +156,7 @@ class AutotokTest {
         AutotokException e = assertInstanceOf(AutotokException.class, thrown.get());
         assertEquals("Cancelled", e.type());
         assertInstanceOf(InterruptedException.class, e.getCause());
+        assertFalse(ProcessHandle.of(pid).map(ProcessHandle::isAlive).orElse(false), "autotok is still running");
     }
 
     @Test

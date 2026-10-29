@@ -15,6 +15,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.regex.Pattern;
 
 /**
@@ -34,7 +36,10 @@ import java.util.regex.Pattern;
  */
 public final class Autotok {
     private static final Pattern URL = Pattern.compile("^https?://", Pattern.CASE_INSENSITIVE);
-    // Reads autotok's output, so the calling thread only waits for the process and can be interrupted.
+    // How long a cancelled autotok gets to exit before it is killed.
+    private static final Duration STOP_TIMEOUT = Duration.ofSeconds(5);
+    // Write autotok's input and read its output, so the calling thread only waits for the process
+    // and can be interrupted.
     private static final Executor READERS = Executors.newCachedThreadPool(r -> {
         Thread t = new Thread(r, "autotok-output");
         t.setDaemon(true);
@@ -190,11 +195,13 @@ public final class Autotok {
 
         CompletableFuture<String> stdoutFuture = CompletableFuture.supplyAsync(() -> read(process.getInputStream()), READERS);
         CompletableFuture<String> stderrFuture = CompletableFuture.supplyAsync(() -> read(process.getErrorStream()), READERS);
-        try (var in = process.getOutputStream()) {
-            in.write(input.getBytes(StandardCharsets.UTF_8));
-        } catch (IOException e) {
-            // autotok exited without reading it; its output says why
-        }
+        CompletableFuture.runAsync(() -> {
+            try (var in = process.getOutputStream()) {
+                in.write(input.getBytes(StandardCharsets.UTF_8));
+            } catch (IOException e) {
+                // autotok exited without reading it; its output says why
+            }
+        }, READERS);
         String stdout;
         String stderr;
         int exitCode;
@@ -252,10 +259,25 @@ public final class Autotok {
         throw new AutotokException(message, "Error", false, null, null, null, exitCode, stderr);
     }
 
-    /** Stops autotok and what it started (the signing browser, for one). */
+    /**
+     * Stops autotok and what it started (the signing browser, for one): asks them to exit, waits up
+     * to {@link #STOP_TIMEOUT}, then kills any that are still running.
+     */
     private static void stop(Process process) {
-        process.descendants().forEach(ProcessHandle::destroy);
-        process.destroy();
+        List<ProcessHandle> handles = new ArrayList<>(process.descendants().toList());
+        handles.add(process.toHandle());
+        handles.forEach(ProcessHandle::destroy);
+        long deadline = System.nanoTime() + STOP_TIMEOUT.toNanos();
+        try {
+            for (ProcessHandle handle : handles) {
+                handle.onExit().get(Math.max(0, deadline - System.nanoTime()), TimeUnit.NANOSECONDS);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (ExecutionException | TimeoutException e) {
+            // killed below
+        }
+        handles.stream().filter(ProcessHandle::isAlive).forEach(ProcessHandle::destroyForcibly);
     }
 
     private static String read(InputStream in) {

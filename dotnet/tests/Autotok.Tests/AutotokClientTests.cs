@@ -19,7 +19,7 @@ public sealed class AutotokClientTests : IDisposable
     private string ArgsFile => Path.Combine(_tmp, "args");
 
     /// <summary>A client whose autotok prints <paramref name="stdout"/> and exits with <paramref name="exit"/>.</summary>
-    private AutotokClient Fake(string stdout, int exit = 0, string stderr = "", int sleepMs = 0)
+    private AutotokClient Fake(string stdout, int exit = 0, string stderr = "", int sleepMs = 0, bool readStdin = true)
     {
         var dotnet = Environment.GetEnvironmentVariable("DOTNET_HOST_PATH") ?? "dotnet";
         return new AutotokClient(
@@ -31,6 +31,7 @@ public sealed class AutotokClientTests : IDisposable
                 ["FAKE_AUTOTOK_STDERR"] = stderr,
                 ["FAKE_AUTOTOK_EXIT"] = exit.ToString(),
                 ["FAKE_AUTOTOK_SLEEP"] = sleepMs.ToString(),
+                ["FAKE_AUTOTOK_READ_STDIN"] = readStdin ? "1" : "0",
             });
     }
 
@@ -131,14 +132,20 @@ public sealed class AutotokClientTests : IDisposable
         Assert.StartsWith("could not run /nonexistent/autotok: is autotok installed?", e.Message);
     }
 
-    [Fact]
-    public async Task CancellingStopsAutotok()
+    [Theory]
+    [InlineData(true, 1)]
+    [InlineData(false, 1 << 20)] // more than a pipe holds, to an autotok that never reads it
+    public async Task CancellingStopsAutotok(bool readStdin, int captionLength)
     {
-        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(1));
         var watch = Stopwatch.StartNew();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
-            Fake("{\"video_id\": \"1\"}", sleepMs: 30_000).UploadAsync("alice", "clip.mp4", "x", cancellationToken: cts.Token));
+            Fake("{\"video_id\": \"1\"}", sleepMs: 60_000, readStdin: readStdin)
+                .UploadAsync("alice", "clip.mp4", new string('x', captionLength), cancellationToken: cts.Token));
         Assert.True(watch.Elapsed < TimeSpan.FromSeconds(20), watch.Elapsed.ToString());
+        var pid = int.Parse(File.ReadAllText(ArgsFile + ".pid"));
+        await Task.Delay(500);
+        Assert.Throws<ArgumentException>(() => Process.GetProcessById(pid)); // autotok was stopped
     }
 
     [Fact]

@@ -200,15 +200,8 @@ public sealed class AutotokClient
 
         var stdoutTask = process.StandardOutput.ReadToEndAsync();
         var stderrTask = process.StandardError.ReadToEndAsync();
-        try
-        {
-            await process.StandardInput.WriteAsync(input).ConfigureAwait(false);
-            process.StandardInput.Close();
-        }
-        catch (IOException)
-        {
-            // autotok exited without reading it; its output says why.
-        }
+        // Write on another thread: a write autotok doesn't read must not hold up cancelling.
+        var stdinTask = Task.Run(() => WriteInputAsync(process, input));
         try
         {
             await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
@@ -227,6 +220,7 @@ public sealed class AutotokClient
         }
         var stdout = await stdoutTask.ConfigureAwait(false);
         var stderr = await stderrTask.ConfigureAwait(false);
+        await stdinTask.ConfigureAwait(false);
         var exitCode = process.ExitCode;
 
         var lastLine = stdout.Trim().Split('\n').Last().Trim();
@@ -275,6 +269,19 @@ public sealed class AutotokClient
             }
         }
         throw new AutotokException(message) { ExitCode = exitCode, Stderr = stderr };
+    }
+
+    private static async Task WriteInputAsync(Process process, string input)
+    {
+        try
+        {
+            await process.StandardInput.WriteAsync(input).ConfigureAwait(false);
+            process.StandardInput.Close();
+        }
+        catch (Exception e) when (e is IOException or ObjectDisposedException or InvalidOperationException)
+        {
+            // autotok exited (or was stopped) without reading it; its output says why.
+        }
     }
 
     private static string NotFound(string program, string detail)
