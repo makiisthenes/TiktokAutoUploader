@@ -39,6 +39,8 @@ followed by the video, caption, account and time.
 - **Every upload is a real post.** The skill shows what it will post and asks before uploading,
   and Claude Code asks your permission before running the upload command. Only read-only commands
   (`autotok --version`, `autotok accounts list`, `autotok show`) run without asking.
+- Proxy passwords stay out of the conversation: for a proxy with a password, the skill asks you
+  to log in from your own terminal.
 - Captions go to autotok through stdin, so quotes and emoji arrive exactly as written. That needs
   autotok with `--json` and `--title-file` (the Python package after 2.1.0, or the Go binary after
   0.1.0); with older versions the skill falls back to `-t`.

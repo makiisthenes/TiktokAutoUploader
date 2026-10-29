@@ -39,9 +39,11 @@ Run `autotok --json accounts list`. It prints
 If it says `--json` is unknown, autotok is an older version: run `autotok accounts list` and read
 the text instead.
 
-- One account with a session: use it, and say which one in the summary (step 4).
-- Several: use the one the user named; if they didn't, ask.
-- None, the one they named is missing, or `"session": false`: the account needs a login (step 3).
+- The user named an account: use that one, and only that one. If it isn't listed, it needs a
+  login (step 3); if it has `"session": false`, it needs a login with `--force` (step 3). Never
+  fall back to a different account.
+- The user named none: if exactly one account has a session, use it, and say which one in the
+  summary (step 4). If several do, ask which. If none do, a login is needed (step 3).
 
 ## 3. Log in (only when needed)
 
@@ -49,8 +51,15 @@ Logging in opens a browser window on the user's computer, on TikTok's login page
 there (the QR code with the TikTok app is quickest), and the window closes by itself.
 
 - Ask for an account name to save it under, and whether to use a proxy. The account's uploads
-  all go through that proxy, so it should be the one they'll keep using:
-  `autotok login -n NAME -p http://user:pass@host:port`. Without a proxy: `autotok login -n NAME`.
+  all go through that proxy, so it should be the one they'll keep using.
+- A proxy with a username and password must not pass through this conversation: don't ask for
+  it. Ask the user to run the login in their own terminal instead (not in this chat), with
+  `autotok login -n NAME -p http://user:pass@host:port`, or `autotok setup`, which asks for the
+  proxy and tests it. Then continue from step 2. A proxy without a password, or no proxy, is
+  fine here: `autotok login -n NAME -p http://host:port` or `autotok login -n NAME`.
+- An account that is already saved but has `"session": false` needs `--force`
+  (`autotok login -n NAME --force`); without it, autotok says the account is already saved and
+  doesn't open the browser. Its saved proxy is kept.
 - The command waits until the login finishes (up to 10 minutes). Run it with a 600000 ms timeout,
   and tell the user to switch to the browser window. Or ask them to run it themselves by typing
   `! autotok login -n NAME` in this chat.
@@ -64,11 +73,11 @@ there (the QR code with the TikTok app is quickest), and the window closes by it
 |---|---|---|
 | Video | `-v PATH` or `-yt URL` | A file path, a file name in `~/.autotok/videos` (`autotok show -v` lists them), or a YouTube link (`-yt`, needs the `youtube` extra) |
 | Caption | `--title-file -` | Up to 2200 characters. #hashtags and @mentions become clickable |
-| When | `-sc SECONDS` | Leave out to post now. Scheduling: 900 to 2592000 seconds ahead (15 minutes to 30 days; TikTok limits some accounts to 10 days). Work out the seconds from the current time (`date`) and the user's time zone |
+| When | `-sc SECONDS` | Leave out to post now. Scheduling: 900 to 2592000 seconds ahead (15 minutes to 30 days; TikTok limits some accounts to 10 days). The delay counts from when the upload starts, so work out the seconds right before running the command (check `date` again then, not when the user confirmed), in the user's time zone. With `-yt`, it counts from the end of the download, so the post goes out later by however long the download takes |
 | Visibility | `-vi 1` | Private. Public is the default. Private videos can't be scheduled |
 | Comments, duets, stitches | `-ct 0/1`, `-d 0/1`, `-st 0/1` | Defaults: comments on, duets and stitches off |
 | AI-generated label | `-ai 1` | Use when the video is AI-generated |
-| Proxy | `-p PROXY` or `--no-proxy` | Only to override the account's saved proxy for this upload |
+| Proxy | `-p PROXY` or `--no-proxy` | Only to override the account's saved proxy for this upload. Not for a proxy with a password (see step 3) |
 
 If the user didn't give a caption, suggest one, but let them approve it. Then show a short
 summary (account, video, caption, when, public or private) and ask the user to confirm before
@@ -78,12 +87,15 @@ timing and clearly said to post.
 ## 5. Upload
 
 Send the caption through stdin with a quoted heredoc, so quotes, `$`, newlines and emoji arrive
-exactly as written. Uploads take a while, so use a 600000 ms timeout:
+exactly as written. The heredoc ends at the first line that is exactly its delimiter, and anything
+after that would run as a command, so use the delimiter below; if the caption has a line that is
+exactly `AUTOTOK_CAPTION_END`, pick another delimiter that appears nowhere in it. Uploads take a
+while, so use a 600000 ms timeout:
 
 ```bash
-autotok --json upload -u alice -v "/path/to/clip.mp4" -sc 7200 --title-file - <<'CAPTION'
+autotok --json upload -u alice -v "/path/to/clip.mp4" -sc 7200 --title-file - <<'AUTOTOK_CAPTION_END'
 Going live tomorrow 🎉 #fyp @friend
-CAPTION
+AUTOTOK_CAPTION_END
 ```
 
 Success prints one line: `{"video_id": "7301...", "creation_id": "...", "scheduled_for": null}`
