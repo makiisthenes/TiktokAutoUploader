@@ -12,6 +12,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import java.util.regex.Pattern;
 
 /**
@@ -31,6 +34,12 @@ import java.util.regex.Pattern;
  */
 public final class Autotok {
     private static final Pattern URL = Pattern.compile("^https?://", Pattern.CASE_INSENSITIVE);
+    // Reads autotok's output, so the calling thread only waits for the process and can be interrupted.
+    private static final Executor READERS = Executors.newCachedThreadPool(r -> {
+        Thread t = new Thread(r, "autotok-output");
+        t.setDaemon(true);
+        return t;
+    });
 
     private final List<String> command;
     private final Map<String, String> env;
@@ -78,8 +87,9 @@ public final class Autotok {
      * Uploads a video and posts it now, or schedules it.
      *
      * <p>Every upload is a real post. Uploads take a while (often a minute or more); this method
-     * blocks until TikTok has the post. Interrupting the thread stops autotok, after which the post
-     * may or may not exist.
+     * blocks until TikTok has the post. Interrupting the thread (for example with
+     * {@code Future.cancel(true)}) stops autotok and throws an {@link AutotokException} of type
+     * {@code Cancelled}, after which the post may or may not exist.
      *
      * @param account a saved account name ({@code autotok login -n NAME})
      * @param video a file path, the name of a file in autotok's videos folder, or a YouTube link to
@@ -175,31 +185,32 @@ public final class Autotok {
         try {
             process = builder.start();
         } catch (IOException e) {
-            throw new AutotokException(notFound(command.get(0), e.getMessage()), "Error");
+            throw new AutotokException(notFound(command.get(0), e.getMessage()), "Error", e);
         }
 
+        CompletableFuture<String> stdoutFuture = CompletableFuture.supplyAsync(() -> read(process.getInputStream()), READERS);
+        CompletableFuture<String> stderrFuture = CompletableFuture.supplyAsync(() -> read(process.getErrorStream()), READERS);
+        try (var in = process.getOutputStream()) {
+            in.write(input.getBytes(StandardCharsets.UTF_8));
+        } catch (IOException e) {
+            // autotok exited without reading it; its output says why
+        }
         String stdout;
         String stderr;
         int exitCode;
         try {
-            try (var in = process.getOutputStream()) {
-                in.write(input.getBytes(StandardCharsets.UTF_8));
-            } catch (IOException e) {
-                // autotok exited without reading it; its output says why
-            }
-            CompletableFuture<String> stderrFuture = CompletableFuture.supplyAsync(() -> read(process.getErrorStream()));
-            stdout = read(process.getInputStream());
             exitCode = process.waitFor();
-            stderr = stderrFuture.join();
+            stdout = stdoutFuture.get();
+            stderr = stderrFuture.get();
         } catch (InterruptedException e) {
-            process.descendants().forEach(ProcessHandle::destroy); // the signing browser, for one
-            process.destroy();
+            stop(process);
             Thread.currentThread().interrupt();
             throw new AutotokException("interrupted: if a video was being published, the post may or may not "
-                    + "exist; check TikTok before trying again", "Cancelled");
-        } catch (UncheckedIOException e) {
-            process.destroy();
-            throw new AutotokException("could not read autotok's output: " + e.getCause().getMessage(), "Error");
+                    + "exist; check TikTok before trying again", "Cancelled", e);
+        } catch (ExecutionException e) {
+            stop(process);
+            throw new AutotokException("could not read autotok's output: " + e.getCause().getMessage(), "Error",
+                    e.getCause());
         }
 
         String[] lines = stdout.strip().split("\\R");
@@ -239,6 +250,12 @@ public final class Autotok {
             }
         }
         throw new AutotokException(message, "Error", false, null, null, null, exitCode, stderr);
+    }
+
+    /** Stops autotok and what it started (the signing browser, for one). */
+    private static void stop(Process process) {
+        process.descendants().forEach(ProcessHandle::destroy);
+        process.destroy();
     }
 
     private static String read(InputStream in) {

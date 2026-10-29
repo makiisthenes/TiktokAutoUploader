@@ -41,6 +41,11 @@ public final class AutotokException extends RuntimeException {
         this(message, type, false, null, null, null, null, "");
     }
 
+    AutotokException(String message, String type, Throwable cause) {
+        this(message, type);
+        initCause(cause);
+    }
+
     /** The name of autotok's error class, such as {@code PublishError}. */
     public String type() {
         return type;

@@ -2,6 +2,7 @@ package io.github.makiisthenes.autotok;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -15,6 +16,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -24,13 +26,18 @@ class AutotokTest {
 
     /** An Autotok whose autotok prints {@code stdout} and exits with {@code exit}. */
     private Autotok fake(String stdout, int exit, String stderr) {
+        return fake(stdout, exit, stderr, 0);
+    }
+
+    private Autotok fake(String stdout, int exit, String stderr, long sleepMillis) {
         String java = Path.of(System.getProperty("java.home"), "bin", "java").toString();
         return new Autotok(
                 List.of(java, "-cp", System.getProperty("java.class.path"), FakeAutotok.class.getName()),
                 Map.of("FAKE_AUTOTOK_ARGS", tmp.resolve("args").toString(),
                         "FAKE_AUTOTOK_STDOUT", stdout,
                         "FAKE_AUTOTOK_STDERR", stderr,
-                        "FAKE_AUTOTOK_EXIT", String.valueOf(exit)));
+                        "FAKE_AUTOTOK_EXIT", String.valueOf(exit),
+                        "FAKE_AUTOTOK_SLEEP", String.valueOf(sleepMillis)));
     }
 
     private Autotok fake(String stdout) {
@@ -111,6 +118,31 @@ class AutotokTest {
                 "{\"error\": {\"type\": \"PublishUncertainError\", \"message\": \"lost\", \"retryable\": false}}", 1, "")
                 .upload("alice", "clip.mp4", "x"));
         assertTrue(e.isPublishUncertain());
+    }
+
+    @Test
+    void interruptingTheThreadStopsAutotok() throws Exception {
+        Autotok autotok = fake("{\"video_id\": \"1\"}", 0, "", 60_000);
+        AtomicReference<Throwable> thrown = new AtomicReference<>();
+        Thread uploader = new Thread(() -> {
+            try {
+                autotok.upload("alice", "clip.mp4", "x");
+            } catch (Throwable e) {
+                thrown.set(e);
+            }
+        });
+        long start = System.nanoTime();
+        uploader.start();
+        for (int i = 0; i < 100 && !Files.exists(tmp.resolve("args")); i++) {
+            Thread.sleep(100); // until the fake autotok is running
+        }
+        uploader.interrupt();
+        uploader.join(30_000);
+        assertFalse(uploader.isAlive());
+        assertTrue(Duration.ofNanos(System.nanoTime() - start).toSeconds() < 30);
+        AutotokException e = assertInstanceOf(AutotokException.class, thrown.get());
+        assertEquals("Cancelled", e.type());
+        assertInstanceOf(InterruptedException.class, e.getCause());
     }
 
     @Test
