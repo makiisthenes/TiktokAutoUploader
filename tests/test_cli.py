@@ -1,6 +1,9 @@
+import json
+from datetime import datetime, timezone
+
 import pytest
 
-from autotok import AccountStore, cli
+from autotok import AccountStore, PublishError, PublishUncertainError, UploadError, cli
 from autotok.uploader import UploadResult
 
 
@@ -74,6 +77,69 @@ def test_upload_unknown_account(capsys):
 def test_bad_schedule_is_reported(saved_account, video_file, capsys):
     assert run("upload", "-u", "alice", "-v", "clip.mp4", "-t", "t", "-sc", "10") == 2
     assert "15 minutes" in capsys.readouterr().err
+
+
+def json_out(capsys):
+    out = capsys.readouterr().out
+    assert out.count("\n") == 1, out  # one JSON document, nothing else on stdout
+    return json.loads(out)
+
+
+def test_upload_json(saved_account, video_file, monkeypatch, capsys):
+    when = datetime(2026, 11, 2, 18, 30, 15, 123456, tzinfo=timezone.utc)
+    monkeypatch.setattr("autotok.uploader.Client.upload",
+                        lambda self, *a, **k: UploadResult("v9", "c1", scheduled_for=when))
+    assert run("--json", "upload", "-u", "alice", "-v", "clip.mp4", "-t", "hi", "-sc", "3600") == 0
+    assert json_out(capsys) == {"video_id": "v9", "creation_id": "c1", "scheduled_for": "2026-11-02T18:30:15Z"}
+
+    monkeypatch.setattr("autotok.uploader.Client.upload", lambda self, *a, **k: UploadResult("v9", "c1"))
+    assert run("--json", "upload", "-u", "alice", "-v", "clip.mp4", "-t", "hi") == 0
+    assert json_out(capsys)["scheduled_for"] is None
+
+
+@pytest.mark.parametrize("exc, code, expected", [
+    (PublishError("blocked", status_code=7, status_msg="guidelines"), 1,
+     {"type": "PublishError", "message": "blocked", "retryable": False, "status_code": 7, "status_msg": "guidelines"}),
+    (UploadError("transfer failed", status=503), 1,
+     {"type": "UploadError", "message": "transfer failed", "retryable": True, "status": 503}),
+    (PublishUncertainError("connection lost"), 1,
+     {"type": "PublishUncertainError", "message": "connection lost", "retryable": False}),
+    (RuntimeError("bug"), 1, {"type": "Error", "message": "bug", "retryable": False}),
+])
+def test_upload_json_errors(saved_account, video_file, monkeypatch, capsys, exc, code, expected):
+    def fail(self, *a, **k):
+        raise exc
+
+    monkeypatch.setattr("autotok.uploader.Client.upload", fail)
+    assert run("--json", "upload", "-u", "alice", "-v", "clip.mp4", "-t", "hi") == code
+    assert json_out(capsys) == {"error": expected}
+
+
+def test_json_mistakes_and_unknown_accounts(saved_account, video_file, capsys):
+    assert run("--json", "upload", "-u", "alice", "-v", "clip.mp4", "-t", "t", "-sc", "10") == 2
+    error = json_out(capsys)["error"]
+    assert error["type"] == "ValidationError" and "15 minutes" in error["message"]
+    assert run("--json", "upload", "-u", "ghost", "-v", "clip.mp4", "-t", "t") == 1
+    assert json_out(capsys)["error"]["type"] == "AccountNotFoundError"
+    assert run("--json", "show", "-u") == 2
+    assert json_out(capsys)["error"]["message"] == "--json works with the upload and accounts commands"
+
+
+def test_accounts_json(saved_account, monkeypatch, capsys):
+    (AccountStore().root / "broken.json").write_text("{not json")
+    assert run("--json", "accounts", "list") == 0
+    alice, broken = json_out(capsys)["accounts"]
+    assert alice == {"name": "alice", "session": True, "proxy": "http://bob:****@proxy.example:8000"}
+    assert broken["name"] == "broken" and broken["session"] is False and broken["error"]
+
+    monkeypatch.setattr("autotok.uploader.Client.check_session", lambda self: False)
+    assert run("--json", "accounts", "check", "alice") == 1
+    assert json_out(capsys) == {"name": "alice", "session_ok": False}
+
+    assert run("--json", "accounts", "remove", "alice") == 0
+    assert json_out(capsys) == {"name": "alice", "removed": True}
+    assert run("--json", "accounts", "remove", "alice") == 1
+    assert json_out(capsys) == {"name": "alice", "removed": False}
 
 
 def test_proxy_commands(saved_account, capsys, monkeypatch):

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Added
+- `--json` for `autotok upload` and `autotok accounts list|check|remove`, in the Python and Go
+  command lines: they print one line of JSON on stdout instead of text, and errors print
+  `{"error": {"type", "message", "retryable"}}`, so scripts and other languages can use autotok
+  without parsing text.
+
 ### Fixed
 - A proxy written as `http://host:port:user:pass` (the provider export format with a scheme added,
   which isn't valid) was rejected with an error message that showed the password. The message no

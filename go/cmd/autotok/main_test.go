@@ -3,8 +3,12 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -121,5 +125,89 @@ func TestShowWithoutAFlag(t *testing.T) {
 	home(t)
 	if code, out, errOut := cli(t, "show"); code != 1 || out != "Use -u to list accounts or -v to list videos.\n" || errOut != "" {
 		t.Errorf("%d %q %q", code, out, errOut)
+	}
+}
+
+// jsonOut decodes the one JSON document --json prints on stdout.
+func jsonOut(t *testing.T, out string) map[string]any {
+	t.Helper()
+	var v map[string]any
+	if strings.Count(out, "\n") != 1 || json.Unmarshal([]byte(out), &v) != nil {
+		t.Fatalf("not one line of JSON: %q", out)
+	}
+	return v
+}
+
+func TestJSONOutput(t *testing.T) {
+	dir := home(t)
+	cli(t, "login", "-n", "alice", "--sessionid", "s", "-p", "h.example:8000:user:secret")
+	os.WriteFile(filepath.Join(dir, "accounts", "broken.json"), []byte("{not json"), 0o600)
+
+	code, out, _ := cli(t, "--json", "accounts", "list")
+	accounts := jsonOut(t, out)["accounts"].([]any)
+	if code != 0 || len(accounts) != 2 {
+		t.Fatalf("%d %q", code, out)
+	}
+	alice, broken := accounts[0].(map[string]any), accounts[1].(map[string]any)
+	if !reflect.DeepEqual(alice, map[string]any{"name": "alice", "session": true, "proxy": "http://user:****@h.example:8000"}) {
+		t.Errorf("%v", alice)
+	}
+	if broken["name"] != "broken" || broken["session"] != false || broken["error"] == "" {
+		t.Errorf("%v", broken)
+	}
+
+	video := filepath.Join(dir, "clip.mp4")
+	os.WriteFile(video, []byte("video"), 0o644)
+	for _, c := range []struct {
+		args       []string
+		code       int
+		errType    string
+		msgContain string
+	}{
+		{[]string{"upload", "-u", "alice", "-v", video, "-t", "x", "-sc", "60"}, 2, "ValidationError", "15 minutes"},
+		{[]string{"upload", "-u", "alice", "-t", "x"}, 2, "ValidationError", "exactly one of"},
+		{[]string{"upload", "-u", "ghost", "-v", video, "-t", "x"}, 1, "AccountNotFoundError", "autotok login -n ghost"},
+		{[]string{"accounts", "check", "ghost"}, 1, "AccountNotFoundError", "ghost"},
+		{[]string{"show", "-u"}, 2, "ValidationError", "--json works with the upload and accounts commands"},
+	} {
+		code, out, _ := cli(t, append([]string{"--json"}, c.args...)...)
+		e, _ := jsonOut(t, out)["error"].(map[string]any)
+		if code != c.code || e["type"] != c.errType || e["retryable"] != false || !strings.Contains(e["message"].(string), c.msgContain) {
+			t.Errorf("%v: %d %q", c.args, code, out)
+		}
+	}
+
+	if code, out, _ := cli(t, "--json", "accounts", "remove", "alice"); code != 0 || !reflect.DeepEqual(jsonOut(t, out), map[string]any{"name": "alice", "removed": true}) {
+		t.Errorf("%d %q", code, out)
+	}
+	if code, out, errOut := cli(t, "--json", "accounts", "remove", "alice"); code != 1 || errOut != "" || !reflect.DeepEqual(jsonOut(t, out), map[string]any{"name": "alice", "removed": false}) {
+		t.Errorf("%d %q %q", code, out, errOut)
+	}
+}
+
+func TestJSONErrorFields(t *testing.T) {
+	var out bytes.Buffer
+	stdout = &out
+	t.Cleanup(func() { stdout = os.Stdout })
+	for _, c := range []struct {
+		err  error
+		want string
+	}{
+		{&autotok.PublishError{StatusCode: 7, HasStatusCode: true, StatusMsg: "guidelines"},
+			`{"error":{"message":"PublishError","retryable":false,"status_code":7,"status_msg":"guidelines","type":"PublishError"}}`},
+		{&autotok.PublishError{StatusMsg: "HTTP 502"},
+			`{"error":{"message":"PublishError","retryable":false,"status_code":null,"status_msg":"HTTP 502","type":"PublishError"}}`},
+		{fmt.Errorf("upload: %w", &autotok.UploadError{Status: 503}),
+			`{"error":{"message":"upload: ","retryable":true,"status":503,"type":"UploadError"}}`},
+		{&autotok.PublishUncertainError{}, `{"error":{"message":"PublishUncertainError","retryable":false,"type":"PublishUncertainError"}}`},
+		{&autotok.SigningError{}, `{"error":{"message":"SigningError","retryable":true,"type":"SigningError"}}`},
+		{context.Canceled, `{"error":{"message":"cancelled","retryable":false,"type":"Cancelled"}}`},
+		{errors.New("yt-dlp is missing"), `{"error":{"message":"yt-dlp is missing","retryable":false,"type":"Error"}}`},
+	} {
+		out.Reset()
+		printJSONError(c.err)
+		if got := strings.TrimSpace(out.String()); got != c.want {
+			t.Errorf("%T:\n got %s\nwant %s", c.err, got, c.want)
+		}
 	}
 }

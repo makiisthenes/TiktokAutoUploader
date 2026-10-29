@@ -569,6 +569,7 @@ autotok shell                         # interactive prompt
 autotok mcp [--http [--host H] [--port P]]   # MCP server for AI agents (needs autotok[mcp])
 
 autotok --browser {local,browserbase,steel} <command> ...   # choose where the browser runs
+autotok --json upload ... | accounts ...                    # print results and errors as JSON
 ```
 
 Upload options:
@@ -589,6 +590,28 @@ Upload options:
 | `--no-proxy` | Ignore the account's saved proxy | — |
 
 `python cli.py ...` in this repository still works and is the same as `autotok ...`.
+
+### JSON output
+
+For scripts and other languages, `--json` makes `upload` and `accounts` print one line of JSON on
+stdout instead of text. Logs still go to stderr.
+
+```bash
+autotok --json upload -u alice -v clip.mp4 -t "Hello #fyp"
+```
+
+| Command | Prints |
+|---|---|
+| `upload` | `{"video_id": "...", "creation_id": "...", "scheduled_for": "2026-11-02T18:30:00Z"}` (`null` when posted now) |
+| `accounts list` | `{"accounts": [{"name": "alice", "session": true, "proxy": "http://user:****@host:port"}]}` |
+| `accounts check NAME` | `{"name": "alice", "session_ok": true}` (exit status 1 when `false`) |
+| `accounts remove NAME` | `{"name": "alice", "removed": true}` (exit status 1 when `false`) |
+
+Errors print `{"error": {"type": "PublishError", "message": "...", "retryable": false}}`, with the
+usual exit status (2 for invalid input). `type` is the error's class name, such as
+`ValidationError`, `AccountNotFoundError`, `PublishError` or `PublishUncertainError`. `retryable`
+is `true` only when nothing reached TikTok's publish step, so running the command again can't post
+twice. A `PublishError` also has TikTok's `status_code` and `status_msg`.
 
 ---
 
