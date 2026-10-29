@@ -892,6 +892,7 @@ If you like the work provided, please consider supporting me through [Patreon](h
 ## Bugs and Issues
 
 Please report bugs in the [issues tab](https://github.com/makiisthenes/TiktokAutoUploader/issues) rather than by email.
+Security problems go through a private report instead, as described in [SECURITY.md](SECURITY.md).
 
 ## Notes and Terms
 
