@@ -45,6 +45,20 @@ on), with the same account files and test values. Go modules can't reach files o
 folder, so TikTok's signing scripts are copied into `go/signer_js`; CI checks the copy matches
 `autotok/signer_js`, so update both together.
 
+### PHP, Java and C# libraries
+
+```bash
+(cd php && composer install && vendor/bin/phpunit)
+(cd java && mvn test)
+(cd dotnet && dotnet test)
+```
+
+These run the `autotok` command with `--json` (and send the caption with `--title-file -`), so
+they don't reimplement uploading. Their tests run a stand-in for autotok; set `AUTOTOK_TEST_BIN`
+to a real autotok (CI builds the Go binary) to also run them against it. When you change the
+JSON that `upload` or `accounts` print, in `autotok/cli.py` and `go/cmd/autotok/main.go`, update
+the three libraries too.
+
 ## Repository layout
 
 | Path | What it is |
@@ -53,6 +67,8 @@ folder, so TikTok's signing scripts are copied into `go/signer_js`; CI checks th
 | `tests/` | The test suite (`pytest`) |
 | `js/` | The `autotok` npm package for Node.js and TypeScript (`npm ci && npm test`) |
 | `go/` | The Go module and the single `autotok` binary (`go test ./...`) |
+| `php/`, `java/`, `dotnet/` | PHP, Java and C# libraries that run the `autotok` command with `--json` (`vendor/bin/phpunit`, `mvn test`, `dotnet test`) |
+| `claude-plugin/`, `.claude-plugin/` | The Claude Code plugin (a `tiktok-upload` skill) and the marketplace file that lists it (`claude plugin validate .`) |
 | `web/` | The self-hosted web app: `api/` (FastAPI), `scheduler/`, `novnc/` (virtual login browser), `frontend/` (React; `npm ci && npm run dev`) |
 | `docs/` | Extra documentation and images |
 | `Dockerfile` | Image for the `autotok` CLI |

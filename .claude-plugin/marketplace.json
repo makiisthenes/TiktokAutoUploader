@@ -1,0 +1,17 @@
+{
+  "name": "autotok",
+  "owner": {
+    "name": "Michael Peres"
+  },
+  "description": "Claude Code plugins from autotok, the TikTok uploader.",
+  "plugins": [
+    {
+      "name": "autotok",
+      "source": "./claude-plugin",
+      "description": "Upload and schedule TikTok videos by asking Claude, with the autotok command line and the accounts logged in on your computer.",
+      "version": "0.1.0",
+      "category": "productivity",
+      "tags": ["tiktok", "video", "upload", "schedule", "social-media"]
+    }
+  ]
+}

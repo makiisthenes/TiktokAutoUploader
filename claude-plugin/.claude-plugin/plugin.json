@@ -1,0 +1,13 @@
+{
+  "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
+  "name": "autotok",
+  "version": "0.1.0",
+  "description": "Upload and schedule TikTok videos by asking Claude, with the autotok command line and the accounts logged in on your computer.",
+  "author": {
+    "name": "Michael Peres"
+  },
+  "homepage": "https://github.com/makiisthenes/TiktokAutoUploader",
+  "repository": "https://github.com/makiisthenes/TiktokAutoUploader",
+  "license": "AGPL-3.0-only",
+  "keywords": ["tiktok", "video", "upload", "schedule", "autotok"]
+}

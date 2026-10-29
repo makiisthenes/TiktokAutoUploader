@@ -12,11 +12,13 @@ import os
 import shlex
 import sys
 import webbrowser
+from datetime import timezone
+from pathlib import Path
 
 from . import __version__
 from .accounts import AccountStore
 from .browsers import CloudProvider, available_providers, get_provider
-from .errors import AutotokError, ValidationError
+from .errors import AutotokError, PublishError, UploadError, ValidationError
 from .proxy import check_proxy, parse_proxy
 
 log = logging.getLogger("autotok")
@@ -30,6 +32,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--version", action="version", version=f"autotok {__version__}")
     parser.add_argument("-q", "--quiet", action="store_true", help="only print errors")
     parser.add_argument("--debug", action="store_true", help="verbose logging")
+    parser.add_argument("--json", action="store_true",
+                        help="print results and errors as JSON on stdout (upload and accounts commands)")
     parser.add_argument("--browser", choices=available_providers(),
                         help="where the login/signing browser runs (default: $AUTOTOK_BROWSER or local)")
     sub = parser.add_subparsers(dest="command", metavar="<command>")
@@ -49,7 +53,10 @@ def build_parser() -> argparse.ArgumentParser:
     src = up.add_mutually_exclusive_group(required=True)
     src.add_argument("-v", "--video", help="video file (path, or a name inside your videos folder)")
     src.add_argument("-yt", "--youtube", help="YouTube URL to download and upload")
-    up.add_argument("-t", "--title", required=True, help="caption, up to 2200 characters")
+    caption = up.add_mutually_exclusive_group(required=True)
+    caption.add_argument("-t", "--title", help="caption, up to 2200 characters")
+    caption.add_argument("--title-file", metavar="FILE",
+                         help="read the caption from a UTF-8 text file, or from stdin if FILE is -")
     up.add_argument("-sc", "--schedule", type=int, default=0,
                     help="publish this many seconds from now (900 to 2592000, TikTok-side "
                          "scheduling; some accounts only allow up to 864000)")
@@ -162,6 +169,7 @@ def cmd_upload(args, store: AccountStore) -> int:
 
     if args.brandorganic or args.brandcontent:
         log.warning("--brandorganic/--brandcontent are not supported and are ignored")
+    caption = args.title if args.title_file is None else _read_caption(args.title_file)
     if args.no_proxy:
         proxy = None
     elif args.proxy:
@@ -175,11 +183,11 @@ def cmd_upload(args, store: AccountStore) -> int:
         from .youtube import download
 
         video = download(args.youtube)
-        print(f"Downloaded {video}")
+        print(f"Downloaded {video}", file=sys.stderr if args.json else sys.stdout)
 
     result = client.upload(
         video,
-        args.title,
+        caption,
         schedule=args.schedule or None,
         visibility=args.visibility,
         allow_comment=bool(args.comment),
@@ -187,9 +195,33 @@ def cmd_upload(args, store: AccountStore) -> int:
         allow_stitch=bool(args.stitch),
         ai_label=bool(args.ailabel),
     )
+    if args.json:
+        scheduled = result.scheduled_for
+        _print_json({
+            "video_id": result.video_id,
+            "creation_id": result.creation_id,
+            "scheduled_for": f"{scheduled.astimezone(timezone.utc):%Y-%m-%dT%H:%M:%SZ}" if scheduled else None,
+        })
+        return 0
     when = f" (scheduled for {result.scheduled_for.astimezone():%Y-%m-%d %H:%M %Z})" if result.scheduled_for else ""
     print(f"Published{when}. Video id: {result.video_id}")
     return 0
+
+
+def _read_caption(path: str) -> str:
+    """The caption from --title-file: UTF-8 text from a file, or stdin for "-".
+
+    Reading bytes and decoding them as UTF-8 (not with the console's encoding) keeps emoji intact
+    whatever the locale, which is why the PHP, Java and C# clients send captions this way.
+    """
+    try:
+        data = sys.stdin.buffer.read() if path == "-" else Path(path).read_bytes()
+    except OSError as exc:
+        raise ValidationError(f"cannot read the caption: {exc}") from None
+    try:
+        return data.decode("utf-8-sig").rstrip("\r\n")
+    except UnicodeDecodeError:
+        raise ValidationError("the caption is not UTF-8 text") from None
 
 
 def cmd_show(args, store: AccountStore) -> int:
@@ -215,6 +247,8 @@ def cmd_show(args, store: AccountStore) -> int:
 
 
 def cmd_accounts(args, store: AccountStore) -> int:
+    if args.json:
+        return _accounts_json(args, store)
     if args.action == "list":
         names = store.list()
         if not names:
@@ -236,6 +270,32 @@ def cmd_accounts(args, store: AccountStore) -> int:
 
         ok = Client.from_account(args.name, store=store).check_session()
         print(f"'{args.name}': {'session OK' if ok else 'session rejected, log in again with --force'}")
+        return 0 if ok else 1
+    return 1
+
+
+def _accounts_json(args, store: AccountStore) -> int:
+    if args.action == "list":
+        accounts = []
+        for n in store.list():
+            try:
+                acct = store.load(n)
+                proxy = acct.get_proxy()
+            except AutotokError as exc:
+                accounts.append({"name": n, "session": False, "proxy": None, "error": str(exc)})
+                continue
+            accounts.append({"name": n, "session": acct.has_session, "proxy": proxy.masked() if proxy else None})
+        _print_json({"accounts": accounts})
+        return 0
+    if args.action == "remove":
+        removed = store.delete(args.name)
+        _print_json({"name": args.name, "removed": removed})
+        return 0 if removed else 1
+    if args.action == "check":
+        from .uploader import Client
+
+        ok = Client.from_account(args.name, store=store).check_session()
+        _print_json({"name": args.name, "session_ok": ok})
         return 0 if ok else 1
     return 1
 
@@ -361,6 +421,28 @@ COMMANDS = {
 }
 
 
+# Commands that can answer in JSON (--json), for scripts and the PHP, Java and C# clients.
+JSON_COMMANDS = ("upload", "accounts")
+
+
+def _print_json(data) -> None:
+    print(json.dumps(data), flush=True)  # ASCII, so any console encoding can print it
+
+
+def _json_error(exc: BaseException, type_name: "str | None" = None) -> None:
+    """Print an error as ``{"error": {...}}``: its type, message and whether a retry is safe."""
+    error = {
+        "type": type_name or type(exc).__name__,
+        "message": str(exc) or type(exc).__name__,
+        "retryable": bool(getattr(exc, "retryable", False)),
+    }
+    if isinstance(exc, PublishError):
+        error.update(status_code=exc.status_code, status_msg=exc.status_msg)
+    elif isinstance(exc, UploadError):
+        error.update(status=exc.status)
+    _print_json({"error": error})
+
+
 def _configure_logging(quiet: bool, debug: bool) -> None:
     level = logging.DEBUG if debug else logging.ERROR if quiet else logging.INFO
     if not log.handlers:
@@ -382,19 +464,30 @@ def main(argv: "list[str] | None" = None, *, _store: AccountStore | None = None)
         print("\nNew here? Run: autotok setup")
         return 1
     _configure_logging(args.quiet, args.debug)
+    if args.json and args.command not in JSON_COMMANDS:
+        _json_error(ValidationError("--json works with the upload and accounts commands"))
+        return 2
     if args.browser:
         os.environ["AUTOTOK_BROWSER"] = args.browser
     try:
         return COMMANDS[args.command](args, _store or AccountStore())
-    except ValidationError as exc:
-        print(f"error: {exc}", file=sys.stderr)
-        return 2
     except AutotokError as exc:
-        print(f"error: {exc}", file=sys.stderr)
-        return 1
+        if args.json:
+            _json_error(exc)
+        else:
+            print(f"error: {exc}", file=sys.stderr)
+        return 2 if isinstance(exc, ValidationError) else 1
     except KeyboardInterrupt:
+        if args.json:
+            _json_error(KeyboardInterrupt("cancelled"), "Cancelled")
         print("\ncancelled", file=sys.stderr)
         return 130
+    except Exception as exc:
+        if not args.json:
+            raise
+        log.error("unexpected error", exc_info=True)  # the traceback, on stderr
+        _json_error(exc, "Error")
+        return 1
 
 
 def run() -> None:

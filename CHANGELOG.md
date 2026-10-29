@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+### Added
+- `--json` for `autotok upload` and `autotok accounts list|check|remove`, in the Python and Go
+  command lines: they print one line of JSON on stdout instead of text, and errors print
+  `{"error": {"type", "message", "retryable"}}`, so scripts and other languages can use autotok
+  without parsing text. Mistakes the argument parser catches before a command runs (an unknown or
+  missing option) still print usage text on stderr, with exit status 2.
+- `--title-file FILE` for `autotok upload` (Python and Go): reads the caption from a UTF-8 text
+  file, or from stdin with `--title-file -`. Captions with emoji arrive intact even where the
+  system can't pass them as command-line arguments (for example Java in a container without a
+  UTF-8 locale).
+- PHP, Java and C# libraries (in `php/`, `java/` and `dotnet/`), which run the `autotok` command
+  with `--json` and return typed results and errors: upload or schedule a video with the same post
+  settings as the CLI, and list, check or remove accounts. They need no dependencies (PHP 8.1+,
+  Java 17+, .NET 8+) and aren't published to Packagist, Maven Central or NuGet yet.
+- A Claude Code plugin with a `tiktok-upload` skill (`/plugin marketplace add
+  makiisthenes/TiktokAutoUploader`, then `/plugin install autotok@autotok`): ask to upload or
+  schedule a video in plain words. It runs the `autotok` command, confirms the post before
+  uploading, and never retries an upload that may already be posted.
+
 ### Fixed
 - A proxy written as `http://host:port:user:pass` (the provider export format with a scheme added,
   which isn't valid) was rejected with an error message that showed the password. The message no

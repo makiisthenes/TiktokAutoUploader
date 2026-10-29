@@ -1,10 +1,23 @@
 # autotok — TikTok Auto Uploader
 
 <p align="center">
+  <b>English</b> ·
+  <a href="README.zh-CN.md">简体中文</a> ·
+  <a href="README.zh-TW.md">繁體中文</a> ·
+  <a href="README.ja.md">日本語</a> ·
+  <a href="README.ko.md">한국어</a> ·
+  <a href="README.es.md">Español</a> ·
+  <a href="README.pt-BR.md">Português (Brasil)</a> ·
+  <a href="README.ru.md">Русский</a> ·
+  <a href="README.fr.md">Français</a> ·
+  <a href="README.de.md">Deutsch</a>
+</p>
+
+<p align="center">
   <img src="https://user-images.githubusercontent.com/52138450/111885490-04ab6680-89c0-11eb-955a-f833577b4406.png" width="35%" alt="TiktokAutoUploader logo">
 </p>
 
-<p align="center">Upload and schedule TikTok videos from the command line, Python, TypeScript or Go, with a proxy per account.</p>
+<p align="center">Upload and schedule TikTok videos from the command line, Python, TypeScript, Go, PHP, Java or C#, with a proxy per account.</p>
 <p align="center"><code>uv tool install autotok</code> · <code>npm install autotok</code> · one login · one command per upload</p>
 
 <p align="center">
@@ -75,6 +88,11 @@ or download the `autotok` binary for your system from the
 has the same commands as above, needs no Python or Node.js, and uses the Chrome already on your
 computer. In Go code: `go get github.com/makiisthenes/TiktokAutoUploader/go`. See
 [Go](#go-sdk-and-single-binary).
+
+**PHP, Java and C#**
+
+Small libraries that run the `autotok` command for you and give back typed results and errors.
+Install autotok as above, then see [PHP, Java and C#](#php-java-and-c).
 
 ---
 
@@ -208,7 +226,9 @@ BROWSERBASE_API_KEY=bb_live_...
 | Upload from Python code | [Python SDK](#python-sdk) |
 | Upload from TypeScript or JavaScript | [TypeScript SDK](#typescript-sdk) |
 | Upload from Go, or use one binary with no Python | [Go](#go-sdk-and-single-binary) |
+| Upload from PHP, Java or C# | [PHP, Java and C#](#php-java-and-c) |
 | Let an AI agent (Claude, Cursor...) upload for me | [MCP server](#mcp-server-ai-agents) |
+| Upload by asking Claude Code, with a skill | [Claude Code plugin](#claude-code-plugin) |
 | Run on a server or in a container | [Docker](#docker) |
 | Use a web dashboard with a scheduler | [Web app](#web-app-self-hosted) |
 | Fix an error | [Troubleshooting](#troubleshooting) |
@@ -229,7 +249,11 @@ BROWSERBASE_API_KEY=bb_live_...
   shares saved accounts with the CLI.
 - **Go package and a single binary**: `go get` the library, or download one `autotok` executable
   with no Python or Node.js. It shares saved accounts with the other packages.
+- **PHP, Java and C# libraries** that drive the `autotok` command and return typed results and
+  errors, with no other dependencies.
 - **MCP server** so AI agents (Claude, Cursor, VS Code...) can upload and schedule for you.
+- **Claude Code plugin** with a TikTok upload skill: ask in plain words, and it confirms before
+  posting.
 - **Cloud browsers**: run the login and signing browser on [Browserbase](https://www.browserbase.com) or [Steel](https://github.com/steel-dev/steel-browser) (cloud or self-hosted) instead of your computer.
 - **Docker image** for running the CLI on servers.
 - **No Node.js needed** for the Python package: TikTok's request signatures are computed in headless Chromium.
@@ -502,6 +526,73 @@ The full API is in [`go/README.md`](go/README.md) and on
 
 ---
 
+## PHP, Java and C#
+
+Small libraries for PHP, Java and .NET run the `autotok` command for you (the Python package or
+the Go binary) and turn its answers into objects and typed errors. They use the same saved
+accounts and proxies, and need nothing else. Install autotok and log in once with
+`autotok login -n alice`, then:
+
+<table>
+<tr><th>PHP 8.1+</th><th>Java 17+</th><th>C# (.NET 8+)</th></tr>
+<tr>
+<td>
+
+```php
+$autotok = new Autotok\Client();
+$result = $autotok->upload(
+    'alice', 'clip.mp4', 'Hello #fyp',
+    schedule: new DateTimeImmutable('+1 day'),
+);
+echo $result->videoId;
+```
+
+</td>
+<td>
+
+```java
+var autotok = new Autotok();
+var result = autotok.upload(
+    "alice", "clip.mp4", "Hello #fyp",
+    new UploadOptions().schedule(
+        Instant.now().plus(Duration.ofDays(1))));
+System.out.println(result.videoId());
+```
+
+</td>
+<td>
+
+```csharp
+var autotok = new AutotokClient();
+var result = await autotok.UploadAsync(
+    "alice", "clip.mp4", "Hello #fyp",
+    new UploadOptions {
+        Schedule = DateTimeOffset.UtcNow.AddDays(1) });
+Console.WriteLine(result.VideoId);
+```
+
+</td>
+</tr>
+<tr>
+<td><a href="php/README.md"><code>php/</code></a></td>
+<td><a href="java/README.md"><code>java/</code></a></td>
+<td><a href="dotnet/README.md"><code>dotnet/</code></a></td>
+</tr>
+</table>
+
+- All three have the same post settings as the CLI (schedule, visibility, comments, duets,
+  stitches, AI label, proxy), list and check accounts, and raise one exception type with
+  autotok's error `type` and `retryable`, so you know when trying again can't post twice.
+- They need an autotok with [`--json`](#json-output) and `--title-file`: the Python package after
+  2.1.0, or the Go binary after 0.1.0. Until those are released, install autotok from this
+  repository: `uv tool install "autotok[youtube] @ git+https://github.com/makiisthenes/TiktokAutoUploader"`.
+- They aren't on Packagist, Maven Central or NuGet yet; each README says how to add it from this
+  repository.
+- Any other language can do the same: run `autotok --json upload ...` and read one line of
+  [JSON](#json-output).
+
+---
+
 ## MCP server (AI agents)
 
 autotok includes an [MCP](https://modelcontextprotocol.io) server, so AI agents such as Claude,
@@ -554,12 +645,36 @@ If the client can't find `autotok`, use the full path that `which autotok` (Wind
 
 ---
 
+## Claude Code plugin
+
+A plugin for [Claude Code](https://code.claude.com) with a `tiktok-upload` skill, so you can
+upload by asking:
+
+> Post ~/Videos/clip.mp4 to my_account with the caption "Behind the scenes 🎬 #fyp", tomorrow at 6 pm.
+
+```
+/plugin marketplace add makiisthenes/TiktokAutoUploader
+/plugin install autotok@autotok
+```
+
+The skill runs the `autotok` command, so [install autotok](#install) and log in first. It picks
+the account (or logs one in through a browser window), shows the account, video, caption and time
+and asks before posting, then uploads and explains any error. Only read-only commands, such as
+listing accounts, run without a permission prompt. An upload that may or may not have reached
+TikTok is never retried, so nothing is posted twice. You can also run it directly:
+`/autotok:tiktok-upload clip.mp4 "Hello #fyp"`.
+
+More in [`claude-plugin/README.md`](claude-plugin/README.md), including how to use the skill
+without the plugin.
+
+---
+
 ## CLI reference
 
 ```
 autotok setup                         # step by step: browser, proxy (tested), TikTok login
 autotok login     -n NAME [-p PROXY] [--force] [--sessionid ID --datacenter DC]
-autotok upload    -u NAME (-v FILE | -yt URL) -t CAPTION [options]
+autotok upload    -u NAME (-v FILE | -yt URL) (-t CAPTION | --title-file FILE) [options]
 autotok accounts  list | check NAME | remove NAME
 autotok proxy     set NAME PROXY | clear NAME | test [PROXY | -u NAME]
 autotok show      -u (accounts) | -v (videos)
@@ -569,6 +684,7 @@ autotok shell                         # interactive prompt
 autotok mcp [--http [--host H] [--port P]]   # MCP server for AI agents (needs autotok[mcp])
 
 autotok --browser {local,browserbase,steel} <command> ...   # choose where the browser runs
+autotok --json upload ... | accounts ...                    # print results and errors as JSON
 ```
 
 Upload options:
@@ -578,7 +694,8 @@ Upload options:
 | `-u` / `--user` | Saved account name | *required* |
 | `-v` / `--video` | Video file (path or name in your videos folder) | — |
 | `-yt` / `--youtube` | YouTube URL to download and upload | — |
-| `-t` / `--title` | Caption, up to 2200 characters | *required* |
+| `-t` / `--title` | Caption, up to 2200 characters | *required* (or `--title-file`) |
+| `--title-file` | Read the caption from a UTF-8 text file, or from stdin with `-` | — |
 | `-sc` / `--schedule` | Publish this many seconds from now (900–2592000; some accounts only allow up to 864000) | now |
 | `-vi` / `--visibility` | `0` public, `1` private | `0` |
 | `-ct` / `--comment` | Allow comments (`0`/`1`) | `1` |
@@ -589,6 +706,32 @@ Upload options:
 | `--no-proxy` | Ignore the account's saved proxy | — |
 
 `python cli.py ...` in this repository still works and is the same as `autotok ...`.
+
+### JSON output
+
+For scripts and other languages, `--json` makes `upload` and `accounts` print one line of JSON on
+stdout instead of text. Logs still go to stderr. The [PHP, Java and C# libraries](#php-java-and-c)
+use it.
+
+```bash
+autotok --json upload -u alice -v clip.mp4 -t "Hello #fyp"
+```
+
+| Command | Prints |
+|---|---|
+| `upload` | `{"video_id": "...", "creation_id": "...", "scheduled_for": "2026-11-02T18:30:00Z"}` (`null` when posted now) |
+| `accounts list` | `{"accounts": [{"name": "alice", "session": true, "proxy": "http://user:****@host:port"}]}` |
+| `accounts check NAME` | `{"name": "alice", "session_ok": true}` (exit status 1 when `false`) |
+| `accounts remove NAME` | `{"name": "alice", "removed": true}` (exit status 1 when `false`) |
+
+Errors print `{"error": {"type": "PublishError", "message": "...", "retryable": false}}`, with the
+usual exit status (2 for invalid input). `type` is the error's class name, such as
+`ValidationError`, `AccountNotFoundError`, `PublishError` or `PublishUncertainError`. `retryable`
+is `true` only when nothing reached TikTok's publish step, so running the command again can't post
+twice. A `PublishError` also has TikTok's `status_code` and `status_msg`.
+Mistakes the argument parser catches before a command runs, such as an unknown option or a
+missing account name, print usage text on stderr instead, with exit status 2, so treat output that
+isn't JSON as an error too.
 
 ---
 
@@ -765,6 +908,7 @@ If you like the work provided, please consider supporting me through [Patreon](h
 ## Bugs and Issues
 
 Please report bugs in the [issues tab](https://github.com/makiisthenes/TiktokAutoUploader/issues) rather than by email.
+Security problems go through a private report instead, as described in [SECURITY.md](SECURITY.md).
 
 ## Notes and Terms
 

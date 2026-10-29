@@ -8,7 +8,9 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -18,11 +20,13 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"runtime"
 	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/chromedp/chromedp"
 
@@ -30,9 +34,15 @@ import (
 )
 
 var (
+	stdin  io.Reader = os.Stdin
 	stdout io.Writer = os.Stdout
 	stderr io.Writer = os.Stderr
+	// jsonOutput is set by --json: results and errors are printed as JSON on stdout.
+	jsonOutput bool
 )
+
+// jsonCommands can answer in JSON (--json), for scripts and the PHP, Java and C# clients.
+var jsonCommands = []string{"upload", "accounts"}
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
@@ -76,6 +86,7 @@ Commands:
 Options:
   -q, --quiet       only print errors
   --debug           verbose logging
+  --json            print results and errors as JSON on stdout (upload and accounts)
   --browser NAME    where the login/signing browser runs: %s
                     (default: $AUTOTOK_BROWSER or local)
   --version         print the version
@@ -91,8 +102,10 @@ func run(ctx context.Context, args []string) int {
 	global.SetOutput(io.Discard)
 	var quiet, debug, version bool
 	var browser string
+	jsonOutput = false
 	boolFlag(global, &quiet, "only print errors", "q", "quiet")
 	boolFlag(global, &debug, "verbose logging", "debug")
+	boolFlag(global, &jsonOutput, "print results and errors as JSON", "json")
 	boolFlag(global, &version, "print the version", "version")
 	global.StringVar(&browser, "browser", "", "browser provider")
 	if err := global.Parse(args); err != nil {
@@ -130,6 +143,9 @@ func run(ctx context.Context, args []string) int {
 	slog.SetDefault(logger)
 
 	name := rest[0]
+	if jsonOutput && !slices.Contains(jsonCommands, name) {
+		return exitCode(&usageError{"--json works with the upload and accounts commands"})
+	}
 	for _, c := range commands {
 		if c.name == name {
 			return exitCode(c.run(ctx, rest[1:], autotok.NewAccountStore("")))
@@ -153,6 +169,17 @@ func exitCode(err error) int {
 		return 0
 	case errors.As(err, &silent):
 		return 1
+	case jsonOutput:
+		printJSONError(err)
+		switch {
+		case errors.As(err, &uncertain):
+			return 1
+		case errors.Is(err, context.Canceled):
+			return 130
+		case errors.As(err, &usage), errors.As(err, &invalid):
+			return 2
+		}
+		return 1
 	case errors.As(err, &uncertain):
 		// Also when interrupted: the post may exist.
 		fmt.Fprintf(stderr, "error: %s\n", err)
@@ -170,6 +197,51 @@ func exitCode(err error) int {
 		fmt.Fprintf(stderr, "error: %s\n", err)
 		return 1
 	}
+}
+
+// printJSON prints v as one line of JSON on stdout.
+func printJSON(v any) {
+	data, err := json.Marshal(v)
+	if err != nil {
+		panic(err) // only plain maps, slices and strings are printed
+	}
+	fmt.Fprintf(stdout, "%s\n", data)
+}
+
+// printJSONError prints err as {"error": {...}}: its type (the same names as the Python
+// package's exceptions), message and whether running the same command again is safe.
+func printJSONError(err error) {
+	e := map[string]any{"type": "Error", "message": err.Error(), "retryable": autotok.IsRetryable(err)}
+	var autotokErr autotok.Error
+	var usage *usageError
+	var publish *autotok.PublishError
+	var upload *autotok.UploadError
+	var uncertain *autotok.PublishUncertainError
+	switch {
+	case errors.As(err, &uncertain):
+		e["type"] = "PublishUncertainError"
+	case errors.Is(err, context.Canceled):
+		e["type"], e["message"] = "Cancelled", "cancelled"
+	case errors.As(err, &usage):
+		e["type"] = "ValidationError"
+	case errors.As(err, &autotokErr):
+		e["type"] = reflect.TypeOf(autotokErr).Elem().Name()
+	}
+	if e["message"] == "" {
+		e["message"] = e["type"]
+	}
+	if errors.As(err, &publish) {
+		e["status_code"], e["status_msg"] = nil, publish.StatusMsg
+		if publish.HasStatusCode {
+			e["status_code"] = publish.StatusCode
+		}
+	} else if errors.As(err, &upload) {
+		e["status"] = nil
+		if upload.Status != 0 {
+			e["status"] = upload.Status
+		}
+	}
+	printJSON(map[string]any{"error": e})
 }
 
 // -- flags ----------------------------------------------------------------------
@@ -363,14 +435,15 @@ func openInBrowser(url string) {
 	}
 }
 
-const uploadUsage = `Usage: autotok upload -u ACCOUNT (-v VIDEO | -yt URL) -t CAPTION [options]
+const uploadUsage = `Usage: autotok upload -u ACCOUNT (-v VIDEO | -yt URL) (-t CAPTION | --title-file FILE) [options]
 
 Upload a video.
 
   -u, --user ACCOUNT     saved account name (required)
   -v, --video VIDEO      video file (path, or a name inside your videos folder)
   -yt, --youtube URL     YouTube URL to download (with yt-dlp) and upload
-  -t, --title CAPTION    caption, up to 2200 characters (required)
+  -t, --title CAPTION    caption, up to 2200 characters
+  --title-file FILE      read the caption from a UTF-8 text file, or from stdin if FILE is -
   -sc, --schedule SEC    publish this many seconds from now (900 to 2592000, TikTok-side
                          scheduling; some accounts only allow up to 864000)
   -vi, --visibility N    0 = public (default), 1 = private
@@ -384,13 +457,14 @@ Upload a video.
 
 func cmdUpload(ctx context.Context, args []string, store *autotok.AccountStore) error {
 	fs := newFlags("upload", uploadUsage)
-	var user, video, youtube, title, proxy string
+	var user, video, youtube, title, titleFile, proxy string
 	var schedule, visibility, comment, duet, stitch, ailabel, brandOrganic, brandContent int
 	var noProxy bool
 	stringFlag(fs, &user, "", "", "u", "user", "users")
 	stringFlag(fs, &video, "", "", "v", "video")
 	stringFlag(fs, &youtube, "", "", "yt", "youtube")
 	stringFlag(fs, &title, "", "", "t", "title")
+	stringFlag(fs, &titleFile, "", "", "title-file")
 	intFlag(fs, &schedule, 0, "", "sc", "schedule")
 	intFlag(fs, &visibility, 0, "", "vi", "visibility")
 	intFlag(fs, &comment, 1, "", "ct", "comment")
@@ -408,8 +482,10 @@ func cmdUpload(ctx context.Context, args []string, store *autotok.AccountStore) 
 	switch {
 	case user == "":
 		return &usageError{"upload needs -u/--user"}
-	case title == "":
-		return &usageError{"upload needs -t/--title"}
+	case title == "" && titleFile == "":
+		return &usageError{"upload needs -t/--title or --title-file"}
+	case title != "" && titleFile != "":
+		return &usageError{"use either -t/--title or --title-file, not both"}
 	case (video == "") == (youtube == ""):
 		return &usageError{"upload needs exactly one of -v/--video or -yt/--youtube"}
 	case proxy != "" && noProxy:
@@ -426,6 +502,12 @@ func cmdUpload(ctx context.Context, args []string, store *autotok.AccountStore) 
 	if brandOrganic != 0 || brandContent != 0 {
 		slog.Warn("--brandorganic/--brandcontent are not supported and are ignored")
 	}
+	if titleFile != "" {
+		var err error
+		if title, err = readCaption(titleFile); err != nil {
+			return err
+		}
+	}
 
 	client, err := autotok.NewClient(user, &autotok.ClientOptions{Proxy: proxy, NoProxy: noProxy, Store: store})
 	if err != nil {
@@ -435,7 +517,11 @@ func cmdUpload(ctx context.Context, args []string, store *autotok.AccountStore) 
 		if video, err = downloadYouTube(ctx, youtube); err != nil {
 			return err
 		}
-		fmt.Fprintf(stdout, "Downloaded %s\n", video)
+		if jsonOutput {
+			fmt.Fprintf(stderr, "Downloaded %s\n", video)
+		} else {
+			fmt.Fprintf(stdout, "Downloaded %s\n", video)
+		}
 	}
 	opts := &autotok.UploadOptions{
 		Visibility:      autotok.Visibility(visibility),
@@ -451,12 +537,41 @@ func cmdUpload(ctx context.Context, args []string, store *autotok.AccountStore) 
 	if err != nil {
 		return err
 	}
+	if jsonOutput {
+		var scheduled any
+		if !result.ScheduledFor.IsZero() {
+			scheduled = result.ScheduledFor.UTC().Format(time.RFC3339)
+		}
+		printJSON(map[string]any{"video_id": result.VideoID, "creation_id": result.CreationID, "scheduled_for": scheduled})
+		return nil
+	}
 	when := ""
 	if !result.ScheduledFor.IsZero() {
 		when = fmt.Sprintf(" (scheduled for %s)", result.ScheduledFor.Local().Format("2006-01-02 15:04 MST"))
 	}
 	fmt.Fprintf(stdout, "Published%s. Video id: %s\n", when, result.VideoID)
 	return nil
+}
+
+// readCaption returns the caption from --title-file: UTF-8 text from a file, or stdin for "-".
+// Reading bytes (not a command-line argument in the system's encoding) keeps emoji intact whatever
+// the locale, which is why the PHP, Java and C# clients send captions this way.
+func readCaption(path string) (string, error) {
+	var data []byte
+	var err error
+	if path == "-" {
+		data, err = io.ReadAll(stdin)
+	} else {
+		data, err = os.ReadFile(path)
+	}
+	if err != nil {
+		return "", &usageError{"cannot read the caption: " + err.Error()}
+	}
+	data = bytes.TrimPrefix(data, []byte("\ufeff"))
+	if !utf8.Valid(data) {
+		return "", &usageError{"the caption is not UTF-8 text"}
+	}
+	return strings.TrimRight(string(data), "\r\n"), nil
 }
 
 var youtubeRE = regexp.MustCompile(`(?i)^https?://(?:www\.|m\.)?(?:youtube\.com/(?:watch\?v=|shorts/|embed/)|youtu\.be/)[\w\-]+`)
@@ -572,6 +687,26 @@ func cmdAccounts(ctx context.Context, args []string, store *autotok.AccountStore
 		return &usageError{"accounts needs an action: list, remove or check"}
 	}
 	switch action := pos[0]; {
+	case action == "list" && len(pos) == 1 && jsonOutput:
+		names, err := store.List()
+		if err != nil {
+			return err
+		}
+		accounts := []map[string]any{}
+		for _, n := range names {
+			acct, err := store.Load(n)
+			if err != nil {
+				accounts = append(accounts, map[string]any{"name": n, "session": false, "proxy": nil, "error": err.Error()})
+				continue
+			}
+			var proxy any
+			if p, err := acct.ParsedProxy(); err == nil && p != nil {
+				proxy = p.Masked()
+			}
+			accounts = append(accounts, map[string]any{"name": n, "session": acct.HasSession(), "proxy": proxy})
+		}
+		printJSON(map[string]any{"accounts": accounts})
+		return nil
 	case action == "list" && len(pos) == 1:
 		names, err := store.List()
 		if err != nil {
@@ -601,6 +736,13 @@ func cmdAccounts(ctx context.Context, args []string, store *autotok.AccountStore
 		if err != nil {
 			return err
 		}
+		if jsonOutput {
+			printJSON(map[string]any{"name": pos[1], "removed": removed})
+			if !removed {
+				return &silentError{}
+			}
+			return nil
+		}
 		if !removed {
 			fmt.Fprintf(stderr, "No saved account '%s'.\n", pos[1])
 			return &silentError{}
@@ -615,6 +757,13 @@ func cmdAccounts(ctx context.Context, args []string, store *autotok.AccountStore
 		ok, err := client.CheckSession(ctx)
 		if err != nil {
 			return err
+		}
+		if jsonOutput {
+			printJSON(map[string]any{"name": pos[1], "session_ok": ok})
+			if !ok {
+				return &silentError{}
+			}
+			return nil
 		}
 		if !ok {
 			fmt.Fprintf(stdout, "'%s': session rejected, log in again with --force\n", pos[1])
