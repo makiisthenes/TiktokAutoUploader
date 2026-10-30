@@ -81,6 +81,18 @@ computer. In Go code: `go get github.com/makiisthenes/TiktokAutoUploader/go`. Se
 ## Sponsors
 
 <p align="center">
+  <a href="https://proxy-seller.com/?partner=E189D459A9D0448C">
+    <img src="https://raw.githubusercontent.com/makiisthenes/TiktokAutoUploader/main/docs/images/proxy-seller-banner.png" alt="Proxy-Seller — residential, ISP, datacenter and mobile proxies" width="420">
+  </a>
+</p>
+
+[**Proxy-Seller**](https://proxy-seller.com/?partner=E189D459A9D0448C) provides residential, ISP, datacenter IPv4/IPv6 and mobile proxies across 220+ locations. Built for web scraping, automation, multi-account management, GEO testing and other workflows that require reliable, flexible proxy infrastructure.
+
+> **Get 15% off** with code `AUTO15` — [Get proxies from Proxy-Seller →](https://proxy-seller.com/?partner=E189D459A9D0448C)
+
+<br>
+
+<p align="center">
   <a href="https://www.swiftproxy.net/?ref=makiisthenes">
     <img src="https://github.com/user-attachments/assets/a1d0e915-e09a-4b36-ba72-788c4cc1e709" alt="Swiftproxy — 90M+ residential proxies" width="420">
   </a>
