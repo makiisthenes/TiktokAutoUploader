@@ -93,6 +93,17 @@ computer. In Go code: `go get github.com/makiisthenes/TiktokAutoUploader/go`. Se
 <br>
 
 <p align="center">
+  <a href="https://www.rapidproxy.io/?ref=devhunt">
+    <img src="https://raw.githubusercontent.com/makiisthenes/TiktokAutoUploader/main/docs/images/rapidproxy-banner.png" alt="RapidProxy — 90M+ residential proxies in 195+ countries" width="420">
+  </a>
+</p>
+
+[**RapidProxy**](https://www.rapidproxy.io/?ref=devhunt) provides 90M+ residential IPs across 195+ countries, with sticky and rotating sessions, HTTP(S)/SOCKS5 and high concurrency. Assign a separate session per account for cleaner IP isolation. Traffic never expires, with flexible geo-targeting and 99.99% uptime.
+
+> **Get 10% off** with code `RAPID10` — [Try RapidProxy →](https://www.rapidproxy.io/?ref=devhunt)
+
+<!-- Swiftproxy placement paused — restore this block to bring it back.
+<p align="center">
   <a href="https://www.swiftproxy.net/?ref=makiisthenes">
     <img src="https://github.com/user-attachments/assets/a1d0e915-e09a-4b36-ba72-788c4cc1e709" alt="Swiftproxy — 90M+ residential proxies" width="420">
   </a>
@@ -101,6 +112,7 @@ computer. In Go code: `go get github.com/makiisthenes/TiktokAutoUploader/go`. Se
 [**Swiftproxy**](https://www.swiftproxy.net/?ref=makiisthenes) provides 90M+ clean residential and static residential proxies designed for social media automation, multi-account management, and web automation workflows. With stable connections, global IP coverage, and reliable proxy infrastructure, Swiftproxy helps users manage multiple accounts securely, reduce IP-related restrictions, and scale their automation tasks. Residential proxy traffic never expires until used, and free testing is available.
 
 > **Get 10% off** with code `PROXY90` — [Get proxies from Swiftproxy →](https://www.swiftproxy.net/?ref=makiisthenes)
+-->
 
 <br>
 
